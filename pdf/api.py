@@ -67,3 +67,4 @@ class Pdf(object):
         """save the writer to a pdf file with name 'name_new.pdf' """
         with open(self._new_path, 'wb') as out:
             self.writer.write(out)
+        return self._new_path

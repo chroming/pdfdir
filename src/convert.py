@@ -7,6 +7,7 @@ from collections import OrderedDict
 
 
 def split_page_num(text):
+    """split between title and page num"""
     text = text.strip()
     args = re.split('(\d*$)', text)
     if len(args) > 1:
@@ -18,10 +19,17 @@ def text_to_list(text):
     return text.splitlines()
 
 
-def no_child_convert(dir_str, offset=0):
+def no_child_convert(dir_text, offset=0):
+    """
+    convert a directory with out child directory
+
+    :param: dir_text: unicode, the directory text, usually copy from a bookstore like amazon.
+    :param: offset: int, the offset of this book.
+    :return: the dict of directory, like {'title0': {'pagenum': 0, 'child': {'title01': {'pagenum': 1}...}}...}
+    """
     index_dict = OrderedDict()
     pagenum = 0
-    dir_list = text_to_list(dir_str)
+    dir_list = text_to_list(dir_text)
     for di in dir_list:
         title, num = split_page_num(di)
         if num != -1 and num > pagenum:

@@ -28,5 +28,5 @@ def add_bookmark(path, index_dict):
     """
     pdf = Pdf(path)
     _add_bookmark(pdf, index_dict)
-    pdf.save_pdf()
+    return pdf.save_pdf()
 
