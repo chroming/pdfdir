@@ -2,9 +2,9 @@
 
 根据已有的目录文本为你的PDF自动生成目录。
 
-![](http://ww1.sinaimg.cn/large/6d9375cbgy1fidwtal7czj20970btmx1.jpg)
+![](https://user-images.githubusercontent.com/9926275/29131441-7fb95754-7d5f-11e7-8ebe-78b989ff1984.png)
 
-*此项目实现逻辑深受 项目影响。*
+*此项目实现逻辑深受 https://github.com/ifnoelse/pdf-bookmark 项目影响。*
 
 ## 下载
 
