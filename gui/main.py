@@ -10,7 +10,7 @@ import webbrowser
 
 from PyQt4 import QtGui
 
-from main_ui import Ui_MainWindow
+from .main_ui import Ui_MainWindow
 from src.pdfdirectory import add_directory
 
 
