@@ -8,7 +8,7 @@ The main GUI model of project.
 import sys
 import webbrowser
 
-from PyQt4 import QtGui
+from PySide import QtGui
 
 from .main_ui import Ui_MainWindow
 from src.pdfdirectory import add_directory
@@ -44,13 +44,13 @@ class Main(QtGui.QMainWindow, Ui_MainWindow):
         webbrowser.open('http://www.z.cn', new=1)
 
     def _get_args(self):
-        pdf_path = self.pdf_path_edit.text().toUtf8().data().decode('utf-8')
-        offset = int(self.offset_edit.text().toUtf8().data())
-        dir_text = self.dir_text_edit.toPlainText().toUtf8().data().decode('utf-8')
+        pdf_path = self.pdf_path_edit.text()
+        offset = int(self.offset_edit.text())
+        dir_text = self.dir_text_edit.toPlainText()
         return dir_text, offset, pdf_path
 
     def open_file_dialog(self):
-        filename = QtGui.QFileDialog.getOpenFileName(self, u'选择PDF', filter="PDF (*.pdf)")
+        filename, _ = QtGui.QFileDialog.getOpenFileName(self, u'选择PDF', filter="PDF (*.pdf)")
         self.pdf_path_edit.setText(filename)
 
     def export_pdf(self):

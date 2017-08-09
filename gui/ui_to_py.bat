@@ -1,1 +1,1 @@
-pyuic4 -i 0 main.ui -o main_ui.py
+pyside-uic -i 0 main.ui -o main_ui.py
