@@ -8,17 +8,17 @@ The main GUI model of project.
 import sys
 import webbrowser
 
-from PySide import QtGui
+from Qt import QtWidgets
 
 from .main_ui import Ui_MainWindow
 from src.pdfdirectory import add_directory
 
 
-class Main(QtGui.QMainWindow, Ui_MainWindow):
+class Main(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(Main, self).__init__()
         self.setupUi(self)
-        self.setWindowTitle(u'PDF目录添加工具 V0.1')
+        self.setWindowTitle(u'PDF目录添加工具 V0.1.1')
         self._set_connect()
         self._set_action()
 
@@ -50,7 +50,7 @@ class Main(QtGui.QMainWindow, Ui_MainWindow):
         return dir_text, offset, pdf_path
 
     def open_file_dialog(self):
-        filename, _ = QtGui.QFileDialog.getOpenFileName(self, u'选择PDF', filter="PDF (*.pdf)")
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, u'选择PDF', filter="PDF (*.pdf)")
         self.pdf_path_edit.setText(filename)
 
     def export_pdf(self):
@@ -59,7 +59,7 @@ class Main(QtGui.QMainWindow, Ui_MainWindow):
 
 
 def run():
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     window = Main()
     window.show()
     sys.exit(app.exec_())
