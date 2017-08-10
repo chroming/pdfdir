@@ -52,8 +52,8 @@ Windows 下直接运行.exe程序即可。
 
 运行源码所需环境：
 
-+ Python2
-+ PySide
++ Python2/3 均可
++ PyQt5
 + PyPDF2
 
 环境装好之后进入源码目录，运行以下命令：
@@ -70,7 +70,7 @@ Windows 下直接运行.exe程序即可。
 
 打包时注意：如果你修改过 `main.ui` 文件则需在打包前运行以下命令将ui文件转换为py文件：
 
-`pyside-uic -i 0 ./gui/main.ui -o ./gui/main_ui.py`
+`pyinstaller -i 0 ./gui/main.ui -o ./gui/main_ui.py`
 
 ### 目录文本格式
 
