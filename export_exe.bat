@@ -1,2 +1,2 @@
-call pyside-uic -i 0 ./gui/main.ui -o ./gui/main_ui.py
-call pyinstaller -F run_gui.py -n "PDFdir.exe" --noconsole
+call python ./gui/ui_to_py.py
+call python D:/pyinstaller-develop/pyinstaller.py -F run_gui.py -n "PDFdir.exe"  --noconsole

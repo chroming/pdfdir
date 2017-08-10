@@ -139,3 +139,5 @@ $RECYCLE.BIN/
 *.lnk
 
 .idea/*
+/PDFdir.exe.spec
+/main.spec

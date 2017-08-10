@@ -8,9 +8,10 @@ The main GUI model of project.
 import sys
 import webbrowser
 
-from Qt import QtWidgets
+from PyQt5 import QtWidgets
 
 from .main_ui import Ui_MainWindow
+
 from src.pdfdirectory import add_directory
 
 
@@ -18,7 +19,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(Main, self).__init__()
         self.setupUi(self)
-        self.setWindowTitle(u'PDF目录添加工具 V0.1.1')
+        self.setWindowTitle(u'PDF目录添加工具 V0.1.2')
         self._set_connect()
         self._set_action()
 
@@ -55,7 +56,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def export_pdf(self):
         new_path = add_directory(*self._get_args())
-        self.statusbar.showMessage(u"%s 生成成功！" % new_path, timeout=3000)
+        self.statusbar.showMessage(u"%s 生成成功！" % new_path, 3000)
 
 
 def run():
