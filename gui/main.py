@@ -33,15 +33,15 @@ class Main(QtGui.QMainWindow, Ui_MainWindow):
 
     @staticmethod
     def _open_home_page():
-        webbrowser.open('http://www.baidu.com', new=1)
+        webbrowser.open('https://github.com/chroming/pdfdir', new=1)
 
     @staticmethod
     def _open_help_page():
-        webbrowser.open('http://www.google.com', new=1)
+        webbrowser.open('https://github.com/chroming/pdfdir/blob/master/readme.md', new=1)
 
     @staticmethod
     def _open_update_page():
-        webbrowser.open('http://www.z.cn', new=1)
+        webbrowser.open('https://github.com/chroming/pdfdir/releases', new=1)
 
     def _get_args(self):
         pdf_path = self.pdf_path_edit.text()
@@ -55,7 +55,7 @@ class Main(QtGui.QMainWindow, Ui_MainWindow):
 
     def export_pdf(self):
         new_path = add_directory(*self._get_args())
-        self.statusbar.showMessage(u"%s 生成成功！" % new_path)
+        self.statusbar.showMessage(u"%s 生成成功！" % new_path, timeout=3000)
 
 
 def run():
