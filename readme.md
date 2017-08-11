@@ -8,9 +8,13 @@
 
 ## 下载
 
+Windows:
+
 [下载地址](https://github.com/chroming/pdfdir/releases)
 
-Windows 下直接运行.exe程序即可。
+Macos/Linux:
+
+请暂时使用源码运行。源码运行方式见后文。
 
 ## 基本用法
 
@@ -55,6 +59,16 @@ Windows 下直接运行.exe程序即可。
 + Python2/3 均可
 + PyQt5
 + PyPDF2
+
+安装Python3:
+
+https://www.python.org/downloads/
+
+安装PyQt5, PyPDF2:
+
+`pip install pyqt5`
+'pip install pypdf2'
+
 
 环境装好之后进入源码目录，运行以下命令：
 
