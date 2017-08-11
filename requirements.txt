@@ -1,2 +1,1 @@
-pyqt5
 pyPDF2
