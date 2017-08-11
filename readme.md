@@ -1,5 +1,7 @@
 # pdfdir —— PDF目录自动添加工具
 
+[![Build Status](https://travis-ci.org/chroming/pdfdir.svg?branch=master)](https://travis-ci.org/chroming/pdfdir)
+
 根据已有的目录文本为你的PDF自动生成目录。
 
 ![](https://user-images.githubusercontent.com/9926275/29131441-7fb95754-7d5f-11e7-8ebe-78b989ff1984.png)
