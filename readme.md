@@ -69,14 +69,15 @@ https://www.python.org/downloads/
 安装PyQt5, PyPDF2:
 
 `pip install pyqt5`
-'pip install pypdf2'
+
+`pip install pypdf2`
 
 
 环境装好之后进入源码目录，运行以下命令：
 
 `python run_gui.py`
 
-如果不需要界面程序的话:
+如果不需要界面的话:
 
 `python run.py`
 
