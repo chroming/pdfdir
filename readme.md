@@ -1,12 +1,21 @@
-# pdfdir —— PDF目录自动添加工具
+# pdfdir —— PDF导航书签添加工具
 
 [![Build Status](https://travis-ci.org/chroming/pdfdir.svg?branch=master)](https://travis-ci.org/chroming/pdfdir)
 
-根据已有的目录文本为你的PDF自动生成目录。
+根据已有的目录文本为你的PDF自动生成导航书签。
 
 ![](https://user-images.githubusercontent.com/9926275/29131441-7fb95754-7d5f-11e7-8ebe-78b989ff1984.png)
 
 *此项目实现逻辑深受 https://github.com/ifnoelse/pdf-bookmark 项目影响。*
+
+## 软件功能
+
+根据网上或PDF中已有的目录内容自动将导航书签插入PDF文件中。
+
+适用于以下场景：
+
+1. 扫描版电子书籍无导航书签；
+2. 文字版电子文档无导航书签但PDF中有目录。
 
 ## 下载
 
@@ -50,7 +59,7 @@ Macos/Linux:
 
 + 一般图书非正文部分（如序言，目录等）没有标页码或使用另一套页码标记，本程序将这些目录默认链接到第一页，如需修正这些链接可通过手动修改目录文本实现。
 + 有些正文中的目录没有标页码，程序会将该条目录链接到上一个有页码的页面。
-+ 程序目前还不处理子目录结构，所有目录均放在第一级。
++ 程序目前还不处理子目录结构，所有导航书签均放在第一级。
 
 ## 其他
 
@@ -58,7 +67,7 @@ Macos/Linux:
 
 运行源码所需环境：
 
-+ Python2/3 均可
++ Python2/3 均可，推荐Python3
 + PyQt5
 + PyPDF2
 
