@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MainWindow</class>
- <widget class="QMainWindow" name="MainWindow">
+ <class>PDFdir</class>
+ <widget class="QMainWindow" name="PDFdir">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -29,7 +29,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>PDFdir</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QLineEdit" name="pdf_path_edit">
@@ -78,16 +78,16 @@
      </rect>
     </property>
     <property name="text">
-     <string>写入目录</string>
+     <string>写入导航</string>
     </property>
    </widget>
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
       <x>9</x>
-      <y>9</y>
-      <width>73</width>
-      <height>16</height>
+      <y>6</y>
+      <width>214</width>
+      <height>19</height>
      </rect>
     </property>
     <property name="text">
@@ -98,9 +98,9 @@
     <property name="geometry">
      <rect>
       <x>9</x>
-      <y>66</y>
-      <width>54</width>
-      <height>12</height>
+      <y>63</y>
+      <width>217</width>
+      <height>19</height>
      </rect>
     </property>
     <property name="text">
@@ -111,9 +111,9 @@
     <property name="geometry">
      <rect>
       <x>237</x>
-      <y>66</y>
+      <y>65</y>
       <width>54</width>
-      <height>12</height>
+      <height>13</height>
      </rect>
     </property>
     <property name="text">
@@ -164,7 +164,15 @@
     <addaction name="help_action"/>
     <addaction name="update_action"/>
    </widget>
+   <widget class="QMenu" name="menu">
+    <property name="title">
+     <string>语言</string>
+    </property>
+    <addaction name="english_action"/>
+    <addaction name="chinese_action"/>
+   </widget>
    <addaction name="help_menu"/>
+   <addaction name="menu"/>
   </widget>
   <action name="home_page_action">
    <property name="text">
@@ -179,6 +187,16 @@
   <action name="update_action">
    <property name="text">
     <string>检查更新</string>
+   </property>
+  </action>
+  <action name="english_action">
+   <property name="text">
+    <string>English</string>
+   </property>
+  </action>
+  <action name="chinese_action">
+   <property name="text">
+    <string>中文</string>
    </property>
   </action>
  </widget>

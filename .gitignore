@@ -141,3 +141,7 @@ $RECYCLE.BIN/
 .idea/*
 /PDFdir.exe.spec
 /main.spec
+gui/main_layout.ui
+gui/main_n.ui
+test.py
+/tools/
