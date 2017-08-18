@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-"""Convert a directory which from website to index dict"""
+"""Convert a directory text which from website to index dict"""
 
 import re
-from collections import OrderedDict
 
 
 def split_page_num(text):
-    """split between title and page num"""
+    """split between title and page number"""
     text = text.strip()
     args = re.split('(\d*$)', text)
     if len(args) > 1:
@@ -19,21 +18,53 @@ def text_to_list(text):
     return text.splitlines()
 
 
-def no_child_convert(dir_text, offset=0):
-    """
-    convert a directory with out child directory
+def is_in(title, exp):
+    return bool(re.match(exp, title))
 
-    :param: dir_text: unicode, the directory text, usually copy from a bookstore like amazon.
-    :param: offset: int, the offset of this book.
-    :return: the dict of directory, like {'title0': {'pagenum': 0, 'child': {'title01': {'pagenum': 1}...}}...}
-    """
-    index_dict = OrderedDict()
-    pagenum = 0
+
+def check_level(title, level1, level2):
+    """check the level of this title"""
+    if level2:
+        if is_in(title, level2):
+            return 2
+        elif is_in(title, level1):
+            return 1
+    elif level1:
+        if is_in(title, level1):
+            return 1
+    return 0
+
+
+def _convert_dir_text(dir_text, offset=0, level1=None, level2=None):
+    l0, l1, pagenum, index_dict = 0, 0, 0, {}
     dir_list = text_to_list(dir_text)
+    i = 0
     for di in dir_list:
         title, num = split_page_num(di)
         if num != -1 and num > pagenum:
             pagenum = num
-        index_dict[title] = {'pagenum': pagenum+offset-1}
+        index_dict[i] = {'title': title, 'pagenum': pagenum+offset-1}
+        level = check_level(title, level1, level2)
+        if level == 2:
+            index_dict[i]['parent'] = l1
+        elif level == 1:
+            index_dict[i]['parent'] = l0
+            l1 = i
+        elif level == 0:
+            l0 = i
+        i += 1
     return index_dict
 
+
+def convert_dir_text(dir_text, offset=0, level1=None, level2=None):
+    """
+    convert directory text to dict.
+
+    :param: dir_text: unicode, the directory text, usually copy from a bookstore like amazon.
+    :param: offset: int, the offset of this book.
+    :param: level1: unicode, the exp to find level1 title.
+    :param: level2: unicode, the exp to find level2 title.
+    :return: the dict of directory, like {0:{'title':'A', 'pagenum':1}, 1:{'title':'B', pagenum:2, parent: 0} ......}
+
+    """
+    return _convert_dir_text(dir_text, offset, level1, level2)

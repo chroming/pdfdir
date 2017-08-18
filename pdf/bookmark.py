@@ -12,19 +12,18 @@ Public:
 from .api import Pdf
 
 
-def _add_bookmark(pdf, index_dict, parent=None):
-    for title, dic in index_dict.items():
-        paren = pdf.add_bookmark(title, dic['pagenum'], parent=parent)
-        child = dic.get('child', None)
-        if child:
-            return _add_bookmark(child, paren)
+def _add_bookmark(pdf, index_dict):
+    m = max(index_dict.keys())
+    for i in range(m):
+        value = index_dict[i]
+        pdf.add_bookmark(value.get('title', ''), value.get('pagenum', 0), value.get('parent'))
 
 
 def add_bookmark(path, index_dict):
     """
     Add directory bookmarks to the pdf file.
     :param path: pdf file path.
-    :param index_dict: bookmarks dict, like {'title0': {'pagenum': 0, 'child': {'title01': {'pagenum': 1}...}}...}
+    :param index_dict: bookmarks dict, like {0:{'title':'A', 'pagenum':1}, 1:{'title':'B', pagenum:2, parent: 0} ......}
     """
     pdf = Pdf(path)
     _add_bookmark(pdf, index_dict)
