@@ -16,16 +16,18 @@ def test_is_in():
 
 
 def test_check_level():
-    assert check_level('123', '1', '2') == 1
-    assert check_level('第2单元 编程基础', '第\d章', '第\d节') == 0
-    assert check_level('第7章 正则', '第\d章', '第\d节') == 1
-    assert check_level('第7节 零宽断言', '第\d章', '第\d节') == 2
-    assert check_level('第7节 零宽断言', None, None) == 0
+    assert check_level('123', '0', '1', '2') == 1
+    assert check_level('第2单元 编程基础', None, '第\d章', '第\d节') == 0
+    assert check_level('第7章 正则', None, '第\d章', '第\d节') == 1
+    assert check_level('第7节 零宽断言', None, '第\d章', '第\d节') == 2
+    assert check_level('第7节 零宽断言', None, None, None) == 0
 
 
 def test_convert_dir_text():
     assert convert_dir_text('第2单元 编程基础---... 23', 0) == {0: {'title': '第2单元 编程基础', 'pagenum': 22}}
-    assert convert_dir_text('a1\n第2单元 编程基础---... 23 \n第7章 正则 \n第7节 零宽断言\n第8章 正则21\n第3单元 编程实例---... 34', 1, '第\d章', '第\d节') == {0: {'title': 'a', 'pagenum': 1}, 1: {'title': '第2单元 编程基础', 'pagenum': 23}, 2: {'title': '第7章 正则', 'pagenum': 23, 'parent': 1}, 3: {'title': '第7节 零宽断言', 'pagenum': 23, 'parent': 2}, 4: {'title': '第8章 正则', 'pagenum': 23, 'parent': 1}, 5: {'title': '第3单元 编程实例', 'pagenum': 34}}
+    assert convert_dir_text('a1\n第2单元 编程基础---... 23 \n第7章 正则 \n第7节 零宽断言\n第8章 正则21\n第3单元 编程实例---... 34', 1, level1='第\d章', level2='第\d节') == {0: {'title': 'a', 'pagenum': 1}, 1: {'title': '第2单元 编程基础', 'pagenum': 23}, 2: {'title': '第7章 正则', 'pagenum': 23, 'parent': 1}, 3: {'title': '第7节 零宽断言', 'pagenum': 23, 'parent': 2}, 4: {'title': '第8章 正则', 'pagenum': 23, 'parent': 1}, 5: {'title': '第3单元 编程实例', 'pagenum': 34}}
+    assert convert_dir_text('a1\n第2单元 编程基础---... 23 \n第7章 正则 \n第7节 零宽断言\nb25\n第8章 正则21\n第3单元 编程实例---... 34', 1, level0='第\d单元', level1='第\d章', level2='第\d节', other=2) == {0: {'title': 'a', 'pagenum': 1, 'parent': 0}, 1: {'title': '第2单元 编程基础', 'pagenum': 23}, 2: {'title': '第7章 正则', 'pagenum': 23, 'parent': 1}, 3: {'title': '第7节 零宽断言', 'pagenum': 23, 'parent': 2}, 4: {'title': 'b', 'pagenum': 25, 'parent': 2}, 5: {'title': '第8章 正则', 'pagenum': 25, 'parent': 1}, 6: {'title': '第3单元 编程实例', 'pagenum': 34}}
+
 
 
 
