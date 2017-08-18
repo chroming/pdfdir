@@ -19,23 +19,21 @@ def text_to_list(text):
 
 
 def is_in(title, exp):
-    return bool(re.match(exp, title))
+    return bool(re.match(exp, title)) if exp else False
 
 
-def check_level(title, level1, level2):
+def check_level(title, level0, level1, level2, other=0):
     """check the level of this title"""
-    if level2:
-        if is_in(title, level2):
-            return 2
-        elif is_in(title, level1):
-            return 1
-    elif level1:
-        if is_in(title, level1):
-            return 1
-    return 0
+    if is_in(title, level2):
+        return 2
+    elif is_in(title, level1):
+        return 1
+    elif is_in(title, level0):
+        return 0
+    return other
 
 
-def _convert_dir_text(dir_text, offset=0, level1=None, level2=None):
+def _convert_dir_text(dir_text, offset=0, level0=None, level1=None, level2=None, other=0):
     l0, l1, pagenum, index_dict = 0, 0, 0, {}
     dir_list = text_to_list(dir_text)
     i = 0
@@ -44,7 +42,7 @@ def _convert_dir_text(dir_text, offset=0, level1=None, level2=None):
         if num != -1 and num > pagenum:
             pagenum = num
         index_dict[i] = {'title': title, 'pagenum': pagenum+offset-1}
-        level = check_level(title, level1, level2)
+        level = check_level(title, level0, level1, level2, other)
         if level == 2:
             index_dict[i]['parent'] = l1
         elif level == 1:
@@ -56,15 +54,17 @@ def _convert_dir_text(dir_text, offset=0, level1=None, level2=None):
     return index_dict
 
 
-def convert_dir_text(dir_text, offset=0, level1=None, level2=None):
+def convert_dir_text(dir_text, offset=0, level0=None, level1=None, level2=None, other=0):
     """
     convert directory text to dict.
 
     :param: dir_text: unicode, the directory text, usually copy from a bookstore like amazon.
     :param: offset: int, the offset of this book.
+    :param: level0: unicode, the exp to find level0 title.
     :param: level1: unicode, the exp to find level1 title.
     :param: level2: unicode, the exp to find level2 title.
+    :param: other: unicode, three level can't match title, then this is the level.
     :return: the dict of directory, like {0:{'title':'A', 'pagenum':1}, 1:{'title':'B', pagenum:2, parent: 0} ......}
 
     """
-    return _convert_dir_text(dir_text, offset, level1, level2)
+    return _convert_dir_text(dir_text, offset, level0, level1, level2, other)
