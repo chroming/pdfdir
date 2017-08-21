@@ -21,6 +21,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir):
         self.app = app
         self.trans = trans
         self.setupUi(self)
+        self.setWindowTitle(u'PDFdir V0.2')
         self._set_connect()
         self._set_action()
 
@@ -60,7 +61,11 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir):
         pdf_path = self.pdf_path_edit.text()
         offset = int(self.offset_edit.text())
         dir_text = self.dir_text_edit.toPlainText()
-        return dir_text, offset, pdf_path
+        level0 = self.level0_edit.text() if self.level0_box.isChecked() else None
+        level1 = self.level1_edit.text() if self.level1_box.isChecked() else None
+        level2 = self.level2_edit.text() if self.level2_box.isChecked() else None
+        other = self.select_level_box.currentIndex()
+        return dir_text, offset, pdf_path, level0, level1, level2, other
 
     def open_file_dialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, u'select PDF', filter="PDF (*.pdf)")

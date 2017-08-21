@@ -58,7 +58,7 @@ class Pdf(object):
 
         title: str, the bookmark title.
         pagenum: int, the page num this bookmark refer to.
-        parent: IndirectObject, the parent of this bookmark, the default is None.
+        parent: IndirectObject(the addBookmark() return object), the parent of this bookmark, the default is None.
 
         """
         return self.writer.addBookmark(title, pagenum, parent=parent)

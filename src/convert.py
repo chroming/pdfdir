@@ -60,9 +60,9 @@ def convert_dir_text(dir_text, offset=0, level0=None, level1=None, level2=None, 
 
     :param: dir_text: unicode, the directory text, usually copy from a bookstore like amazon.
     :param: offset: int, the offset of this book.
-    :param: level0: unicode, the exp to find level0 title.
-    :param: level1: unicode, the exp to find level1 title.
-    :param: level2: unicode, the exp to find level2 title.
+    :param: level0: unicode, the expression to find level0 title.
+    :param: level1: unicode, the expression to find level1 title.
+    :param: level2: unicode, the expression to find level2 title.
     :param: other: unicode, three level can't match title, then this is the level.
     :return: the dict of directory, like {0:{'title':'A', 'pagenum':1}, 1:{'title':'B', pagenum:2, parent: 0} ......}
 

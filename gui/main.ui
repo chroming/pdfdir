@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>315</width>
-    <height>386</height>
+    <width>319</width>
+    <height>450</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -24,8 +24,8 @@
   </property>
   <property name="maximumSize">
    <size>
-    <width>315</width>
-    <height>386</height>
+    <width>320</width>
+    <height>500</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -45,7 +45,7 @@
    <widget class="QPushButton" name="open_button">
     <property name="geometry">
      <rect>
-      <x>237</x>
+      <x>240</x>
       <y>30</y>
       <width>70</width>
       <height>20</height>
@@ -61,8 +61,20 @@
       <x>9</x>
       <y>87</y>
       <width>217</width>
-      <height>244</height>
+      <height>311</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>8</pointsize>
+     </font>
+    </property>
+    <property name="html">
+     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'SimSun'; font-size:8pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
     <property name="acceptRichText">
      <bool>false</bool>
@@ -71,8 +83,8 @@
    <widget class="QPushButton" name="export_button">
     <property name="geometry">
      <rect>
-      <x>237</x>
-      <y>312</y>
+      <x>240</x>
+      <y>380</y>
       <width>70</width>
       <height>20</height>
      </rect>
@@ -110,7 +122,7 @@
    <widget class="QLabel" name="label_3">
     <property name="geometry">
      <rect>
-      <x>237</x>
+      <x>240</x>
       <y>65</y>
       <width>54</width>
       <height>13</height>
@@ -123,7 +135,7 @@
    <widget class="QLineEdit" name="offset_edit">
     <property name="geometry">
      <rect>
-      <x>237</x>
+      <x>240</x>
       <y>87</y>
       <width>70</width>
       <height>20</height>
@@ -139,6 +151,128 @@
      <number>3</number>
     </property>
    </widget>
+   <widget class="QLineEdit" name="level0_edit">
+    <property name="geometry">
+     <rect>
+      <x>240</x>
+      <y>170</y>
+      <width>70</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string extracomment="可变部分用*代替，如“第*部分”"/>
+    </property>
+    <property name="echoMode">
+     <enum>QLineEdit::Normal</enum>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="level0_box">
+    <property name="geometry">
+     <rect>
+      <x>240</x>
+      <y>150</y>
+      <width>71</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>首层</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="level1_edit">
+    <property name="geometry">
+     <rect>
+      <x>240</x>
+      <y>220</y>
+      <width>70</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string extracomment="可变部分用*代替，如“第*章”"/>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="level1_box">
+    <property name="geometry">
+     <rect>
+      <x>240</x>
+      <y>200</y>
+      <width>71</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>二层</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="level2_edit">
+    <property name="geometry">
+     <rect>
+      <x>240</x>
+      <y>270</y>
+      <width>70</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string extracomment="可变部分用*代替，如“第*节”"/>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="level2_box">
+    <property name="geometry">
+     <rect>
+      <x>240</x>
+      <y>250</y>
+      <width>71</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>三层</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_4">
+    <property name="geometry">
+     <rect>
+      <x>240</x>
+      <y>300</y>
+      <width>54</width>
+      <height>12</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string extracomment="以上三层均未识别出的时归为哪层">未识别</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="select_level_box">
+    <property name="geometry">
+     <rect>
+      <x>240</x>
+      <y>320</y>
+      <width>69</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="currentText">
+     <string extracomment="以上三层均未识别出的时归为哪层">首层</string>
+    </property>
+    <item>
+     <property name="text">
+      <string>首层</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>二层</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>三层</string>
+     </property>
+    </item>
+   </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar">
    <property name="font">
@@ -152,7 +286,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>315</width>
+     <width>319</width>
      <height>23</height>
     </rect>
    </property>
