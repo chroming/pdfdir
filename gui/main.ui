@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>319</width>
+    <width>320</width>
     <height>450</height>
    </rect>
   </property>
@@ -254,7 +254,7 @@ p, li { white-space: pre-wrap; }
       <height>22</height>
      </rect>
     </property>
-    <property name="currentText">
+    <property name="currentText" stdset="0">
      <string extracomment="以上三层均未识别出的时归为哪层">首层</string>
     </property>
     <item>
@@ -273,6 +273,58 @@ p, li { white-space: pre-wrap; }
      </property>
     </item>
    </widget>
+   <widget class="QGroupBox" name="groupBox">
+    <property name="geometry">
+     <rect>
+      <x>234</x>
+      <y>123</y>
+      <width>82</width>
+      <height>229</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+      <weight>75</weight>
+      <italic>false</italic>
+      <bold>true</bold>
+      <underline>false</underline>
+      <kerning>true</kerning>
+     </font>
+    </property>
+    <property name="autoFillBackground">
+     <bool>true</bool>
+    </property>
+    <property name="title">
+     <string>子目录</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+    <property name="flat">
+     <bool>false</bool>
+    </property>
+    <property name="checkable">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <zorder>groupBox</zorder>
+   <zorder>pdf_path_edit</zorder>
+   <zorder>open_button</zorder>
+   <zorder>dir_text_edit</zorder>
+   <zorder>export_button</zorder>
+   <zorder>label</zorder>
+   <zorder>label_2</zorder>
+   <zorder>label_3</zorder>
+   <zorder>offset_edit</zorder>
+   <zorder>level0_edit</zorder>
+   <zorder>level0_box</zorder>
+   <zorder>level1_edit</zorder>
+   <zorder>level1_box</zorder>
+   <zorder>level2_edit</zorder>
+   <zorder>level2_box</zorder>
+   <zorder>label_4</zorder>
+   <zorder>select_level_box</zorder>
   </widget>
   <widget class="QStatusBar" name="statusbar">
    <property name="font">
@@ -286,7 +338,7 @@ p, li { white-space: pre-wrap; }
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>319</width>
+     <width>320</width>
      <height>23</height>
     </rect>
    </property>
