@@ -15,7 +15,7 @@ from .api import Pdf
 def _add_bookmark(pdf, index_dict):
     m = max(index_dict.keys())
     parent_dict = {}  # {parent index:IndirectObject}
-    for i in range(m):
+    for i in range(m+1):
         value = index_dict[i]
         inobject = pdf.add_bookmark(value.get('title', ''), value.get('pagenum', 0), parent_dict.get(value.get('parent')))
         parent_dict[i] = inobject
