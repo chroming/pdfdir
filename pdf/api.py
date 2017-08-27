@@ -11,7 +11,7 @@ public:
 
 import os
 
-from PyPDF2 import PdfFileWriter, PdfFileReader
+from PyPDF2 import PdfFileWriter, PdfFileReader, utils
 
 
 class Pdf(object):
@@ -42,7 +42,7 @@ class Pdf(object):
         reader = PdfFileReader(open(path, "rb"))
         self.writer = PdfFileWriter()
         self.writer.appendPagesFromReader(reader)
-        self.writer.addMetadata(reader.getDocumentInfo())
+        self.writer.addMetadata({k: v for k, v in reader.getDocumentInfo().items() if isinstance(v, (utils.string_type, utils.bytes_type))})
 
     @property
     def _new_path(self):
