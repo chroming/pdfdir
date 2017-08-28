@@ -49,7 +49,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir):
         webbrowser.open('https://github.com/chroming/pdfdir/releases', new=1)
 
     def to_englist(self):
-        self.trans.load("./gui/en")
+        self.trans.load("./language/en")
         self.app.installTranslator(self.trans)
         self.retranslateUi(self)
 
