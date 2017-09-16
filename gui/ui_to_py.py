@@ -8,5 +8,5 @@ def ui_py(ui_file, py_file):
 
 
 if __name__ == '__main__':
-    ui_py('main.ui', 'main_ui.py')
+    ui_py('./gui/main.ui', './gui/main_ui.py')
 
