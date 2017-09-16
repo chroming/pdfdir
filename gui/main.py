@@ -24,10 +24,15 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir):
         self.setWindowTitle(u'PDFdir V0.2')
         self._set_connect()
         self._set_action()
+        self._set_unwritable()
 
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
         self.export_button.clicked.connect(self.export_pdf)
+
+        self.level0_box.clicked.connect(self._change_level0_writable)
+        self.level1_box.clicked.connect(self._change_level1_writable)
+        self.level2_box.clicked.connect(self._change_level2_writable)
 
     def _set_action(self):
         self.home_page_action.triggered.connect(self._open_home_page)
@@ -35,6 +40,20 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir):
         self.update_action.triggered.connect(self._open_update_page)
         self.english_action.triggered.connect(self.to_englist)
         self.chinese_action.triggered.connect(self.to_chinese)
+
+    def _set_unwritable(self):
+        self.level0_edit.setEnabled(False)
+        self.level1_edit.setEnabled(False)
+        self.level2_edit.setEnabled(False)
+
+    def _change_level0_writable(self):
+        self.level0_edit.setEnabled(True if self.level0_box.isChecked() else False)
+
+    def _change_level1_writable(self):
+        self.level1_edit.setEnabled(True if self.level1_box.isChecked() else False)
+
+    def _change_level2_writable(self):
+        self.level2_edit.setEnabled(True if self.level2_box.isChecked() else False)
 
     @staticmethod
     def _open_home_page():
