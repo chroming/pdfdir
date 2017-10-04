@@ -1,18 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import sys
+
+from six.moves import input
 
 from src.pdfdirectory import add_directory
 
 
-version = 3 if sys.version_info[0] == 3 else 2
-
-
 def get_input(message):
-    if version == 3:
-        return input(message)
-    else:
-        return raw_input(message).decode(sys.stdin.encoding)
+    return input(message)
 
 
 if __name__ == '__main__':
