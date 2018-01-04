@@ -17,8 +17,8 @@ class Ui_PDFdir(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(PDFdir.sizePolicy().hasHeightForWidth())
         PDFdir.setSizePolicy(sizePolicy)
-        PDFdir.setMinimumSize(QtCore.QSize(315, 386))
-        PDFdir.setMaximumSize(QtCore.QSize(320, 500))
+        PDFdir.setMinimumSize(QtCore.QSize(320, 450))
+        PDFdir.setMaximumSize(QtCore.QSize(320, 450))
         self.centralwidget = QtWidgets.QWidget(PDFdir)
         self.centralwidget.setObjectName("centralwidget")
         self.pdf_path_edit = QtWidgets.QLineEdit(self.centralwidget)
@@ -35,7 +35,7 @@ class Ui_PDFdir(object):
         self.dir_text_edit.setAcceptRichText(False)
         self.dir_text_edit.setObjectName("dir_text_edit")
         self.export_button = QtWidgets.QPushButton(self.centralwidget)
-        self.export_button.setGeometry(QtCore.QRect(240, 380, 70, 20))
+        self.export_button.setGeometry(QtCore.QRect(240, 378, 70, 20))
         self.export_button.setObjectName("export_button")
         self.label = QtWidgets.QLabel(self.centralwidget)
         self.label.setGeometry(QtCore.QRect(9, 6, 214, 19))
@@ -77,7 +77,7 @@ class Ui_PDFdir(object):
         self.label_4.setGeometry(QtCore.QRect(240, 300, 54, 12))
         self.label_4.setObjectName("label_4")
         self.select_level_box = QtWidgets.QComboBox(self.centralwidget)
-        self.select_level_box.setGeometry(QtCore.QRect(240, 320, 69, 22))
+        self.select_level_box.setGeometry(QtCore.QRect(240, 320, 71, 22))
         self.select_level_box.setObjectName("select_level_box")
         self.select_level_box.addItem("")
         self.select_level_box.addItem("")
@@ -122,7 +122,7 @@ class Ui_PDFdir(object):
         self.statusbar.setObjectName("statusbar")
         PDFdir.setStatusBar(self.statusbar)
         self.menuBar = QtWidgets.QMenuBar(PDFdir)
-        self.menuBar.setGeometry(QtCore.QRect(0, 0, 320, 23))
+        self.menuBar.setGeometry(QtCore.QRect(0, 0, 320, 22))
         self.menuBar.setObjectName("menuBar")
         self.help_menu = QtWidgets.QMenu(self.menuBar)
         self.help_menu.setObjectName("help_menu")
@@ -157,8 +157,8 @@ class Ui_PDFdir(object):
         self.dir_text_edit.setHtml(_translate("PDFdir", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'SimSun\'; font-size:8pt; font-weight:400; font-style:normal;\">\n"
-"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p></body></html>"))
+"</style></head><body style=\" font-family:\'.SF NS Text\'; font-size:8pt; font-weight:400; font-style:normal;\">\n"
+"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:\'SimSun\';\"><br /></p></body></html>"))
         self.export_button.setText(_translate("PDFdir", "写入导航"))
         self.label.setText(_translate("PDFdir", "PDF文件路径"))
         self.label_2.setText(_translate("PDFdir", "目录文本"))
@@ -168,7 +168,7 @@ class Ui_PDFdir(object):
         self.level1_box.setText(_translate("PDFdir", "二层"))
         self.level2_box.setText(_translate("PDFdir", "三层"))
         self.label_4.setText(_translate("PDFdir", "未识别"))
-        self.select_level_box.setProperty("currentText", _translate("PDFdir", "首层"))
+        self.select_level_box.setCurrentText(_translate("PDFdir", "首层"))
         self.select_level_box.setItemText(0, _translate("PDFdir", "首层"))
         self.select_level_box.setItemText(1, _translate("PDFdir", "二层"))
         self.select_level_box.setItemText(2, _translate("PDFdir", "三层"))
