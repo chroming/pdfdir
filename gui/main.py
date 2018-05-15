@@ -11,8 +11,9 @@ import webbrowser
 from PyQt5 import QtWidgets, QtCore
 
 from .main_ui import Ui_PDFdir
-
 from src.pdfdirectory import add_directory
+
+QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
 
 class Main(QtWidgets.QMainWindow, Ui_PDFdir):
@@ -103,6 +104,7 @@ def run():
     window = Main(app, trans)
     window.show()
     sys.exit(app.exec_())
+
 
 if __name__ == '__main__':
     run()
