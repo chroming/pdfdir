@@ -12,6 +12,7 @@ from PyQt5 import QtWidgets, QtCore
 
 from .main_ui import Ui_PDFdir
 from src.pdfdirectory import add_directory
+from src.isupdated import is_updated
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
@@ -22,7 +23,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir):
         self.app = app
         self.trans = trans
         self.setupUi(self)
-        self.setWindowTitle(u'PDFdir V0.2')
+        self.version = 'v0.2.2'
+        self.setWindowTitle(u'PDFdir %s' % self.version)
         self._set_connect()
         self._set_action()
         self._set_unwritable()
@@ -64,9 +66,18 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir):
     def _open_help_page():
         webbrowser.open('https://github.com/chroming/pdfdir/blob/master/readme.md', new=1)
 
-    @staticmethod
-    def _open_update_page():
-        webbrowser.open('https://github.com/chroming/pdfdir/releases', new=1)
+    def _open_update_page(self):
+        url = 'https://github.com/chroming/pdfdir/releases'
+        try:
+            updated = is_updated(url, self.version)
+        except Exception:
+            self.statusbar.showMessage(u"Check update failed", 3000)
+        else:
+            if updated:
+                self.statusbar.showMessage(u"Find new version", 3000)
+                webbrowser.open(url, new=1)
+            else:
+                self.statusbar.showMessage(u"No update", 3000)
 
     def to_englist(self):
         self.trans.load("./language/en")
