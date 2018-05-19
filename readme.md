@@ -29,7 +29,7 @@ Windows/macOS/Ubuntu:
 
 其他平台：
 
-请使用[源码方式](#通过源码运行)运行。
+请使用[源码方式](#通过源码运行)运行或自行打包。
 
 ## 基本用法
 
@@ -82,23 +82,35 @@ Windows/macOS/Ubuntu:
 + Python2/3 均可，推荐Python3
 + PyQt5
 + PyPDF2
++ six
 
-安装Python3:
+*注意：Python2与Python3 不兼容，某些系统（如macOS）系统自带Python2，使用`python`命令调用，若自行安装Python3则可能需要通过`python3`来调用Python3，pip同理。本文不区分python/python3, pip/pip3，请用户按当前系统所安装版本使用对应命令。*
+
+#### 获取代码
+
+`git clone https://github.com/chroming/pdfdir`
+
+#### 安装运行环境
+
+安装Python:
 
 https://www.python.org/downloads/
 
-安装PyQt5, PyPDF2:
+安装依赖包:
 
-`pip install pyqt5`
+进入项目目录，执行：
 
-`pip install pypdf2`
+`pip install -r requirements.txt`
 
+`pip install -r pyqt5`
+
+若提示`No matching distribution found for pyqt5` 可参照[PyQt官方文档](http://pyqt.sourceforge.net/Docs/PyQt5/installation.html)进行安装。
 
 环境装好之后进入源码目录，运行以下命令：
 
 `python run_gui.py`
 
-如果不需要界面的话:
+如果不需要GUI界面:
 
 `python run.py`
 
@@ -106,7 +118,14 @@ https://www.python.org/downloads/
 
 如果你想在本机打包此程序：
 
-本程序使用 Pyinstaller 打包，当然你也可以选择自己喜欢的打包工具进行打包。
+安装Pyinstaller
+
+`pip install pyinstaller`
+
+打包程序
+
+`pyinstaller.py -F run_gui.py -n "PDFdir.exe"  --noconsole`
+
 
 ### 目录文本格式
 
