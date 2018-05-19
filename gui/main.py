@@ -9,19 +9,54 @@ import sys
 import webbrowser
 
 from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtCore import Qt
+
 
 from .main_ui import Ui_PDFdir
-
 from src.pdfdirectory import add_directory
 from src.isupdated import is_updated
 
+QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
-class Main(QtWidgets.QMainWindow, Ui_PDFdir):
+
+def dynamic_base_class(instance, cls_name, new_class):
+    instance.__class__ = type(cls_name, (new_class, instance.__class__), {})
+    return instance
+
+
+class WindowDragMixin(object):
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.m_drag = True
+            self.m_DragPosition = event.globalPos() - self.pos()
+            event.accept()
+
+    def mouseMoveEvent(self, QMouseEvent):
+        if QMouseEvent.buttons() and Qt.LeftButton:
+            self.move(QMouseEvent.globalPos() - self.m_DragPosition)
+            QMouseEvent.accept()
+
+    def mouseReleaseEvent(self, QMouseEvent):
+        self.m_drag = False
+
+
+class ControlButtonMixin(QtWidgets.QWidget):
+    def __init__(self):
+        super(ControlButtonMixin, self).__init__()
+
+    def set_control_button(self, min_button, exit_button):
+        min_button.clicked.connect(self.showMinimized)
+        exit_button.clicked.connect(self.close)
+
+
+class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin, WindowDragMixin):
     def __init__(self, app, trans):
         super(Main, self).__init__()
+        self.setWindowFlags(Qt.FramelessWindowHint)
         self.app = app
         self.trans = trans
         self.setupUi(self)
+        self.menuBar.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.version = 'v0.2.2'
         self.setWindowTitle(u'PDFdir %s' % self.version)
         self._set_connect()
@@ -114,6 +149,7 @@ def run():
     window = Main(app, trans)
     window.show()
     sys.exit(app.exec_())
+
 
 if __name__ == '__main__':
     run()
