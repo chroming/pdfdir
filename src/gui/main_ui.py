@@ -153,13 +153,13 @@ class Ui_PDFdir(object):
     def retranslateUi(self, PDFdir):
         _translate = QtCore.QCoreApplication.translate
         PDFdir.setWindowTitle(_translate("PDFdir", "PDFdir"))
-        self.open_button.setText(_translate("PDFdir", "打开"))
+        self.open_button.setText(_translate("PDFdir", "选择文件"))
         self.dir_text_edit.setHtml(_translate("PDFdir", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
 "</style></head><body style=\" font-family:\'.SF NS Text\'; font-size:8pt; font-weight:400; font-style:normal;\">\n"
 "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:\'SimSun\';\"><br /></p></body></html>"))
-        self.export_button.setText(_translate("PDFdir", "写入导航"))
+        self.export_button.setText(_translate("PDFdir", "写入"))
         self.label.setText(_translate("PDFdir", "PDF文件路径"))
         self.label_2.setText(_translate("PDFdir", "目录文本"))
         self.label_3.setText(_translate("PDFdir", "偏移页"))

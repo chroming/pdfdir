@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from .convert import convert_dir_text
-from pdf.bookmark import add_bookmark
+from src.convert import convert_dir_text
+from src.pdf.bookmark import add_bookmark
 
 
 def add_directory(dir_text, offset, pdf_path, level0=None, level1=None, level2=None, other=0):

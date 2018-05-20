@@ -10,6 +10,7 @@ import webbrowser
 
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import Qt
+import qdarkstyle
 
 
 from .main_ui import Ui_PDFdir
@@ -52,7 +53,7 @@ class ControlButtonMixin(QtWidgets.QWidget):
 class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin, WindowDragMixin):
     def __init__(self, app, trans):
         super(Main, self).__init__()
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        # self.setWindowFlags(Qt.FramelessWindowHint)
         self.app = app
         self.trans = trans
         self.setupUi(self)
@@ -143,6 +144,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin, WindowDragMixin
 
 def run():
     app = QtWidgets.QApplication(sys.argv)
+    # app.setStyle('fusion')
+    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     trans = QtCore.QTranslator()
     # trans.load("./gui/en")
     # app.installTranslator(trans)

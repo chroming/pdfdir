@@ -20,7 +20,7 @@ class Pdf(object):
 
     Usage:
 
-    >>> from pdf.api import Pdf
+    >>> from src.pdf import Pdf
 
     read a exist pdf file:
     >>> p = Pdf('D:\\1.pdf')
