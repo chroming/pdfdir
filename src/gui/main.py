@@ -8,14 +8,15 @@ The main GUI model of project.
 import sys
 import webbrowser
 
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import Qt
-import qdarkstyle
+# import qdarkstyle
 
 
 from .main_ui import Ui_PDFdir
 from src.pdfdirectory import add_directory
 from src.isupdated import is_updated
+from src.config import RE_DICT
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
@@ -72,6 +73,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin, WindowDragMixin
         self.level1_box.clicked.connect(self._change_level1_writable)
         self.level2_box.clicked.connect(self._change_level2_writable)
 
+        self.level0_button.clicked.connect(lambda: self._level_button_clicked('level0'))
+        self.level1_button.clicked.connect(lambda: self._level_button_clicked('level1'))
+        self.level2_button.clicked.connect(lambda: self._level_button_clicked('level2'))
+
     def _set_action(self):
         self.home_page_action.triggered.connect(self._open_home_page)
         self.help_action.triggered.connect(self._open_help_page)
@@ -83,6 +88,17 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin, WindowDragMixin
         self.level0_edit.setEnabled(False)
         self.level1_edit.setEnabled(False)
         self.level2_edit.setEnabled(False)
+
+    def _level_button_clicked(self, level_str):
+        context_menu = QtWidgets.QMenu()
+        for k, v in RE_DICT.get(level_str).items():
+            context_menu.addAction(k, lambda v=v: self._insert_to_editor(level_str, v))
+        context_menu.exec_(QtGui.QCursor.pos())
+
+    def _insert_to_editor(self, level_str, text):
+        editor = getattr(self, level_str + '_edit')
+        if editor.isEnabled():
+            editor.insert(text)
 
     def _change_level0_writable(self):
         self.level0_edit.setEnabled(True if self.level0_box.isChecked() else False)
@@ -145,7 +161,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin, WindowDragMixin
 def run():
     app = QtWidgets.QApplication(sys.argv)
     # app.setStyle('fusion')
-    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+    # app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     trans = QtCore.QTranslator()
     # trans.load("./gui/en")
     # app.installTranslator(trans)

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>320</width>
+    <width>330</width>
     <height>450</height>
    </rect>
   </property>
@@ -18,13 +18,13 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>320</width>
+    <width>330</width>
     <height>450</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>320</width>
+    <width>330</width>
     <height>450</height>
    </size>
   </property>
@@ -137,7 +137,7 @@ p, li { white-space: pre-wrap; }
      <rect>
       <x>240</x>
       <y>87</y>
-      <width>70</width>
+      <width>75</width>
       <height>20</height>
      </rect>
     </property>
@@ -156,7 +156,7 @@ p, li { white-space: pre-wrap; }
      <rect>
       <x>240</x>
       <y>170</y>
-      <width>70</width>
+      <width>79</width>
       <height>20</height>
      </rect>
     </property>
@@ -172,7 +172,7 @@ p, li { white-space: pre-wrap; }
      <rect>
       <x>240</x>
       <y>150</y>
-      <width>71</width>
+      <width>49</width>
       <height>16</height>
      </rect>
     </property>
@@ -185,7 +185,7 @@ p, li { white-space: pre-wrap; }
      <rect>
       <x>240</x>
       <y>220</y>
-      <width>70</width>
+      <width>79</width>
       <height>20</height>
      </rect>
     </property>
@@ -198,7 +198,7 @@ p, li { white-space: pre-wrap; }
      <rect>
       <x>240</x>
       <y>200</y>
-      <width>71</width>
+      <width>49</width>
       <height>16</height>
      </rect>
     </property>
@@ -211,7 +211,7 @@ p, li { white-space: pre-wrap; }
      <rect>
       <x>240</x>
       <y>270</y>
-      <width>70</width>
+      <width>79</width>
       <height>20</height>
      </rect>
     </property>
@@ -224,7 +224,7 @@ p, li { white-space: pre-wrap; }
      <rect>
       <x>240</x>
       <y>250</y>
-      <width>71</width>
+      <width>49</width>
       <height>16</height>
      </rect>
     </property>
@@ -248,9 +248,9 @@ p, li { white-space: pre-wrap; }
    <widget class="QComboBox" name="select_level_box">
     <property name="geometry">
      <rect>
-      <x>240</x>
+      <x>238</x>
       <y>320</y>
-      <width>71</width>
+      <width>83</width>
       <height>22</height>
      </rect>
     </property>
@@ -278,7 +278,7 @@ p, li { white-space: pre-wrap; }
      <rect>
       <x>234</x>
       <y>123</y>
-      <width>82</width>
+      <width>89</width>
       <height>229</height>
      </rect>
     </property>
@@ -307,6 +307,102 @@ p, li { white-space: pre-wrap; }
     <property name="checkable">
      <bool>false</bool>
     </property>
+    <widget class="QPushButton" name="level0_button">
+     <property name="geometry">
+      <rect>
+       <x>66</x>
+       <y>24</y>
+       <width>19</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <underline>true</underline>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">color: rgb(0, 0, 255)</string>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="pushButton_3">
+     <property name="geometry">
+      <rect>
+       <x>70</x>
+       <y>88</y>
+       <width>19</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <underline>true</underline>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">color: rgb(0, 0, 255)</string>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="level1_button">
+     <property name="geometry">
+      <rect>
+       <x>66</x>
+       <y>76</y>
+       <width>19</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <underline>true</underline>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">color: rgb(0, 0, 255)</string>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="level2_button">
+     <property name="geometry">
+      <rect>
+       <x>66</x>
+       <y>126</y>
+       <width>19</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <underline>true</underline>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">color: rgb(0, 0, 255)</string>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+    </widget>
    </widget>
    <zorder>groupBox</zorder>
    <zorder>pdf_path_edit</zorder>
@@ -338,7 +434,7 @@ p, li { white-space: pre-wrap; }
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>320</width>
+     <width>330</width>
      <height>22</height>
     </rect>
    </property>
