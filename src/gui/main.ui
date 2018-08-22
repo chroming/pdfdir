@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>330</width>
+    <width>649</width>
     <height>450</height>
    </rect>
   </property>
@@ -24,9 +24,12 @@
   </property>
   <property name="maximumSize">
    <size>
-    <width>330</width>
+    <width>1000000</width>
     <height>450</height>
    </size>
+  </property>
+  <property name="acceptDrops">
+   <bool>true</bool>
   </property>
   <property name="windowTitle">
    <string>PDFdir</string>
@@ -73,8 +76,8 @@
      <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'.SF NS Text'; font-size:8pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'SimSun';&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'SimSun'; font-size:8pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
     <property name="acceptRichText">
      <bool>false</bool>
@@ -404,6 +407,116 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </widget>
+   <widget class="QTreeWidget" name="dir_tree_widget">
+    <property name="geometry">
+     <rect>
+      <x>340</x>
+      <y>30</y>
+      <width>271</width>
+      <height>371</height>
+     </rect>
+    </property>
+    <property name="acceptDrops">
+     <bool>true</bool>
+    </property>
+    <property name="dragDropMode">
+     <enum>QAbstractItemView::DragDrop</enum>
+    </property>
+    <property name="defaultDropAction">
+     <enum>Qt::MoveAction</enum>
+    </property>
+    <property name="selectionMode">
+     <enum>QAbstractItemView::ExtendedSelection</enum>
+    </property>
+    <column>
+     <property name="text">
+      <string>目录</string>
+     </property>
+     <property name="font">
+      <font>
+       <family>黑体</family>
+      </font>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>页数</string>
+     </property>
+     <property name="font">
+      <font>
+       <family>黑体</family>
+      </font>
+     </property>
+    </column>
+    <item>
+     <property name="text">
+      <string>新建项目</string>
+     </property>
+     <property name="font">
+      <font>
+       <family>方正兰亭黑简体</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>1</string>
+     </property>
+     <item>
+      <property name="text">
+       <string>新建子项目</string>
+      </property>
+      <property name="font">
+       <font>
+        <family>方正兰亭黑简体</family>
+       </font>
+      </property>
+      <property name="text">
+       <string>2</string>
+      </property>
+      <property name="font">
+       <font>
+        <family>方正兰亭黑简体</family>
+        <pointsize>9</pointsize>
+       </font>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>新建项目</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>新建项目</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>新建项目</string>
+      </property>
+     </item>
+    </item>
+    <item>
+     <property name="text">
+      <string>新建项目</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>新建项目</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>新建项目</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>新建项目</string>
+     </property>
+    </item>
+   </widget>
    <zorder>groupBox</zorder>
    <zorder>pdf_path_edit</zorder>
    <zorder>open_button</zorder>
@@ -421,6 +534,7 @@ p, li { white-space: pre-wrap; }
    <zorder>level2_box</zorder>
    <zorder>label_4</zorder>
    <zorder>select_level_box</zorder>
+   <zorder>dir_tree_widget</zorder>
   </widget>
   <widget class="QStatusBar" name="statusbar">
    <property name="font">
@@ -434,8 +548,8 @@ p, li { white-space: pre-wrap; }
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>330</width>
-     <height>22</height>
+     <width>649</width>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="help_menu">

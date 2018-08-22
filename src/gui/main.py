@@ -55,10 +55,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin, WindowDragMixin
     def __init__(self, app, trans):
         super(Main, self).__init__()
         # self.setWindowFlags(Qt.FramelessWindowHint)
+        # self.menuBar.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.app = app
         self.trans = trans
         self.setupUi(self)
-        self.menuBar.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.version = 'v0.2.2'
         self.setWindowTitle(u'PDFdir %s' % self.version)
         self._set_connect()
