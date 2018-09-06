@@ -416,6 +416,9 @@ p, li { white-space: pre-wrap; }
       <height>371</height>
      </rect>
     </property>
+    <property name="contextMenuPolicy">
+     <enum>Qt::CustomContextMenu</enum>
+    </property>
     <property name="acceptDrops">
      <bool>true</bool>
     </property>

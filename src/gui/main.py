@@ -13,10 +13,11 @@ from PyQt5.QtCore import Qt
 # import qdarkstyle
 
 
-from .main_ui import Ui_PDFdir
+from src.gui.main_ui import Ui_PDFdir
 from src.pdfdirectory import add_directory
 from src.isupdated import is_updated
 from src.config import RE_DICT
+from src.gui.base import TreeWidget
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
@@ -61,6 +62,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin, WindowDragMixin
         self.setupUi(self)
         self.version = 'v0.2.2'
         self.setWindowTitle(u'PDFdir %s' % self.version)
+        self.dir_tree_widget = dynamic_base_class(self.dir_tree_widget, 'TreeWidget', TreeWidget)
+        self.dir_tree_widget.init_connect(self)
         self._set_connect()
         self._set_action()
         self._set_unwritable()
