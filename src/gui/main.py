@@ -43,16 +43,13 @@ class WindowDragMixin(object):
         self.m_drag = False
 
 
-class ControlButtonMixin(QtWidgets.QWidget):
-    def __init__(self):
-        super(ControlButtonMixin, self).__init__()
-
+class ControlButtonMixin(object):
     def set_control_button(self, min_button, exit_button):
         min_button.clicked.connect(self.showMinimized)
         exit_button.clicked.connect(self.close)
 
 
-class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin, WindowDragMixin):
+class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def __init__(self, app, trans):
         super(Main, self).__init__()
         # self.setWindowFlags(Qt.FramelessWindowHint)
@@ -63,7 +60,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin, WindowDragMixin
         self.version = 'v0.2.2'
         self.setWindowTitle(u'PDFdir %s' % self.version)
         self.dir_tree_widget = dynamic_base_class(self.dir_tree_widget, 'TreeWidget', TreeWidget)
-        self.dir_tree_widget.init_connect(self)
+        self.dir_tree_widget.init_connect(parents=[self, self.dir_tree_widget])
         self._set_connect()
         self._set_action()
         self._set_unwritable()
