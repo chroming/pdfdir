@@ -78,8 +78,36 @@ class TreeWidget(MixinContextMenu):
         self.removeItemWidget(self.current_item, 0)
         self.removeItemWidget(self.current_item, 1)
 
+    def children(self, item):
+        child_items = []
+        for i in range(item.childCount()):
+            child_item = item.child(i)
+            child_items.extend({child_item: self.children(child_item)})
 
+    def to_qtree(self):
+        items = []
+        for i in range(self.topLevelItemCount()):
+            item = self.topLevelItem(i)
+            items.append({item: self.children(item)})
+        print(items)
+        return items
 
+    def children_to_dict(self, children, parent_index):
+        children_list = []
+        for child in children:
+            k, vs = child.items()
+            children_list.append({'title': k.text(0), 'pagenum': k.text(1), 'parent': parent_index})
+            children_list.extend(self.children_to_dict(vs))
+        return children_list
 
     def to_dict(self):
-        pass
+        qtrees = self.to_qtree()
+        i = 0
+        dir_dict = {}
+        for r in qtrees:
+            k, vs = r.items()
+            dir_dict[i] = {'title': k.text(0), 'pagenum': k.text(1)}
+            for c in self.children_to_dict(vs, i):
+                i += 1
+                dir_dict[i] = c
+        return dir_dict
