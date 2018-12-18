@@ -18,6 +18,7 @@ from src.pdfdirectory import add_directory
 from src.isupdated import is_updated
 from src.config import RE_DICT
 from src.gui.base import TreeWidget
+from src.convert import text_to_list
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
@@ -152,6 +153,13 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def open_file_dialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, u'select PDF', filter="PDF (*.pdf)")
         self.pdf_path_edit.setText(filename)
+
+    def to_dict(self):
+        print(self.dir_tree_widget.to_dict())
+
+    def to_tree_widget(self):
+        for line in text_to_list(self.dir_text_edit.toPlainText()):
+            self.dir_tree_widget.insertTopLevelItem(self.dir_tree_widget.topLevelItemCount(), QtWidgets.QTreeWidgetItem([line]))
 
     def export_pdf(self):
         new_path = add_directory(*self._get_args())
