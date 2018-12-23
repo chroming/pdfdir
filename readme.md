@@ -2,7 +2,9 @@
 
 [![Build Status](https://travis-ci.org/chroming/pdfdir.svg?branch=master)](https://travis-ci.org/chroming/pdfdir)
 
-**已支持子目录功能。**
+*注意：目前源码无法正常运行，等近期功能写好更新后我会新开可运行的稳定版源码。*
+
+*已支持子目录功能。**
 
 **已支持Windows/macOS/Ubuntu三平台。**
 
