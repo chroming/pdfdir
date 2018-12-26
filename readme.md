@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/chroming/pdfdir.svg?branch=master)](https://travis-ci.org/chroming/pdfdir)
 
-*注意：目前源码无法正常运行，等近期功能写好更新后我会新开可运行的稳定版源码。*
+*注意：目前源码无法直接运行，等近期功能写好更新后我会新开可运行的稳定版分支。*
 
 *已支持子目录功能。**
 
@@ -84,6 +84,8 @@ Windows/macOS/Ubuntu:
 ## 其他
 
 ### 通过源码运行
+
+*暂时无法使用此方式正常运行。*
 
 运行源码所需环境：
 
