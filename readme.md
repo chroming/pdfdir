@@ -2,12 +2,6 @@
 
 [![Build Status](https://travis-ci.org/chroming/pdfdir.svg?branch=master)](https://travis-ci.org/chroming/pdfdir)
 
-*注意：目前源码无法直接运行，等近期功能写好更新后我会新开可运行的稳定版分支。*
-
-*已支持子目录功能。**
-
-**已支持Windows/macOS/Ubuntu三平台。**
-
 根据已有的目录文本为你的PDF自动生成导航书签。
 
 ![pdfdir](https://user-images.githubusercontent.com/9926275/29554882-5ea72db8-8753-11e7-9667-fe71e00b9c58.png)
