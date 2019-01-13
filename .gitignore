@@ -145,3 +145,4 @@ src/gui/main_layout.ui
 src/gui/main_n.ui
 test.py
 /tools/
+.vs/*
