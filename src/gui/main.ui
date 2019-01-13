@@ -487,36 +487,57 @@ p, li { white-space: pre-wrap; }
       <property name="text">
        <string>新建项目</string>
       </property>
-     </item>
-     <item>
       <property name="text">
-       <string>新建项目</string>
+       <string>3</string>
       </property>
      </item>
      <item>
       <property name="text">
        <string>新建项目</string>
       </property>
+      <property name="text">
+       <string>4</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>新建项目</string>
+      </property>
+      <property name="text">
+       <string>5</string>
+      </property>
      </item>
     </item>
     <item>
      <property name="text">
       <string>新建项目</string>
      </property>
-    </item>
-    <item>
      <property name="text">
-      <string>新建项目</string>
+      <string>6</string>
      </property>
     </item>
     <item>
      <property name="text">
       <string>新建项目</string>
      </property>
+     <property name="text">
+      <string>7</string>
+     </property>
     </item>
     <item>
      <property name="text">
       <string>新建项目</string>
+     </property>
+     <property name="text">
+      <string>8</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>新建项目</string>
+     </property>
+     <property name="text">
+      <string>10</string>
      </property>
     </item>
    </widget>

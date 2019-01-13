@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file './src/gui/main.ui'
 #
-# Created by: PyQt5 UI code generator 5.10.1
+# Created by: PyQt5 UI code generator 5.11.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -132,6 +132,7 @@ class Ui_PDFdir(object):
         self.level2_button.setObjectName("level2_button")
         self.dir_tree_widget = QtWidgets.QTreeWidget(self.centralwidget)
         self.dir_tree_widget.setGeometry(QtCore.QRect(340, 30, 271, 371))
+        self.dir_tree_widget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.dir_tree_widget.setAcceptDrops(True)
         self.dir_tree_widget.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
         self.dir_tree_widget.setDefaultDropAction(QtCore.Qt.MoveAction)
@@ -253,12 +254,19 @@ class Ui_PDFdir(object):
         self.dir_tree_widget.topLevelItem(0).child(0).setText(0, _translate("PDFdir", "新建子项目"))
         self.dir_tree_widget.topLevelItem(0).child(0).setText(1, _translate("PDFdir", "2"))
         self.dir_tree_widget.topLevelItem(0).child(1).setText(0, _translate("PDFdir", "新建项目"))
+        self.dir_tree_widget.topLevelItem(0).child(1).setText(1, _translate("PDFdir", "3"))
         self.dir_tree_widget.topLevelItem(0).child(2).setText(0, _translate("PDFdir", "新建项目"))
+        self.dir_tree_widget.topLevelItem(0).child(2).setText(1, _translate("PDFdir", "4"))
         self.dir_tree_widget.topLevelItem(0).child(3).setText(0, _translate("PDFdir", "新建项目"))
+        self.dir_tree_widget.topLevelItem(0).child(3).setText(1, _translate("PDFdir", "5"))
         self.dir_tree_widget.topLevelItem(1).setText(0, _translate("PDFdir", "新建项目"))
+        self.dir_tree_widget.topLevelItem(1).setText(1, _translate("PDFdir", "6"))
         self.dir_tree_widget.topLevelItem(2).setText(0, _translate("PDFdir", "新建项目"))
+        self.dir_tree_widget.topLevelItem(2).setText(1, _translate("PDFdir", "7"))
         self.dir_tree_widget.topLevelItem(3).setText(0, _translate("PDFdir", "新建项目"))
+        self.dir_tree_widget.topLevelItem(3).setText(1, _translate("PDFdir", "8"))
         self.dir_tree_widget.topLevelItem(4).setText(0, _translate("PDFdir", "新建项目"))
+        self.dir_tree_widget.topLevelItem(4).setText(1, _translate("PDFdir", "10"))
         self.dir_tree_widget.setSortingEnabled(__sortingEnabled)
         self.help_menu.setTitle(_translate("PDFdir", "帮助"))
         self.menu.setTitle(_translate("PDFdir", "语言"))
