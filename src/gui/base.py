@@ -108,6 +108,7 @@ class TreeWidget(MixinContextMenu):
         dir_dict = {}
         for r in qtrees:
             k, vs = r
+            i += 1
             dir_dict[i] = {'title': k.text(0), 'pagenum': k.text(1)}
             for c in self.children_to_dict(vs, i):
                 i += 1
