@@ -19,6 +19,8 @@ from src.isupdated import is_updated
 from src.config import RE_DICT
 from src.gui.base import TreeWidget
 from src.convert import text_to_list
+from src.pdf.bookmark import add_bookmark
+
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
@@ -68,7 +70,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
+        # self.open_button.clicked.connect(self.to_tree_widget)
         self.export_button.clicked.connect(self.export_pdf)
+        # self.export_button.clicked.connect(self.tree_to_dict)
+        self.export_button.clicked.connect(self.write_tree_to_pdf)
 
         self.level0_box.clicked.connect(self._change_level0_writable)
         self.level1_box.clicked.connect(self._change_level1_writable)
@@ -150,12 +155,16 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         other = self.select_level_box.currentIndex()
         return dir_text, offset, pdf_path, level0, level1, level2, other
 
+    @property
+    def pdf_path(self):
+        return self.pdf_path_edit.text()
+
     def open_file_dialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, u'select PDF', filter="PDF (*.pdf)")
         self.pdf_path_edit.setText(filename)
 
-    def to_dict(self):
-        print(self.dir_tree_widget.to_dict())
+    def tree_to_dict(self):
+        return self.dir_tree_widget.to_dict()
 
     def to_tree_widget(self):
         for line in text_to_list(self.dir_text_edit.toPlainText()):
@@ -165,6 +174,12 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         new_path = add_directory(*self._get_args())
         self.statusbar.showMessage(u"%s Finished！" % new_path, 3000)
 
+    def write_tree_to_pdf(self):
+        return self.dict_to_pdf(self.pdf_path, self.tree_to_dict())
+
+    @staticmethod
+    def dict_to_pdf(pdf_path, index_dict):
+        return add_bookmark(pdf_path, index_dict)
 
 def run():
     app = QtWidgets.QApplication(sys.argv)
