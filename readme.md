@@ -8,6 +8,8 @@
 
 *此项目实现逻辑深受 https://github.com/ifnoelse/pdf-bookmark 项目影响。*
 
+自己画的软件界面太不友好，期待有懂设计的大佬帮忙设计界面，有意可直接联系 chroming@live.com , 不胜感激。
+
 ## 软件功能
 
 根据网上或PDF中已有的目录内容自动将导航书签插入PDF文件中。
