@@ -53,9 +53,11 @@ class MixinContextMenu(object):
 class TreeWidget(MixinContextMenu):
     def init_connect(self, parents=None):
         super(TreeWidget, self).__init__(parents)
-        self.itemClicked.connect(self.item_clicked)
+        self.itemPressed.connect(self.close_editor)
         self.itemDoubleClicked.connect(self.item_double_clicked)
         self.add_action('删除', self.item_remove_current)
+        self.last_item = None
+        self.last_column = None
 
     @property
     def current_item(self):
@@ -68,11 +70,25 @@ class TreeWidget(MixinContextMenu):
     def set_items(self, items):
         self._set_all_items(items)
 
+    def close_editor(self, *args):
+        if None not in (self.last_item, self.last_column):
+            self.closePersistentEditor(self.last_item, self.last_column)
+
     def item_clicked(self, item):
         self.closePersistentEditor(item, self.currentColumn())
 
     def item_double_clicked(self, item):
-        self.openPersistentEditor(item, self.currentColumn())
+        current_column = self.currentColumn()
+        if self.last_item == item:
+            if self.last_column == current_column:
+                self.closePersistentEditor(item, current_column)
+                return
+            else:
+                self.closePersistentEditor(item, self.last_column)
+
+        self.openPersistentEditor(item, current_column)
+        self.last_item = item
+        self.last_column = current_column
 
     def item_remove_current(self):
         self.removeItemWidget(self.current_item, 0)
