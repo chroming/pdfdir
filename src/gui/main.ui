@@ -276,7 +276,10 @@ p, li { white-space: pre-wrap; }
      </property>
     </item>
    </widget>
-   <widget class="QGroupBox" name="groupBox">
+   <widget class="QGroupBox" name="adv_group">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>234</x>
@@ -452,7 +455,7 @@ p, li { white-space: pre-wrap; }
      </property>
     </column>
    </widget>
-   <zorder>groupBox</zorder>
+   <zorder>adv_group</zorder>
    <zorder>pdf_path_edit</zorder>
    <zorder>open_button</zorder>
    <zorder>dir_text_edit</zorder>
