@@ -34,8 +34,8 @@ class MixinContextMenu(object):
         self._base_pos = value
 
     def _show_context_menu(self, pos):
-        self.context_menu.move(self.base_pos + pos)
-        self.context_menu.show()
+        if self.currentItem():
+            self.context_menu.exec_(self.viewport().mapToGlobal(pos))
 
     def add_action(self, name, handler, menu=None):
         menu = menu or self.context_menu
@@ -90,9 +90,17 @@ class TreeWidget(MixinContextMenu):
         self.last_item = item
         self.last_column = current_column
 
+    def remove_item(self, item):
+        parent = item.parent()
+        if parent:
+            parent.removeChild(item)
+        else:
+            self.takeTopLevelItem(self.indexOfTopLevelItem(item))
+
     def item_remove_current(self):
-        self.removeItemWidget(self.current_item, 0)
-        self.removeItemWidget(self.current_item, 1)
+        selecteds = self.selectedItems()
+        for item in selecteds:
+            self.remove_item(item)
 
     def children(self, item):
         child_items = []
