@@ -59,6 +59,12 @@ class TreeWidget(MixinContextMenu):
         self.last_item = None
         self.last_column = None
 
+    # TODO: Fix page num when drop item
+    def dropEvent(self, event):
+        """"""
+        # self.current_item.setText('')
+        super(TreeWidget, self).dropEvent(event)
+
     @property
     def current_item(self):
         return self.currentItem()

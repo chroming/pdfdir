@@ -25,8 +25,8 @@ from src.pdf.bookmark import add_bookmark
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
 
-def dynamic_base_class(instance, cls_name, new_class):
-    instance.__class__ = type(cls_name, (new_class, instance.__class__), {})
+def dynamic_base_class(instance, cls_name, new_class, **kwargs):
+    instance.__class__ = type(cls_name, (new_class, instance.__class__), kwargs)
     return instance
 
 
@@ -69,12 +69,15 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._set_action()
         self._set_unwritable()
 
+        self.adv_group.setEnabled(False)
+
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
-        self.export_button.clicked.connect(self.export_pdf)
+        # self.export_button.clicked.connect(self.export_pdf)
         self.export_button.clicked.connect(self.write_tree_to_pdf)
 
         self.dir_text_edit.textChanged.connect(self.to_tree_widget)
+
 
         self.level0_box.clicked.connect(self._change_level0_writable)
         self.level1_box.clicked.connect(self._change_level1_writable)
@@ -91,7 +94,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.home_page_action.triggered.connect(self._open_home_page)
         self.help_action.triggered.connect(self._open_help_page)
         self.update_action.triggered.connect(self._open_update_page)
-        self.english_action.triggered.connect(self.to_englist)
+        self.english_action.triggered.connect(self.to_english)
         self.chinese_action.triggered.connect(self.to_chinese)
 
     def _set_unwritable(self):
@@ -154,7 +157,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             else:
                 self.statusbar.showMessage(u"No update", 3000)
 
-    def to_englist(self):
+    def to_english(self):
         self.trans.load("./language/en")
         self.app.installTranslator(self.trans)
         self.retranslateUi(self)
