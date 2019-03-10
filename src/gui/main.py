@@ -64,6 +64,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.setWindowTitle(u'PDFdir %s' % self.version)
         self.dir_tree_widget = dynamic_base_class(self.dir_tree_widget, 'TreeWidget', TreeWidget)
         self.dir_tree_widget.init_connect(parents=[self, self.dir_tree_widget])
+        self.add_pagenum_box.setMinimum(-1000)
         self._set_connect()
         self._set_action()
         self._set_unwritable()
@@ -82,6 +83,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.level0_button.clicked.connect(lambda: self._level_button_clicked('level0'))
         self.level1_button.clicked.connect(lambda: self._level_button_clicked('level1'))
         self.level2_button.clicked.connect(lambda: self._level_button_clicked('level2'))
+
+        self.add_pagenum_to_selected_button.clicked.connect(self._add_selected_pagenum)
+        self.add_pagenum_to_all_button.clicked.connect(self._add_all_pagenum)
 
     def _set_action(self):
         self.home_page_action.triggered.connect(self._open_home_page)
@@ -114,6 +118,20 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def _change_level2_writable(self):
         self.level2_edit.setEnabled(True if self.level2_box.isChecked() else False)
+
+    def _add_pagenum_to_item(self, item):
+        current_num = int(item.text(1))
+        add_num = self.add_pagenum_box.value()
+        self.dir_tree_widget.set_pagenum(item, current_num + add_num)
+
+    def _add_selected_pagenum(self):
+        selected_items = self.dir_tree_widget.selectedItems()
+        for item in selected_items:
+            self._add_pagenum_to_item(item)
+
+    def _add_all_pagenum(self):
+        for item in self.dir_tree_widget.all_items:
+            self._add_pagenum_to_item(item)
 
     @staticmethod
     def _open_home_page():

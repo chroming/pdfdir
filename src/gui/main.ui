@@ -414,9 +414,9 @@ p, li { white-space: pre-wrap; }
     <property name="geometry">
      <rect>
       <x>340</x>
-      <y>30</y>
+      <y>66</y>
       <width>271</width>
-      <height>371</height>
+      <height>335</height>
      </rect>
     </property>
     <property name="contextMenuPolicy">
@@ -455,6 +455,55 @@ p, li { white-space: pre-wrap; }
      </property>
     </column>
    </widget>
+   <widget class="QSpinBox" name="add_pagenum_box">
+    <property name="geometry">
+     <rect>
+      <x>400</x>
+      <y>28</y>
+      <width>46</width>
+      <height>21</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="add_pagenum_to_selected_button">
+    <property name="geometry">
+     <rect>
+      <x>460</x>
+      <y>28</y>
+      <width>45</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>选中</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_5">
+    <property name="geometry">
+     <rect>
+      <x>340</x>
+      <y>34</y>
+      <width>54</width>
+      <height>12</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>页数增加</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="add_pagenum_to_all_button">
+    <property name="geometry">
+     <rect>
+      <x>514</x>
+      <y>28</y>
+      <width>41</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>全部</string>
+    </property>
+   </widget>
    <zorder>adv_group</zorder>
    <zorder>pdf_path_edit</zorder>
    <zorder>open_button</zorder>
@@ -473,6 +522,10 @@ p, li { white-space: pre-wrap; }
    <zorder>label_4</zorder>
    <zorder>select_level_box</zorder>
    <zorder>dir_tree_widget</zorder>
+   <zorder>add_pagenum_box</zorder>
+   <zorder>add_pagenum_to_selected_button</zorder>
+   <zorder>label_5</zorder>
+   <zorder>add_pagenum_to_all_button</zorder>
   </widget>
   <widget class="QStatusBar" name="statusbar">
    <property name="font">

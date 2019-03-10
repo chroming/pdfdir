@@ -2,7 +2,7 @@
 
 from functools import partial
 
-from PyQt5.QtWidgets import QTreeWidget, QMenu
+from PyQt5.QtWidgets import QTreeWidget, QMenu, QTreeWidgetItemIterator
 from PyQt5.QtCore import pyqtSlot, Qt, QPoint
 
 
@@ -62,6 +62,13 @@ class TreeWidget(MixinContextMenu):
     @property
     def current_item(self):
         return self.currentItem()
+
+    @property
+    def all_items(self):
+        it = QTreeWidgetItemIterator(self)
+        while it.value():
+            yield it.value()
+            it += 1
 
     def _set_all_items(self, items):
         self.clear()
@@ -139,6 +146,10 @@ class TreeWidget(MixinContextMenu):
             i += 1
         print(dir_dict)
         return dir_dict
+
+    @staticmethod
+    def set_pagenum(item, num):
+        item.setText(1, str(num))
 
     def from_dict(self, dir_dict):
         pass
