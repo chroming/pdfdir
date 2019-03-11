@@ -67,9 +67,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.add_pagenum_box.setMinimum(-1000)
         self._set_connect()
         self._set_action()
-        self._set_unwritable()
+        # self._set_unwritable()
 
-        self.adv_group.setEnabled(False)
+        # self.adv_group.setEnabled(False)
 
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
@@ -79,13 +79,13 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.dir_text_edit.textChanged.connect(self.to_tree_widget)
 
 
-        self.level0_box.clicked.connect(self._change_level0_writable)
-        self.level1_box.clicked.connect(self._change_level1_writable)
-        self.level2_box.clicked.connect(self._change_level2_writable)
-
-        self.level0_button.clicked.connect(lambda: self._level_button_clicked('level0'))
-        self.level1_button.clicked.connect(lambda: self._level_button_clicked('level1'))
-        self.level2_button.clicked.connect(lambda: self._level_button_clicked('level2'))
+        # self.level0_box.clicked.connect(self._change_level0_writable)
+        # self.level1_box.clicked.connect(self._change_level1_writable)
+        # self.level2_box.clicked.connect(self._change_level2_writable)
+        #
+        # self.level0_button.clicked.connect(lambda: self._level_button_clicked('level0'))
+        # self.level1_button.clicked.connect(lambda: self._level_button_clicked('level1'))
+        # self.level2_button.clicked.connect(lambda: self._level_button_clicked('level2'))
 
         self.add_pagenum_to_selected_button.clicked.connect(self._add_selected_pagenum)
         self.add_pagenum_to_all_button.clicked.connect(self._add_all_pagenum)
