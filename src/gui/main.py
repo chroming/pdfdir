@@ -125,7 +125,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def _add_pagenum_to_item(self, item):
         current_num = int(item.text(1))
         add_num = self.add_pagenum_box.value()
-        self.dir_tree_widget.set_pagenum(item, current_num + add_num)
+        self.dir_tree_widget.set_pagenum(item, max(current_num + add_num, 0))
 
     def _add_selected_pagenum(self):
         selected_items = self.dir_tree_widget.selectedItems()

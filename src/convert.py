@@ -11,7 +11,7 @@ def split_page_num(text):
     args = re.split('(\d*$)', text)
     if len(args) > 1:
         return args[0].rstrip(' .-'), int(args[1])
-    return args[0], 0
+    return args[0], 1
 
 
 def text_to_list(text):
