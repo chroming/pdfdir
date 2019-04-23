@@ -10,7 +10,7 @@ def split_page_num(text):
     text = text.strip()
     args = re.split('(\d*$)', text)
     if len(args) > 1:
-        return args[0].rstrip(' .-'), int(args[1])
+        return args[0].rstrip(' .-'), int(args[1] or 0)
     return args[0], 1
 
 
