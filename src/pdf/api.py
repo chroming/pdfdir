@@ -66,6 +66,8 @@ class Pdf(object):
 
     def save_pdf(self):
         """save the writer to a pdf file with name 'name_new.pdf' """
+        if os.path.exists(self._new_path):
+            os.remove(self._new_path)
         with open(self._new_path, 'wb') as out:
             self.writer.write(out)
         return self._new_path
