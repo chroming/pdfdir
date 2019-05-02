@@ -9,7 +9,7 @@ import sys
 import webbrowser
 
 from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QErrorMessage
 # import qdarkstyle
 
 
@@ -62,6 +62,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.setupUi(self)
         self.version = 'v0.2.2'
         self.setWindowTitle(u'PDFdir %s' % self.version)
+        self.setWindowIcon(QtGui.QIcon('pdf.ico'))
+        self.error_message = QErrorMessage()
         self.dir_tree_widget = dynamic_base_class(self.dir_tree_widget, 'TreeWidget', TreeWidget)
         self.dir_tree_widget.init_connect(parents=[self, self.dir_tree_widget])
         self.add_pagenum_box.setMinimum(-1000)
@@ -201,7 +203,12 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.statusbar.showMessage(u"%s Finished！" % new_path, 3000)
 
     def write_tree_to_pdf(self):
-        return self.dict_to_pdf(self.pdf_path, self.tree_to_dict())
+        try:
+            new_path = self.dict_to_pdf(self.pdf_path, self.tree_to_dict())
+            self.statusbar.showMessage(u"%s Finished！" % new_path, 3000)
+        except PermissionError:
+            self.error_message.showMessage(u"Permission denied！")
+
 
     @staticmethod
     def dict_to_pdf(pdf_path, index_dict):
