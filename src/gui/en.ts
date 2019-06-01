@@ -4,77 +4,77 @@
 <context>
     <name>PDFdir</name>
     <message>
-        <location filename="main_ui.py" line="155"/>
+        <location filename="main_ui.py" line="115"/>
         <source>PDFdir</source>
         <translation>PDFdir</translation>
     </message>
     <message utf8="true">
         <location filename="main_ui.py" line="156"/>
         <source>打开</source>
-        <translation>Open</translation>
+        <translation type="obsolete">Open</translation>
     </message>
     <message utf8="true">
         <location filename="main_ui.py" line="162"/>
         <source>写入导航</source>
-        <translation>write</translation>
+        <translation type="obsolete">write</translation>
     </message>
     <message utf8="true">
-        <location filename="main_ui.py" line="163"/>
+        <location filename="main_ui.py" line="123"/>
         <source>PDF文件路径</source>
         <translation>PDF file path</translation>
     </message>
     <message utf8="true">
-        <location filename="main_ui.py" line="164"/>
+        <location filename="main_ui.py" line="124"/>
         <source>目录文本</source>
         <translation>directory text</translation>
     </message>
     <message utf8="true">
         <location filename="main_ui.py" line="165"/>
         <source>偏移页</source>
-        <translation>offset</translation>
+        <translation type="obsolete">offset</translation>
     </message>
     <message>
         <location filename="main_ui.py" line="166"/>
         <source>0</source>
-        <translation>0</translation>
+        <translation type="obsolete">0</translation>
     </message>
     <message utf8="true">
-        <location filename="main_ui.py" line="176"/>
+        <location filename="main_ui.py" line="131"/>
         <source>帮助</source>
         <translation>Help</translation>
     </message>
     <message utf8="true">
-        <location filename="main_ui.py" line="177"/>
+        <location filename="main_ui.py" line="132"/>
         <source>语言</source>
         <translation>Language</translation>
     </message>
     <message utf8="true">
-        <location filename="main_ui.py" line="178"/>
+        <location filename="main_ui.py" line="133"/>
         <source>主页</source>
         <translation>Homepage</translation>
     </message>
     <message utf8="true">
-        <location filename="main_ui.py" line="179"/>
+        <location filename="main_ui.py" line="134"/>
         <source>帮助手册</source>
         <translation>Usage</translation>
     </message>
     <message utf8="true">
-        <location filename="main_ui.py" line="180"/>
+        <location filename="main_ui.py" line="135"/>
         <source>检查更新</source>
         <translation>Update</translation>
     </message>
     <message>
-        <location filename="main_ui.py" line="181"/>
+        <location filename="main_ui.py" line="136"/>
         <source>English</source>
         <translation>English</translation>
     </message>
     <message utf8="true">
-        <location filename="main_ui.py" line="182"/>
+        <location filename="main_ui.py" line="137"/>
         <source>中文</source>
         <translation>中文</translation>
     </message>
     <message>
-        <location filename="main_ui.py" line="157"/>
+        <location filename="main_ui.py" line="117"/>
         <source>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
@@ -85,27 +85,67 @@ p, li { white-space: pre-wrap; }
     <message utf8="true">
         <location filename="main_ui.py" line="172"/>
         <source>首层</source>
-        <translation>level 1</translation>
+        <translation type="obsolete">level 1</translation>
     </message>
     <message utf8="true">
         <location filename="main_ui.py" line="173"/>
         <source>二层</source>
-        <translation>level 2</translation>
+        <translation type="obsolete">level 2</translation>
     </message>
     <message utf8="true">
         <location filename="main_ui.py" line="174"/>
         <source>三层</source>
-        <translation>level 3</translation>
+        <translation type="obsolete">level 3</translation>
     </message>
     <message utf8="true">
         <location filename="main_ui.py" line="170"/>
         <source>未识别</source>
-        <translation>unidentified</translation>
+        <translation type="obsolete">unidentified</translation>
     </message>
     <message utf8="true">
         <location filename="main_ui.py" line="175"/>
         <source>子目录</source>
-        <translation type="unfinished">subdir</translation>
+        <translation type="obsolete">subdir</translation>
+    </message>
+    <message utf8="true">
+        <location filename="main_ui.py" line="116"/>
+        <source>选择文件</source>
+        <translation>Select file</translation>
+    </message>
+    <message utf8="true">
+        <location filename="main_ui.py" line="122"/>
+        <source>写入</source>
+        <translation>Write</translation>
+    </message>
+    <message utf8="true">
+        <location filename="main_ui.py" line="125"/>
+        <source>目录</source>
+        <translation>directory</translation>
+    </message>
+    <message utf8="true">
+        <location filename="main_ui.py" line="126"/>
+        <source>页数</source>
+        <translation>page</translation>
+    </message>
+    <message utf8="true">
+        <location filename="main_ui.py" line="127"/>
+        <source>选中</source>
+        <translation>select</translation>
+    </message>
+    <message utf8="true">
+        <location filename="main_ui.py" line="128"/>
+        <source>页数增加</source>
+        <translation>add page num</translation>
+    </message>
+    <message utf8="true">
+        <location filename="main_ui.py" line="129"/>
+        <source>全部</source>
+        <translation>all</translation>
+    </message>
+    <message utf8="true">
+        <location filename="main_ui.py" line="130"/>
+        <source>写入目录</source>
+        <translation>Write directory</translation>
     </message>
 </context>
 </TS>
