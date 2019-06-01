@@ -5,7 +5,7 @@ from src.convert import *
 
 def test_split_page_num():
     assert split_page_num("ABC1") == ("ABC", 1)
-    assert split_page_num("ABC") == ("ABC", 0)
+    assert split_page_num("ABC") == ("ABC", 1)
     assert split_page_num("12") == ("", 12)
 
 
