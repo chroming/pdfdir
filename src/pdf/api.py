@@ -39,7 +39,7 @@ class Pdf(object):
     """
     def __init__(self, path):
         self.path = path
-        reader = PdfFileReader(open(path, "rb"))
+        reader = PdfFileReader(open(path, "rb"), strict=False)
         self.writer = PdfFileWriter()
         self.writer.appendPagesFromReader(reader)
         self.writer.addMetadata({k: v for k, v in reader.getDocumentInfo().items()
