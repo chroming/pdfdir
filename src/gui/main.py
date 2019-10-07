@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import QErrorMessage
 from src.gui.main_ui import Ui_PDFdir
 from src.pdfdirectory import add_directory
 from src.isupdated import is_updated
-from src.config import RE_DICT
+from src.config import RE_DICT, CONFIG
 from src.gui.base import TreeWidget
 from src.convert import text_to_list, split_page_num
 from src.pdf.bookmark import add_bookmark
@@ -60,9 +60,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.app = app
         self.trans = trans
         self.setupUi(self)
-        self.version = 'v0.2.2'
-        self.setWindowTitle(u'PDFdir %s' % self.version)
-        self.setWindowIcon(QtGui.QIcon('pdf.ico'))
+        self.version = CONFIG.VERSION
+        self.setWindowTitle(u'{name} {version}'.format(name=CONFIG.APP_NAME, version=CONFIG.VERSION))
+        self.setWindowIcon(QtGui.QIcon('{icon}'.format(icon=CONFIG.WINDOW_ICON)))
         self.error_message = QErrorMessage()
         self.dir_tree_widget = dynamic_base_class(self.dir_tree_widget, 'TreeWidget', TreeWidget)
         self.dir_tree_widget.init_connect(parents=[self, self.dir_tree_widget])
@@ -75,20 +75,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
-        # self.export_button.clicked.connect(self.export_pdf)
         self.export_button.clicked.connect(self.write_tree_to_pdf)
-
         self.dir_text_edit.textChanged.connect(self.to_tree_widget)
-
-
-        # self.level0_box.clicked.connect(self._change_level0_writable)
-        # self.level1_box.clicked.connect(self._change_level1_writable)
-        # self.level2_box.clicked.connect(self._change_level2_writable)
-        #
-        # self.level0_button.clicked.connect(lambda: self._level_button_clicked('level0'))
-        # self.level1_button.clicked.connect(lambda: self._level_button_clicked('level1'))
-        # self.level2_button.clicked.connect(lambda: self._level_button_clicked('level2'))
-
         self.add_pagenum_to_selected_button.clicked.connect(self._add_selected_pagenum)
         self.add_pagenum_to_all_button.clicked.connect(self._add_all_pagenum)
 
@@ -140,14 +128,14 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     @staticmethod
     def _open_home_page():
-        webbrowser.open('https://github.com/chroming/pdfdir', new=1)
+        webbrowser.open(CONFIG.HOME_PAGE_URL, new=1)
 
     @staticmethod
     def _open_help_page():
-        webbrowser.open('https://github.com/chroming/pdfdir/blob/master/readme.md', new=1)
+        webbrowser.open(CONFIG.HELP_PAGE_URL, new=1)
 
     def _open_update_page(self):
-        url = 'https://github.com/chroming/pdfdir/releases'
+        url = CONFIG.RELEASE_PAGE_URL
         try:
             updated = is_updated(url, self.version)
         except Exception:
