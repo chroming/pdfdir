@@ -8,10 +8,12 @@ import re
 def split_page_num(text):
     """split between title and page number"""
     text = text.strip()
-    args = re.split('(\d*$)', text)
-    if len(args) > 1:
-        return args[0].rstrip(' .-'), int(args[1] or 0)
-    return args[0], 1
+    con, num = re.search(r"(.*?)((?<!-)-?\d+$|\d*$)", text).groups()
+    if con:
+        con = con.rstrip(' .-')
+    if num == '':
+        num = 1
+    return con, int(num)
 
 
 def text_to_list(text):
