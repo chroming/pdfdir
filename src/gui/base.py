@@ -135,7 +135,10 @@ class TreeWidget(MixinContextMenu):
         children_list = []
         for child in children:
             k, vs = child
-            children_list.append({'title': k.text(0), 'pagenum': int(k.text(1)), 'parent': parent_index})
+            children_list.append({'title': k.text(0),
+                                  'num': int(k.text(1)),
+                                  'real_num': int(k.text(2)),
+                                  'parent': parent_index})
             children_list.extend(self.children_to_dict(vs, k.text(1)))
         return children_list
 
@@ -145,12 +148,11 @@ class TreeWidget(MixinContextMenu):
         dir_dict = {}
         for r in qtrees:
             k, vs = r
-            dir_dict[i] = {'title': k.text(0), 'pagenum': int(k.text(1))}
+            dir_dict[i] = {'title': k.text(0), 'num': int(k.text(1)), 'real_num': int(k.text(2))}
             for c in self.children_to_dict(vs, i):
                 i += 1
                 dir_dict[i] = c
             i += 1
-        print(dir_dict)
         return dir_dict
 
     @staticmethod

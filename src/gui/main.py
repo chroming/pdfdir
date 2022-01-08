@@ -174,8 +174,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     @property
     def offset_num(self):
-        offset = self.offset_edit.text() or 0
-        return int(offset)
+        offset = self.offset_edit.text()
+        if isinstance(offset, str) and offset.lstrip("-").isdigit():
+            return int(offset)
+        return 0
 
     @property
     def level0_text(self):
@@ -250,7 +252,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.statusbar.showMessage(u"%s Finished！" % new_path, 3000)
         except PermissionError:
             self.error_message.showMessage(u"Permission denied！")
-
 
     @staticmethod
     def dict_to_pdf(pdf_path, index_dict):
