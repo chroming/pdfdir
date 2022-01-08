@@ -123,6 +123,9 @@ p, li { white-space: pre-wrap; }
     </property>
    </widget>
    <widget class="QTreeWidget" name="dir_tree_widget">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>336</x>
@@ -131,11 +134,24 @@ p, li { white-space: pre-wrap; }
       <height>367</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <pointsize>8</pointsize>
+      <weight>50</weight>
+      <bold>false</bold>
+     </font>
+    </property>
     <property name="contextMenuPolicy">
      <enum>Qt::CustomContextMenu</enum>
     </property>
     <property name="acceptDrops">
      <bool>true</bool>
+    </property>
+    <property name="autoScroll">
+     <bool>false</bool>
+    </property>
+    <property name="editTriggers">
+     <set>QAbstractItemView::NoEditTriggers</set>
     </property>
     <property name="dragDropMode">
      <enum>QAbstractItemView::DragDrop</enum>
@@ -146,6 +162,15 @@ p, li { white-space: pre-wrap; }
     <property name="selectionMode">
      <enum>QAbstractItemView::ExtendedSelection</enum>
     </property>
+    <property name="autoExpandDelay">
+     <number>1</number>
+    </property>
+    <attribute name="headerVisible">
+     <bool>true</bool>
+    </attribute>
+    <attribute name="headerCascadingSectionResizes">
+     <bool>false</bool>
+    </attribute>
     <column>
      <property name="text">
       <string>目录</string>

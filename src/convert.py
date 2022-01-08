@@ -43,11 +43,11 @@ def _convert_dir_text(dir_text, offset=0, level0=None, level1=None, level2=None,
         title, num = split_page_num(di)
         if num != -1 and num > pagenum:
             pagenum = num
-        index_dict[i] = {'title': title, 'pagenum': pagenum+offset-1}
+        index_dict[i] = {'title': title, 'real_num': pagenum+offset, 'num': pagenum}
         level = check_level(title, level0, level1, level2, other)
-        if level == 2:
+        if level == 2 and i != l1:
             index_dict[i]['parent'] = l1
-        elif level == 1:
+        elif level == 1 and i != l0:
             index_dict[i]['parent'] = l0
             l1 = i
         elif level == 0:

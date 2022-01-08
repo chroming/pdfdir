@@ -18,7 +18,7 @@ from src.pdfdirectory import add_directory
 from src.isupdated import is_updated
 from src.config import RE_DICT, CONFIG
 from src.gui.base import TreeWidget
-from src.convert import text_to_list, split_page_num
+from src.convert import convert_dir_text
 from src.pdf.bookmark import add_bookmark
 
 
@@ -78,9 +78,13 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.export_button.clicked.connect(self.write_tree_to_pdf)
         for act in (self.dir_text_edit.textChanged,
                     self.offset_edit.textChanged,
+                    self.level0_box.stateChanged,
+                    self.level1_box.stateChanged,
+                    self.level2_box.stateChanged,
                     self.level0_edit.textChanged,
-                    self.level0_edit.textChanged,
+                    self.level1_edit.textChanged,
                     self.level2_edit.textChanged,
+                    self.unknown_level_box.currentIndexChanged
                     ):
             act.connect(self.make_dir_tree)
 
@@ -165,6 +169,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         return self.pdf_path_edit.text()
 
     @property
+    def dir_text(self):
+        return self.dir_text_edit.toPlainText()
+
+    @property
     def offset_num(self):
         offset = self.offset_edit.text() or 0
         return int(offset)
@@ -183,7 +191,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     @property
     def other_level_index(self):
-        return self.select_level_box.currentIndex()
+        return self.unknown_level_box.currentIndex()
 
     def open_file_dialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, u'select PDF', filter="PDF (*.pdf)")
@@ -194,14 +202,43 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def make_dir_tree(self):
         self.dir_tree_widget.clear()
-        last_num = None
-        for line in text_to_list(self.dir_text_edit.toPlainText()):
-            title, num = split_page_num(line)
-            if last_num is not None:
-                num = max(num, last_num)
-            real_num = self.offset_num + num
-            self.dir_tree_widget.insertTopLevelItem(self.dir_tree_widget.topLevelItemCount(), QtWidgets.QTreeWidgetItem([title, str(num), str(real_num)]))
-            last_num = num
+        index_dict = convert_dir_text(self.dir_text,
+                                      self.offset_num,
+                                      self.level0_text,
+                                      self.level1_text,
+                                      self.level2_text,
+                                      self.other_level_index)
+        top_idx = 0
+        inserted_items = {}
+        children = {}
+        for i, con in index_dict.items():
+            if "parent" in con:
+                children[i] = con
+            else:
+                # Insert all top items
+                tree_item = QtWidgets.QTreeWidgetItem([con.get("title"),
+                                                       str(con.get("num", 1)),
+                                                       str(con.get("real_num", 1))])
+                self.dir_tree_widget.insertTopLevelItem(top_idx, tree_item)
+                inserted_items[i] = tree_item
+                top_idx += 1
+        # Insert all children items
+        last_children_count = len(children) + 1
+        while children and len(children) < last_children_count:
+            keys = set(children.keys())
+            for k in keys:
+                con = children[k]
+                p_idx = con["parent"]
+                if p_idx in inserted_items:
+                    p_item = inserted_items[p_idx]
+                    tree_item = QtWidgets.QTreeWidgetItem([con.get("title"),
+                                                           str(con.get("num", 1)),
+                                                           str(con.get("real_num", 1))])
+                    p_item.addChild(tree_item)
+                    children.pop(k)
+                    inserted_items[k] = tree_item
+        for item in inserted_items.values():
+            item.setExpanded(1)
 
     def export_pdf(self):
         new_path = add_directory(*self._get_args())
