@@ -76,9 +76,13 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
         self.export_button.clicked.connect(self.write_tree_to_pdf)
-        self.dir_text_edit.textChanged.connect(self.to_tree_widget)
-        self.add_pagenum_to_selected_button.clicked.connect(self._add_selected_pagenum)
-        self.add_pagenum_to_all_button.clicked.connect(self._add_all_pagenum)
+        for act in (self.dir_text_edit.textChanged,
+                    self.offset_edit.textChanged,
+                    self.level0_edit.textChanged,
+                    self.level0_edit.textChanged,
+                    self.level2_edit.textChanged,
+                    ):
+            act.connect(self.make_dir_tree)
 
     def _set_action(self):
         self.home_page_action.triggered.connect(self._open_home_page)
@@ -115,7 +119,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def _add_pagenum_to_item(self, item):
         current_num = int(item.text(1))
         add_num = self.add_pagenum_box.value()
-        self.dir_tree_widget.set_pagenum(item, max(current_num + add_num, 0))
+        self.dir_tree_widget.set_pagenum(item, max(current_num + add_num, 0), )
 
     def _add_selected_pagenum(self):
         selected_items = self.dir_tree_widget.selectedItems()
@@ -156,19 +160,30 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.app.removeTranslator(self.trans)
         self.retranslateUi(self)
 
-    def _get_args(self):
-        pdf_path = self.pdf_path_edit.text()
-        offset = int(self.offset_edit.text())
-        dir_text = self.dir_text_edit.toPlainText()
-        level0 = self.level0_edit.text() if self.level0_box.isChecked() else None
-        level1 = self.level1_edit.text() if self.level1_box.isChecked() else None
-        level2 = self.level2_edit.text() if self.level2_box.isChecked() else None
-        other = self.select_level_box.currentIndex()
-        return dir_text, offset, pdf_path, level0, level1, level2, other
-
     @property
     def pdf_path(self):
         return self.pdf_path_edit.text()
+
+    @property
+    def offset_num(self):
+        offset = self.offset_edit.text() or 0
+        return int(offset)
+
+    @property
+    def level0_text(self):
+        return self.level0_edit.text() if self.level0_box.isChecked() else None
+
+    @property
+    def level1_text(self):
+        return self.level1_edit.text() if self.level1_box.isChecked() else None
+
+    @property
+    def level2_text(self):
+        return self.level2_edit.text() if self.level2_box.isChecked() else None
+
+    @property
+    def other_level_index(self):
+        return self.select_level_box.currentIndex()
 
     def open_file_dialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, u'select PDF', filter="PDF (*.pdf)")
@@ -177,13 +192,15 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def tree_to_dict(self):
         return self.dir_tree_widget.to_dict()
 
-    def to_tree_widget(self):
+    def make_dir_tree(self):
         self.dir_tree_widget.clear()
-        last_num = 0
+        last_num = None
         for line in text_to_list(self.dir_text_edit.toPlainText()):
             title, num = split_page_num(line)
-            num = max(num, last_num)
-            self.dir_tree_widget.insertTopLevelItem(self.dir_tree_widget.topLevelItemCount(), QtWidgets.QTreeWidgetItem([title, str(num)]))
+            if last_num is not None:
+                num = max(num, last_num)
+            real_num = self.offset_num + num
+            self.dir_tree_widget.insertTopLevelItem(self.dir_tree_widget.topLevelItemCount(), QtWidgets.QTreeWidgetItem([title, str(num), str(real_num)]))
             last_num = num
 
     def export_pdf(self):

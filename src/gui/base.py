@@ -154,8 +154,8 @@ class TreeWidget(MixinContextMenu):
         return dir_dict
 
     @staticmethod
-    def set_pagenum(item, num):
-        item.setText(1, str(num))
+    def set_pagenum(item, num, real_num):
+        item.setText(1, str(num), str(real_num))
 
     def from_dict(self, dir_dict):
         pass

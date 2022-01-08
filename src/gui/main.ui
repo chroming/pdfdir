@@ -158,7 +158,7 @@ p, li { white-space: pre-wrap; }
     </column>
     <column>
      <property name="text">
-      <string>标识页</string>
+      <string>展示页码</string>
      </property>
      <property name="font">
       <font>
@@ -168,7 +168,7 @@ p, li { white-space: pre-wrap; }
     </column>
     <column>
      <property name="text">
-      <string>实际页</string>
+      <string>实际页码</string>
      </property>
     </column>
    </widget>
@@ -224,7 +224,7 @@ p, li { white-space: pre-wrap; }
      <string>0</string>
     </property>
     <property name="maxLength">
-     <number>3</number>
+     <number>5</number>
     </property>
    </widget>
    <widget class="QLabel" name="offset_label">
@@ -263,7 +263,7 @@ p, li { white-space: pre-wrap; }
      <bool>true</bool>
     </property>
     <property name="title">
-     <string>子目录</string>
+     <string>目录分级</string>
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>
@@ -494,7 +494,7 @@ p, li { white-space: pre-wrap; }
      </rect>
     </property>
     <property name="text">
-     <string>标识页</string>
+     <string>展示页</string>
     </property>
    </widget>
    <widget class="QPushButton" name="add_to_real_button">
@@ -524,7 +524,7 @@ p, li { white-space: pre-wrap; }
      <x>0</x>
      <y>0</y>
      <width>669</width>
-     <height>24</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="help_menu">
