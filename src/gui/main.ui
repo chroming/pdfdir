@@ -49,9 +49,9 @@
     <property name="geometry">
      <rect>
       <x>166</x>
-      <y>28</y>
-      <width>61</width>
-      <height>20</height>
+      <y>26</y>
+      <width>63</width>
+      <height>27</height>
      </rect>
     </property>
     <property name="text">
@@ -183,7 +183,7 @@ p, li { white-space: pre-wrap; }
     </column>
     <column>
      <property name="text">
-      <string>展示页码</string>
+      <string>标注页码</string>
      </property>
      <property name="font">
       <font>
@@ -193,34 +193,11 @@ p, li { white-space: pre-wrap; }
     </column>
     <column>
      <property name="text">
-      <string>实际页码</string>
+      <string>实际页数</string>
      </property>
     </column>
    </widget>
-   <widget class="QSpinBox" name="add_pagenum_box">
-    <property name="geometry">
-     <rect>
-      <x>611</x>
-      <y>70</y>
-      <width>46</width>
-      <height>21</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLabel" name="add_pagenum_label">
-    <property name="geometry">
-     <rect>
-      <x>610</x>
-      <y>48</y>
-      <width>54</width>
-      <height>12</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>页数增加</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="write_label">
+   <widget class="QLabel" name="preview_label">
     <property name="geometry">
      <rect>
       <x>336</x>
@@ -230,7 +207,7 @@ p, li { white-space: pre-wrap; }
      </rect>
     </property>
     <property name="text">
-     <string>写入目录</string>
+     <string>预览</string>
     </property>
    </widget>
    <widget class="QLineEdit" name="offset_edit">
@@ -245,11 +222,14 @@ p, li { white-space: pre-wrap; }
     <property name="inputMethodHints">
      <set>Qt::ImhDigitsOnly</set>
     </property>
+    <property name="inputMask">
+     <string/>
+    </property>
     <property name="text">
      <string>0</string>
     </property>
     <property name="maxLength">
-     <number>5</number>
+     <number>32767</number>
     </property>
    </widget>
    <widget class="QLabel" name="offset_label">
@@ -262,7 +242,7 @@ p, li { white-space: pre-wrap; }
      </rect>
     </property>
     <property name="text">
-     <string>偏移页</string>
+     <string>页差</string>
     </property>
    </widget>
    <widget class="QGroupBox" name="sub_dir_group">
@@ -288,7 +268,7 @@ p, li { white-space: pre-wrap; }
      <bool>true</bool>
     </property>
     <property name="title">
-     <string>目录分级</string>
+     <string>目录分层</string>
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>
@@ -509,32 +489,6 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </widget>
-   <widget class="QPushButton" name="add_to_show_button">
-    <property name="geometry">
-     <rect>
-      <x>604</x>
-      <y>98</y>
-      <width>65</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>展示页</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="add_to_real_button">
-    <property name="geometry">
-     <rect>
-      <x>604</x>
-      <y>128</y>
-      <width>65</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>实际页</string>
-    </property>
-   </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar">
    <property name="font">
@@ -549,7 +503,7 @@ p, li { white-space: pre-wrap; }
      <x>0</x>
      <y>0</y>
      <width>669</width>
-     <height>22</height>
+     <height>24</height>
     </rect>
    </property>
    <widget class="QMenu" name="help_menu">

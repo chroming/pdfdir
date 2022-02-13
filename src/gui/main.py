@@ -66,7 +66,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.error_message = QErrorMessage()
         self.dir_tree_widget = dynamic_base_class(self.dir_tree_widget, 'TreeWidget', TreeWidget)
         self.dir_tree_widget.init_connect(parents=[self, self.dir_tree_widget])
-        self.add_pagenum_box.setMinimum(-1000)
+        # self.add_pagenum_box.setMinimum(-1000)
         self._set_connect()
         self._set_action()
         # self._set_unwritable()
