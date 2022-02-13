@@ -9,7 +9,7 @@ import sys
 import webbrowser
 
 from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtWidgets import QErrorMessage
+from PyQt5.QtWidgets import QMessageBox
 # import qdarkstyle
 
 
@@ -63,7 +63,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.version = CONFIG.VERSION
         self.setWindowTitle(u'{name} {version}'.format(name=CONFIG.APP_NAME, version=CONFIG.VERSION))
         self.setWindowIcon(QtGui.QIcon('{icon}'.format(icon=CONFIG.WINDOW_ICON)))
-        self.error_message = QErrorMessage()
         self.dir_tree_widget = dynamic_base_class(self.dir_tree_widget, 'TreeWidget', TreeWidget)
         self.dir_tree_widget.init_connect(parents=[self, self.dir_tree_widget])
         # self.add_pagenum_box.setMinimum(-1000)
@@ -147,13 +146,29 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         try:
             updated = is_updated(url, self.version)
         except Exception:
-            self.statusbar.showMessage(u"Check update failed", 3000)
+            self.alert_msg(u"Check update failed", level="warn")
         else:
             if updated:
                 self.statusbar.showMessage(u"Find new version", 3000)
                 webbrowser.open(url, new=1)
             else:
                 self.statusbar.showMessage(u"No update", 3000)
+                self.alert_msg(u"No update")
+
+    @staticmethod
+    def alert_msg(msg, level="info", ok_action=None):
+        box = QMessageBox()
+        if level == "warn":
+            box.setIcon(QMessageBox.Information)
+            box.setWindowTitle("Infomation")
+        else:
+            box.setIcon(QMessageBox.Warning)
+            box.setWindowTitle("Warning")
+        if ok_action:
+            box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+            box.buttonClicked.connect(ok_action)
+        box.setText(msg)
+        box.exec_()
 
     def to_english(self):
         self.trans.load("./language/en")
@@ -242,16 +257,12 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         for item in inserted_items.values():
             item.setExpanded(1)
 
-    def export_pdf(self):
-        new_path = add_directory(*self._get_args())
-        self.statusbar.showMessage(u"%s Finished！" % new_path, 3000)
-
     def write_tree_to_pdf(self):
         try:
             new_path = self.dict_to_pdf(self.pdf_path, self.tree_to_dict())
-            self.statusbar.showMessage(u"%s Finished！" % new_path, 3000)
+            self.alert_msg(u"%s Finished！" % new_path)
         except PermissionError:
-            self.error_message.showMessage(u"Permission denied！")
+            self.alert_msg(u"Permission denied！", level="warn")
 
     @staticmethod
     def dict_to_pdf(pdf_path, index_dict):
