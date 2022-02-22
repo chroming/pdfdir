@@ -17,6 +17,8 @@ def split_page_num(text):
 
 
 def text_to_list(text):
+    if isinstance(text, list):
+        return text
     return text.splitlines()
 
 
