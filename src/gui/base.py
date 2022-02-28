@@ -135,11 +135,12 @@ class TreeWidget(MixinContextMenu):
         children_list = []
         for child in children:
             k, vs = child
+            real_num = int(k.text(2))
             children_list.append({'title': k.text(0),
                                   'num': int(k.text(1)),
-                                  'real_num': int(k.text(2)),
+                                  'real_num': real_num,
                                   'parent': parent_index})
-            children_list.extend(self.children_to_dict(vs, k.text(1)))
+            children_list.extend(self.children_to_dict(vs, parent_index + 1))
         return children_list
 
     def to_dict(self):
@@ -153,6 +154,7 @@ class TreeWidget(MixinContextMenu):
                 i += 1
                 dir_dict[i] = c
             i += 1
+        print(dir_dict)
         return dir_dict
 
     @staticmethod
