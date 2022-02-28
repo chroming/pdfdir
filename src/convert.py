@@ -23,7 +23,10 @@ def text_to_list(text):
 
 
 def is_in(title, exp):
-    return bool(re.match(exp, title)) if exp else False
+    try:
+        return bool(re.match(exp, title)) if exp else False
+    except Exception as e:
+        print("Check regex error! %s" % e)
 
 
 def check_level(title, level0, level1, level2, other=0):
