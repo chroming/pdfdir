@@ -131,30 +131,31 @@ class TreeWidget(MixinContextMenu):
             items.append((item, self.children(item)))
         return items
 
-    def children_to_dict(self, children, parent_index):
-        children_list = []
+    def children_to_dict(self, children, current_index, parent_index):
+        children_dict = {}
         for child in children:
             k, vs = child
             real_num = int(k.text(2))
-            children_list.append({'title': k.text(0),
-                                  'num': int(k.text(1)),
-                                  'real_num': real_num,
-                                  'parent': parent_index})
-            children_list.extend(self.children_to_dict(vs, parent_index + 1))
-        return children_list
+            c = {'title': k.text(0),
+                 'num': int(k.text(1)),
+                 'real_num': real_num,
+                 'parent': parent_index}
+            children_dict[current_index] = c
+            if vs:
+                children_dict.update(self.children_to_dict(vs, current_index + 1, current_index))
+            current_index = max(children_dict.keys()) + 1
+        return children_dict
 
     def to_dict(self):
         qtrees = self.to_qtree()
-        i = 0
+        current_index = 0
         dir_dict = {}
         for r in qtrees:
             k, vs = r
-            dir_dict[i] = {'title': k.text(0), 'num': int(k.text(1)), 'real_num': int(k.text(2))}
-            for c in self.children_to_dict(vs, i):
-                i += 1
-                dir_dict[i] = c
-            i += 1
-        print(dir_dict)
+            dir_dict[current_index] = {'title': k.text(0), 'num': int(k.text(1)), 'real_num': int(k.text(2))}
+            children_dict = self.children_to_dict(vs, current_index + 1, current_index)
+            dir_dict.update(children_dict)
+            current_index = max(dir_dict.keys()) + 1
         return dir_dict
 
     @staticmethod
