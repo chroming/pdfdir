@@ -164,3 +164,7 @@ class TreeWidget(MixinContextMenu):
 
     def from_dict(self, dir_dict):
         pass
+
+    def clear(self):
+        self.last_item = None
+        return super(TreeWidget, self).clear()
