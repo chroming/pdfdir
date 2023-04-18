@@ -31,7 +31,7 @@ jobs:
         pip install -r requirements_build.txt
 
     - name: Build package
-      run: pyinstaller -F run.py --distpath . -n "pdfdir"  --noconsole
+      run: pyinstaller -F run_gui.py --distpath . -n "pdfdir"  --noconsole
 
     - name: Prepare file
       run: |
