@@ -31,7 +31,7 @@ jobs:
 
     - name: Prepare file
       run: |
-        chmod +x run.app
+        chmod +x pdfdir.app
         zip -r pdfdir_mac.zip pdfdir.app
 
     - name: Upload package

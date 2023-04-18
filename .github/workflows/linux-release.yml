@@ -35,7 +35,7 @@ jobs:
 
     - name: Prepare file
       run: |
-        chmod +x run
+        chmod +x pdfdir
         zip -r pdfdir_ubuntu.zip pdfdir
 
     - name: Upload package
