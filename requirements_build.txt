@@ -2,3 +2,4 @@ requests~=2.26.0
 pyPDF2~=1.27.12
 six~=1.16.0
 PyQt5~=5.15.7
+pyinstaller
