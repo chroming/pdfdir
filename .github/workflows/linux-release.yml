@@ -5,7 +5,7 @@ on:
     tags:
       - 'v*'
   release:
-    types: [published, edited]
+    types: [published]
 
 permissions:
   contents: write
