@@ -41,12 +41,12 @@ def check_level(title, level0, level1, level2, other=0):
 
 
 def _convert_dir_text(dir_text, offset=0, level0=None, level1=None, level2=None, other=0):
-    l0, l1, pagenum, index_dict = 0, 0, 0, {}
+    l0, l1, pagenum, index_dict = 0, 0, -float("inf"), {}
     dir_list = text_to_list(dir_text)
     i = 0
     for di in dir_list:
         title, num = split_page_num(di)
-        if num != -1 and num > pagenum:
+        if num > pagenum:
             pagenum = num
         index_dict[i] = {'title': title, 'real_num': pagenum+offset, 'num': pagenum}
         level = check_level(title, level0, level1, level2, other)
