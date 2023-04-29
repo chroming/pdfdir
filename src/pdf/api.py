@@ -41,7 +41,7 @@ class Pdf(object):
         self.path = path
         reader = PdfFileReader(open(path, "rb"), strict=False)
         self.writer = PdfFileWriter()
-        self.writer.appendPagesFromReader(reader)
+        self.writer.cloneDocumentFromReader(reader)
         self.writer.addMetadata({k: v for k, v in reader.getDocumentInfo().items()
                                  if isinstance(v, (utils.string_type, utils.bytes_type))})
 
