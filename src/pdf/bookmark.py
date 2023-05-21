@@ -17,7 +17,7 @@ def _add_bookmark(pdf, index_dict):
         return None
     m = max(index_dict.keys())
     parent_dict = {}  # {parent index:IndirectObject}
-    max_page_num = pdf.writer.getNumPages() - 1
+    max_page_num = len(pdf.writer.pages) - 1
     for i in range(m+1):
         value = index_dict[i]
         inobject = pdf.add_bookmark(value.get('title', ''),

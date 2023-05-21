@@ -11,7 +11,7 @@ public:
 
 import os
 
-from PyPDF2 import PdfFileWriter, PdfFileReader, utils
+from pypdf import PdfWriter, PdfReader
 
 
 class Pdf(object):
@@ -39,11 +39,10 @@ class Pdf(object):
     """
     def __init__(self, path):
         self.path = path
-        reader = PdfFileReader(open(path, "rb"), strict=False)
-        self.writer = PdfFileWriter()
-        self.writer.cloneDocumentFromReader(reader)
-        self.writer.addMetadata({k: v for k, v in reader.getDocumentInfo().items()
-                                 if isinstance(v, (utils.string_type, utils.bytes_type))})
+        reader = PdfReader(open(path, "rb"), strict=False)
+        self.writer = PdfWriter()
+        self.writer.clone_document_from_reader(reader)
+
 
     @property
     def _new_path(self):
@@ -62,7 +61,7 @@ class Pdf(object):
         parent: IndirectObject(the addBookmark() return object), the parent of this bookmark, the default is None.
 
         """
-        return self.writer.addBookmark(title, pagenum, parent=parent)
+        return self.writer.add_outline_item(title, pagenum, parent=parent)
 
     def save_pdf(self):
         """save the writer to a pdf file with name 'name_new.pdf' """
