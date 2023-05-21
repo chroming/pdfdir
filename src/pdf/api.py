@@ -40,8 +40,11 @@ class Pdf(object):
     def __init__(self, path):
         self.path = path
         reader = PdfReader(open(path, "rb"), strict=False)
-        self.writer = PdfWriter()
-        self.writer.clone_document_from_reader(reader)
+        self.writer = PdfWriter(clone_from=reader)
+        # Temporarily remove exist outline,
+        # to prevent `'DictionaryObject' object has no attribute 'insert_child'` error
+        # when adding bookmarks to some pdf which already have outline
+        self.writer._root_object.pop("/Outlines", None)
 
 
     @property
