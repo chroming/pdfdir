@@ -109,6 +109,32 @@ https://www.python.org/downloads/
 
 `python run.py`
 
+#### 通过源码运行命令行接口
+
+可以通过程序的`run_cli.py` 在没有Qt的环境下运行.  
+通过cli运行接口支持最多6级目录, 目录文本通过文件输入更加容易编辑.
+
+```
+python run_cli.py --help                                                                                                                                                                                                                            myrepo/pdfdir
+usage: run_cli.py [-h] [--offset OFFSET] [--l0 L0] [--l1 L1] [--l2 L2] [--l3 L3] [--l4 L4] [--l5 L5] pdfPath tocPath
+
+Add content to PDF.
+
+positional arguments:
+  pdfPath          path of PDF
+  tocPath          path of contents file
+
+options:
+  -h, --help       show this help message and exit
+  --offset OFFSET  Page offset of contents
+  --l0 L0          Regular expression of level 0 of content
+  --l1 L1          Regular expression of level 1 of content
+  --l2 L2          Regular expression of level 2 of content
+  --l3 L3          Regular expression of level 3 of content
+  --l4 L4          Regular expression of level 4 of content
+  --l5 L5          Regular expression of level 5 of content
+```
+
 ### 打包源码
 
 如果你想在本机打包此程序：

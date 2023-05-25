@@ -224,7 +224,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                                       self.level0_text,
                                       self.level1_text,
                                       self.level2_text,
-                                      self.other_level_index)
+                                      other=self.other_level_index)
         top_idx = 0
         inserted_items = {}
         children = {}
