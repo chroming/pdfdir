@@ -69,13 +69,17 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         # self.add_pagenum_box.setMinimum(-1000)
         self._set_connect()
         self._set_action()
-        # self._set_unwritable()
-
-        # self.adv_group.setEnabled(False)
+        self._set_unwritable()
 
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
         self.export_button.clicked.connect(self.write_tree_to_pdf)
+        self.level0_box.clicked.connect(self._change_level0_writable)
+        self.level1_box.clicked.connect(self._change_level1_writable)
+        self.level2_box.clicked.connect(self._change_level2_writable)
+        self.level3_box.clicked.connect(self._change_level3_writable)
+        self.level4_box.clicked.connect(self._change_level4_writable)
+        self.level5_box.clicked.connect(self._change_level5_writable)
         for act in (self.dir_text_edit.textChanged,
                     self.offset_edit.textChanged,
                     self.level0_box.stateChanged,
