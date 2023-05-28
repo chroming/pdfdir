@@ -80,9 +80,15 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                     self.level0_box.stateChanged,
                     self.level1_box.stateChanged,
                     self.level2_box.stateChanged,
+                    self.level3_box.stateChanged,
+                    self.level4_box.stateChanged,
+                    self.level5_box.stateChanged,
                     self.level0_edit.textChanged,
                     self.level1_edit.textChanged,
                     self.level2_edit.textChanged,
+                    self.level3_edit.textChanged,
+                    self.level4_edit.textChanged,
+                    self.level5_edit.textChanged,
                     self.unknown_level_box.currentIndexChanged
                     ):
             act.connect(self.make_dir_tree)
@@ -98,6 +104,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.level0_edit.setEnabled(False)
         self.level1_edit.setEnabled(False)
         self.level2_edit.setEnabled(False)
+        self.level3_edit.setEnabled(False)
+        self.level4_edit.setEnabled(False)
+        self.level5_edit.setEnabled(False)
 
     def _level_button_clicked(self, level_str):
         context_menu = QtWidgets.QMenu()
@@ -118,6 +127,15 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def _change_level2_writable(self):
         self.level2_edit.setEnabled(True if self.level2_box.isChecked() else False)
+
+    def _change_level3_writable(self):
+        self.level3_edit.setEnabled(True if self.level3_box.isChecked() else False)
+
+    def _change_level4_writable(self):
+        self.level4_edit.setEnabled(True if self.level4_box.isChecked() else False)
+
+    def _change_level5_writable(self):
+        self.level5_edit.setEnabled(True if self.level5_box.isChecked() else False)
 
     def _add_pagenum_to_item(self, item):
         current_num = int(item.text(1))
@@ -207,6 +225,18 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         return self.level2_edit.text() if self.level2_box.isChecked() else None
 
     @property
+    def level3_text(self):
+        return self.level3_edit.text() if self.level3_box.isChecked() else None
+
+    @property
+    def level4_text(self):
+        return self.level4_edit.text() if self.level4_box.isChecked() else None
+
+    @property
+    def level5_text(self):
+        return self.level5_edit.text() if self.level5_box.isChecked() else None
+
+    @property
     def other_level_index(self):
         return self.unknown_level_box.currentIndex()
 
@@ -224,6 +254,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                                       self.level0_text,
                                       self.level1_text,
                                       self.level2_text,
+                                      self.level3_text,
+                                      self.level4_text,
+                                      self.level5_text,
                                       other=self.other_level_index)
         top_idx = 0
         inserted_items = {}
