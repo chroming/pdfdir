@@ -21,7 +21,7 @@ class Ui_PDFdir(object):
         sizePolicy.setHeightForWidth(PDFdir.sizePolicy().hasHeightForWidth())
         PDFdir.setSizePolicy(sizePolicy)
         PDFdir.setMinimumSize(QtCore.QSize(330, 450))
-        PDFdir.setMaximumSize(QtCore.QSize(1000000, 450))
+        PDFdir.setMaximumSize(QtCore.QSize(1000000, 1000000))
         PDFdir.setAcceptDrops(True)
         self.main_widget = QtWidgets.QWidget(PDFdir)
         self.main_widget.setObjectName("main_widget")

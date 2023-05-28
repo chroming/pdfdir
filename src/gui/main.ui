@@ -25,7 +25,7 @@
   <property name="maximumSize">
    <size>
     <width>1000000</width>
-    <height>450</height>
+    <height>1000000</height>
    </size>
   </property>
   <property name="acceptDrops">
