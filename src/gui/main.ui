@@ -394,6 +394,9 @@ p, li { white-space: pre-wrap; }
         <attribute name="headerCascadingSectionResizes">
          <bool>false</bool>
         </attribute>
+        <attribute name="headerStretchLastSection">
+         <bool>false</bool>
+        </attribute>
         <column>
          <property name="text">
           <string>目录</string>

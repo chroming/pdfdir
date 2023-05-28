@@ -170,6 +170,7 @@ class Ui_PDFdir(object):
         self.dir_tree_widget.headerItem().setFont(1, font)
         self.dir_tree_widget.header().setVisible(True)
         self.dir_tree_widget.header().setCascadingSectionResizes(False)
+        self.dir_tree_widget.header().setStretchLastSection(False)
         self.verticalLayout_4.addWidget(self.dir_tree_widget)
         self.horizontalLayout_5.addLayout(self.verticalLayout_4)
         self.verticalLayout_5 = QtWidgets.QVBoxLayout()

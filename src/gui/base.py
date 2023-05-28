@@ -2,8 +2,8 @@
 
 from functools import partial
 
-from PyQt5.QtWidgets import QTreeWidget, QMenu, QTreeWidgetItemIterator
-from PyQt5.QtCore import pyqtSlot, Qt, QPoint
+from PyQt5.QtWidgets import QMenu, QTreeWidgetItemIterator, QHeaderView
+from PyQt5.QtCore import Qt, QPoint
 
 
 class MixinContextMenu(object):
@@ -51,6 +51,12 @@ class MixinContextMenu(object):
 
 
 class TreeWidget(MixinContextMenu):
+
+    def fix_column(self):
+        header = self.header()
+        # Only resize first column
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+
     def init_connect(self, parents=None):
         super(TreeWidget, self).__init__(parents)
         self.itemPressed.connect(self.close_editor)
