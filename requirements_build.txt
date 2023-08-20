@@ -3,3 +3,4 @@ pypdf~=3.8.1
 six~=1.16.0
 PyQt5~=5.15.7
 pyinstaller
+Pillow
