@@ -76,7 +76,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                     self.level3_edit.textChanged,
                     self.level4_edit.textChanged,
                     self.level5_edit.textChanged,
-                    self.unknown_level_box.currentIndexChanged
+                    self.unknown_level_box.currentIndexChanged,
+                    self.space_level_box.stateChanged
                     ):
             act.connect(self.make_dir_tree)
 
@@ -202,6 +203,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def other_level_index(self):
         return self.unknown_level_box.currentIndex()
 
+    @property
+    def level_by_space(self):
+        return self.space_level_box.isChecked()
+
     def open_file_dialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, u'select PDF', filter="PDF (*.pdf)")
         self.pdf_path_edit.setText(filename)
@@ -219,7 +224,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                                       self.level3_text,
                                       self.level4_text,
                                       self.level5_text,
-                                      other=self.other_level_index)
+                                      other=self.other_level_index,
+                                      level_by_space=self.level_by_space)
         top_idx = 0
         inserted_items = {}
         children = {}
