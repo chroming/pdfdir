@@ -29,22 +29,6 @@ def dynamic_base_class(instance, cls_name, new_class, **kwargs):
     return instance
 
 
-class WindowDragMixin(object):
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.m_drag = True
-            self.m_DragPosition = event.globalPos() - self.pos()
-            event.accept()
-
-    def mouseMoveEvent(self, QMouseEvent):
-        if QMouseEvent.buttons() and Qt.LeftButton:
-            self.move(QMouseEvent.globalPos() - self.m_DragPosition)
-            QMouseEvent.accept()
-
-    def mouseReleaseEvent(self, QMouseEvent):
-        self.m_drag = False
-
-
 class ControlButtonMixin(object):
     def set_control_button(self, min_button, exit_button):
         min_button.clicked.connect(self.showMinimized)
@@ -110,17 +94,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.level3_edit.setEnabled(False)
         self.level4_edit.setEnabled(False)
         self.level5_edit.setEnabled(False)
-
-    def _level_button_clicked(self, level_str):
-        context_menu = QtWidgets.QMenu()
-        for k, v in RE_DICT.get(level_str).items():
-            context_menu.addAction(k, lambda v=v: self._insert_to_editor(level_str, v))
-        context_menu.exec_(QtGui.QCursor.pos())
-
-    def _insert_to_editor(self, level_str, text):
-        editor = getattr(self, level_str + '_edit')
-        if editor.isEnabled():
-            editor.insert(text)
 
     def _change_level0_writable(self):
         self.level0_edit.setEnabled(True if self.level0_box.isChecked() else False)
