@@ -14,7 +14,6 @@ from PyQt5.QtWidgets import QMessageBox
 
 
 from src.gui.main_ui import Ui_PDFdir
-from src.pdfdirectory import add_directory
 from src.isupdated import is_updated
 from src.config import RE_DICT, CONFIG
 from src.gui.base import TreeWidget
@@ -66,7 +65,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.dir_tree_widget = dynamic_base_class(self.dir_tree_widget, 'TreeWidget', TreeWidget)
         self.dir_tree_widget.init_connect(parents=[self, self.dir_tree_widget])
         self.dir_tree_widget.fix_column()
-        # self.add_pagenum_box.setMinimum(-1000)
         self._set_connect()
         self._set_action()
         self._set_unwritable()
@@ -141,20 +139,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def _change_level5_writable(self):
         self.level5_edit.setEnabled(True if self.level5_box.isChecked() else False)
-
-    def _add_pagenum_to_item(self, item):
-        current_num = int(item.text(1))
-        add_num = self.add_pagenum_box.value()
-        self.dir_tree_widget.set_pagenum(item, max(current_num + add_num, 0), )
-
-    def _add_selected_pagenum(self):
-        selected_items = self.dir_tree_widget.selectedItems()
-        for item in selected_items:
-            self._add_pagenum_to_item(item)
-
-    def _add_all_pagenum(self):
-        for item in self.dir_tree_widget.all_items:
-            self._add_pagenum_to_item(item)
 
     @staticmethod
     def _open_home_page():
