@@ -1,4 +1,4 @@
-requests~=2.26.0
-pypdf~=3.8.1
+requests~=2.31.0
+pypdf~=3.9.1
 six~=1.16.0
 PyQt5~=5.15.7

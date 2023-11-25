@@ -70,8 +70,6 @@ Windows/macOS/Ubuntu:
 
 ### 通过源码运行
 
-*源码为v3.0.0-beta版，如有问题欢迎反馈。*
-
 运行源码所需环境：
 
 + Python2/3 均可，推荐Python3
