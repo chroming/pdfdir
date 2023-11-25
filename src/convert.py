@@ -40,7 +40,9 @@ def check_level(title, level0, level1, level2, level3=None, level4=None, level5=
 
 
 def generate_level_pattern_by_prefix_space(dir_list):
+    """Generate regex pattern by prefix space in dir text"""
     level_patterns = [None, None, None, None, None, None]
+    # All space count in dir text
     count_set = set()
     for d in dir_list:
         match = re.match(r"\s*", d)
@@ -49,11 +51,17 @@ def generate_level_pattern_by_prefix_space(dir_list):
     space_count_list = sorted(count_set)
     max_level = 5
     i = 0
+    # Pop minimal count every time,
+    # this count will used in level_i pattern
     while space_count_list:
         count = space_count_list.pop(0)
         level_patterns[i] = r"\s{" + str(count) + "}"
-        if i < max_level:
-            i += 1
+        i += 1
+        # If len of space_count_list is more than max_level,
+        # additional count all consider as max level
+        if i > max_level:
+            level_patterns[max_level] = r"\s{" + str(count) + ",}"
+            break
     return level_patterns
 
 
@@ -123,6 +131,7 @@ def convert_dir_text(dir_text,
     :param: level4: unicode, the expression to find level4 title.
     :param: level5: unicode, the expression to find level5 title.
     :param: other: unicode, three level can't match title, then this is the level.
+    :param: level_by_space: boolean, if True, auto generate level by space
     :return: the dict of directory, like {0:{'title':'A', 'pagenum':1}, 1:{'title':'B', pagenum:2, parent: 0} ......}
 
     """
