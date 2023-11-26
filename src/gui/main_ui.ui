@@ -195,7 +195,7 @@ p, li { white-space: pre-wrap; }
             </size>
            </property>
            <property name="text">
-            <string extracomment="可变部分用*代替，如“第*部分”">^\d+\.\s\?</string>
+            <string extracomment="可变部分用*代替，如“第*部分”">^\d+\.\s?</string>
            </property>
            <property name="echoMode">
             <enum>QLineEdit::Normal</enum>
