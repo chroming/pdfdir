@@ -241,7 +241,7 @@ class Ui_PDFdir(object):
         self.offset_edit.setText(_translate("PDFdir", "0"))
         self.sub_dir_group.setTitle(_translate("PDFdir", "目录分层"))
         self.level0_box.setText(_translate("PDFdir", "首层"))
-        self.level0_edit.setText(_translate("PDFdir", "^\\d+\\.\\s\\?"))
+        self.level0_edit.setText(_translate("PDFdir", "^\\d+\\.\\s?"))
         self.level1_box.setText(_translate("PDFdir", "二层"))
         self.level1_edit.setText(_translate("PDFdir", "^\\d+\\.\\d+\\w?\\s?"))
         self.level2_box.setText(_translate("PDFdir", "三层"))
