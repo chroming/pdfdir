@@ -7,7 +7,34 @@ import re
 
 def split_page_num(text):
     """split between title and page number"""
-    con, num = re.search(r"(.*?)((?<!-)-?\d+$|\d*$)", text).groups()
+    page_num_patterns = [
+        # Support negative numbers
+        r"((?<!-)-?\d+)",
+        # Support () around numbers
+        r"\((\d+)\)",
+        # Support [] around numbers
+        r"\[(\d+)\]",
+        # Support {} around numbers
+        r"\{(\d+)\}",
+        # Support <> around numbers
+        r"\<(\d+)\>",
+        # Support（）around numbers
+        r"（(\d+)）",
+        # Support【】around numbers
+        r"【(\d+)】",
+        # Support「」around numbers
+        r"「(\d+)」",
+        # Support《》around numbers
+        r"《(\d+)》",
+        # Final pattern, without numbers
+        r"(\d*)"]
+    con, num = "", 1
+    # con, num = re.search(r"(.*?)((?<!-)-?\d+$|\d*$)", text).groups()
+    for pat in page_num_patterns:
+        res = re.search("(.*?)%s$" % pat, text)
+        if res:
+            con, num = res.groups()
+            break
     if con:
         con = con.rstrip(' .-')
     if num == '':
