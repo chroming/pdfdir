@@ -8,7 +8,7 @@ if __name__ == '__main__':
     parser.add_argument('--offset', type=int, default=0,
                         help='Page offset of contents')
     parser.add_argument('--l0', type=str,
-                        default=r'^\d+\.\s\?',
+                        default=r'^\d+\.\s?',
                         help='Regular expression of level 0 of content')
     parser.add_argument('--l1', type=str,
                         default=r'^\d+\.\d+\w?\s?',
