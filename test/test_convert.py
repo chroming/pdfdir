@@ -1,12 +1,22 @@
 # -*- coding:utf-8 -*-
 
 from src.convert import *
+import pytest
 
 
-def test_split_page_num():
-    assert split_page_num("ABC1") == ("ABC", 1)
+@pytest.mark.parametrize("lbracket, rbracket", [("(", ")"),
+                                                ("[", "]"),
+                                                ("{", "}"),
+                                                ("<", ">"),
+                                                ("（", "）"),
+                                                ("【", "】"),
+                                                ("「", "」"),
+                                                ("《", "》")])
+def test_split_page_num(lbracket, rbracket):
+    assert split_page_num("ABC%s1%s" % (lbracket, rbracket)) == ("ABC", 1)
+    assert split_page_num("ABC %s1%s" % (lbracket, rbracket)) == ("ABC", 1)
     assert split_page_num("ABC") == ("ABC", 1)
-    assert split_page_num("12") == ("", 12)
+    assert split_page_num("%s12%s" % (lbracket, rbracket)) == ("", 12)
 
 
 def test_is_in():
