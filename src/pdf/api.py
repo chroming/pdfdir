@@ -40,7 +40,10 @@ class Pdf(object):
     def __init__(self, path):
         self.path = path
         reader = PdfReader(open(path, "rb"), strict=False)
-        self.writer = PdfWriter(clone_from=reader)
+        self.writer = PdfWriter()
+        # `clone_from=reader (clone_document_from_reader)` is slow when pdf is complex
+        # `append_pages_from_reader` is fast but will lose annotations in pdf
+        self.writer.append(reader)
         # Temporarily remove exist outline,
         # to prevent `'DictionaryObject' object has no attribute 'insert_child'` error
         # when adding bookmarks to some pdf which already have outline
