@@ -52,6 +52,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._set_connect()
         self._set_action()
         self._set_unwritable()
+        self._worker = None
 
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
@@ -130,11 +131,15 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.alert_msg(u"Check update failed", level="warn")
         else:
             if updated:
-                self.statusbar.showMessage(u"Find new version", 3000)
+                self.show_status(u"Find new version", 3000)
                 webbrowser.open(url, new=1)
             else:
-                self.statusbar.showMessage(u"No update", 3000)
+                self.show_status(u"No update", 3000)
                 self.alert_msg(u"No update")
+
+    def show_status(self, msg, timeout=10*3600*1000):
+        """Show message in status bar"""
+        return self.statusbar.showMessage(msg, msecs=timeout)
 
     @staticmethod
     def alert_msg(msg, level="info", ok_action=None):
