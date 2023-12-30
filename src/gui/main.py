@@ -35,6 +35,30 @@ class ControlButtonMixin(object):
         exit_button.clicked.connect(self.close)
 
 
+class BookmarkWorkerThread(QtCore.QThread):
+    # signal need initialize in class level, otherwise it will raise error
+    # https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
+    finish_signal = QtCore.pyqtSignal(bool, str)
+
+    def __init__(self, pdf_path, index_dict):
+        super().__init__()
+        self.pdf_path = pdf_path
+        self.index_dict = index_dict
+
+    def run(self):
+        is_success, msg = False, ""
+        try:
+            new_path = add_bookmark(self.pdf_path, self.index_dict)
+            is_success = True
+            msg = u"%s Finished！" % new_path
+        except PermissionError:
+            msg = u"Permission denied！"
+        except Exception as e:
+            msg = type(e)
+        finally:
+            self.finish_signal.emit(is_success, msg)
+
+
 class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def __init__(self, app, trans):
         super(Main, self).__init__()
@@ -270,9 +294,25 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         except PermissionError:
             self.alert_msg(u"Permission denied！", level="warn")
 
+    def _write_tree_to_pdf(self):
+        self.show_status("Write bookmark to pdf file...")
+        index_dict = self.tree_to_dict()
+        self._worker = BookmarkWorkerThread(self.pdf_path, index_dict)
+        self._worker.finish_signal.connect(self._write_pdf_finish)
+        self._worker.start()
+        self.export_button.setEnabled(False)
+
+    def _write_pdf_finish(self, is_success, msg):
+        alert_level = "info" if is_success else "warn"
+        self.show_status("Done", timeout=1000)
+        self.alert_msg(msg, level=alert_level)
+        self._worker.deleteLater()
+        self.export_button.setEnabled(True)
+
     @staticmethod
     def dict_to_pdf(pdf_path, index_dict):
         return add_bookmark(pdf_path, index_dict)
+
 
 def run():
     app = QtWidgets.QApplication(sys.argv)
