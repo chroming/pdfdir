@@ -31,7 +31,7 @@ jobs:
       run: pyinstaller -F run_gui.py -i "pdf.ico" --distpath . -n "pdfdir"  --noconsole
 
     - name: Build debug package
-      run: pyinstaller -F run_gui.py -i "pdf.ico" --distpath . -n "pdfdir_debug.app"
+      run: pyinstaller -F run_gui.py -i "pdf.ico" --distpath . -n "pdfdir_debug"
 
     - name: Prepare file
       run: |
