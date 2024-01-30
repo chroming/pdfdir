@@ -40,8 +40,8 @@ jobs:
 
     - name: Prepare debug file
       run: |
-        chmod +x pdfdir_debug.app
-        zip -r pdfdir_debug_mac.zip pdfdir_debug.app 
+        chmod +x pdfdir_debug
+        zip -r pdfdir_debug_mac.zip pdfdir_debug 
     
 
     - name: Upload package
