@@ -1,5 +1,5 @@
-requests~=2.26.0
-pypdf~=3.8.1
+requests~=2.31.0
+pypdf~=3.17.0
 six~=1.16.0
 PyQt5~=5.15.7
 pyinstaller
