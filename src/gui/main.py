@@ -6,7 +6,6 @@ The main GUI model of project.
 """
 
 import sys
-import logging
 import webbrowser
 
 from PyQt5 import QtWidgets, QtCore, QtGui
@@ -21,18 +20,6 @@ from src.gui.base import TreeWidget
 from src.convert import convert_dir_text
 from src.pdf.bookmark import add_bookmark
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
-                    filename='pdfdir.log',
-                    filemode='a')
-
-
-def log_uncaught_exceptions(ex_cls, ex, tb):
-    text = '{}: {}:\n'.format(ex_cls.__name__, ex)
-    logging.critical(text, exc_info=(ex_cls, ex, tb))
-
-
-sys.excepthook = log_uncaught_exceptions
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
