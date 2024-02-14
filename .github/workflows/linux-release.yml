@@ -33,10 +33,18 @@ jobs:
     - name: Build package
       run: pyinstaller -F run_gui.py -i "pdf.ico" --distpath . -n "pdfdir"  --noconsole
 
+    - name: Build debug package
+      run: pyinstaller -F run_gui.py -i "pdf.ico" --distpath . -n "pdfdir_debug"
+
     - name: Prepare file
       run: |
         chmod +x pdfdir
         zip -r pdfdir_ubuntu.zip pdfdir
+
+    - name: Prepare debug file
+      run: |
+        chmod +x pdfdir_debug
+        zip -r pdfdir_debug_ubuntu.zip pdfdir_debug
 
     - name: Upload package
       uses: softprops/action-gh-release@v1
@@ -44,3 +52,4 @@ jobs:
       with:
         files: |
           pdfdir_ubuntu.zip
+          pdfdir_debug_ubuntu.zip

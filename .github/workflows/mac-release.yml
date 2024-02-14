@@ -30,10 +30,18 @@ jobs:
     - name: Build package
       run: pyinstaller -F run_gui.py -i "pdf.ico" --distpath . -n "pdfdir"  --noconsole
 
+    - name: Build debug package
+      run: pyinstaller -F run_gui.py -i "pdf.ico" --distpath . -n "pdfdir_debug"
+
     - name: Prepare file
       run: |
         chmod +x pdfdir.app
         zip -r pdfdir_mac.zip pdfdir.app
+
+    - name: Prepare debug file
+      run: |
+        chmod +x pdfdir_debug
+        zip -r pdfdir_debug_mac.zip pdfdir_debug 
     
 
     - name: Upload package
@@ -42,3 +50,4 @@ jobs:
       with:
         files: |
           pdfdir_mac.zip
+          pdfdir_debug_mac.zip
