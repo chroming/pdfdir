@@ -1,4 +1,4 @@
-name: Build mac release
+name: Build macos-12 release
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
         pip install Pillow
     
     - name: Build package
-      run: pyinstaller -F run_gui.py -i "pdf.ico" --distpath . -n "pdfdir"  --noconsole
+      run: pyinstaller -D run_gui.py -i "pdf.ico" --distpath . -n "pdfdir"  --noconsole
 
     - name: Prepare file
       run: |
