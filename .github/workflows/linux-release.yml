@@ -28,7 +28,8 @@ jobs:
       run: |
         sudo apt-get install libxcb-xinerama0
         python -m pip install --upgrade pip
-        pip install -r requirements_build.txt
+        pip install -r requirements.txt
+        pip install -r requirements_build_addon.txt
 
     - name: Build package
       run: pyinstaller -F run_gui.py -i "pdf.ico" --distpath . -n "pdfdir"  --noconsole
