@@ -1,3 +1,4 @@
+from configparser import ConfigParser
 
 RE_DICT = {
     'level0': {
@@ -23,5 +24,8 @@ class Config(object):
     HELP_PAGE_URL = 'https://github.com/chroming/pdfdir/blob/master/readme.md'
     RELEASE_PAGE_URL = 'https://github.com/chroming/pdfdir/releases'
 
+    cp = ConfigParser()
+    cp.read('config.ini', encoding='utf-8')
+    SELECTED_LEVEL = cp['LEVEL']['selected_level']
 
 CONFIG = Config()
