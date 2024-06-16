@@ -18,7 +18,7 @@ from src.isupdated import is_updated
 from src.config import RE_DICT, CONFIG
 from src.gui.base import TreeWidget
 from src.convert import convert_dir_text
-from src.pdf.bookmark import add_bookmark, get_bookmarks
+from src.pdf.bookmark import add_bookmark, get_bookmarks, check_bookmarks
 
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
@@ -264,9 +264,17 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         for item in inserted_items.values():
             item.setExpanded(1)
 
+    def pre_check(self, path, index_dict):
+        try:
+            check_bookmarks(path, index_dict)
+        except ValueError as e:
+            self.alert_msg(str(e), level="Warning")
+
     def write_tree_to_pdf(self):
         try:
-            new_path = self.dict_to_pdf(self.pdf_path, self.tree_to_dict())
+            index_dict = self.tree_to_dict()
+            self.pre_check(self.pdf_path, index_dict)
+            new_path = self.dict_to_pdf(self.pdf_path, index_dict)
             self.alert_msg(u"%s Finished！" % new_path)
         except PermissionError:
             self.alert_msg(u"Permission denied！", level="warn")

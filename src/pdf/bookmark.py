@@ -39,3 +39,11 @@ def add_bookmark(path, index_dict):
 
 def get_bookmarks(path):
     return Pdf(path).exist_bookmarks()
+
+
+def check_bookmarks(path, index_dict):
+    pdf = Pdf(path)
+    max_page_num = len(pdf.writer.pages)
+    max_set_page_num = max([v.get('real_num', 1) for v in index_dict.values()])
+    if max_set_page_num > max_page_num:
+        raise ValueError("Max page number '{}' exceeds the pdf real page number '{}'!".format(max_set_page_num, max_page_num))
