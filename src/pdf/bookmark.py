@@ -36,3 +36,6 @@ def add_bookmark(path, index_dict):
     _add_bookmark(pdf, index_dict)
     return pdf.save_pdf()
 
+
+def get_bookmarks(path):
+    return Pdf(path).exist_bookmarks()

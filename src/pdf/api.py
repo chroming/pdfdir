@@ -8,10 +8,14 @@ public:
 - class: Pdf(path)
 
 """
-
+import logging
 import os
 
-from pypdf import PdfWriter, PdfReader
+from pypdf import PdfWriter, PdfReader, PageObject
+from pypdf.generic import Destination
+
+logger = logging.getLogger(__name__)
+
 
 
 class Pdf(object):
@@ -39,11 +43,12 @@ class Pdf(object):
     """
     def __init__(self, path):
         self.path = path
-        reader = PdfReader(open(path, "rb"), strict=False)
+        self.reader = PdfReader(open(path, "rb"), strict=False)
+        self.pages_num = self._get_pages_num(self.reader.pages)
         self.writer = PdfWriter()
         # `clone_from=reader (clone_document_from_reader)` is slow when pdf is complex
         # `append_pages_from_reader` is fast but will lose annotations in pdf
-        self.writer.append(reader)
+        self.writer.append(self.reader)
         # Temporarily remove exist outline,
         # to prevent `'DictionaryObject' object has no attribute 'insert_child'` error
         # when adding bookmarks to some pdf which already have outline
@@ -54,6 +59,36 @@ class Pdf(object):
     def _new_path(self):
         name, ext = os.path.splitext(self.path)
         return name + '_new' + ext
+
+    @staticmethod
+    def _get_pages_num(pages):
+        pages_num = {}
+        for page in pages:
+            if isinstance(page, PageObject):
+                pages_num[page.indirect_ref.idnum] = page.page_number
+            else:
+                logger.error("Unknown page type {} for {}".format(type(page), page.page_number))
+        return pages_num
+
+    def _outlines_to_bookmarks(self, outlines, current_level=0):
+        index_list = []
+        i = 0
+        for o in outlines:
+            if isinstance(o, Destination):
+                idnum = o.page if isinstance(o.page, int) else o.page.idnum
+                title = " " * current_level + o.title
+                page_num = self.pages_num[idnum] = i
+                index_list.append("{title}  {page_num}".format(title=title, page_num=page_num))
+            elif isinstance(o, list):
+                index_list += self._outlines_to_bookmarks(o, current_level + 1)
+            else:
+                logger.error("Unknown outline type: {} in {}".format(type(o), o))
+                continue
+            i += 1
+        return index_list
+
+    def exist_bookmarks(self):
+        return self._outlines_to_bookmarks(self.reader.outline)
 
     def add_bookmark(self, title, pagenum, parent=None):
         """

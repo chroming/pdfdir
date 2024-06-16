@@ -18,7 +18,7 @@ from src.isupdated import is_updated
 from src.config import RE_DICT, CONFIG
 from src.gui.base import TreeWidget
 from src.convert import convert_dir_text
-from src.pdf.bookmark import add_bookmark
+from src.pdf.bookmark import add_bookmark, get_bookmarks
 
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
@@ -215,6 +215,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def open_file_dialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, u'select PDF', filter="PDF (*.pdf)")
         self.pdf_path_edit.setText(filename)
+        self.dir_text_edit.setText(self.read_pdf_dir_text(filename))
 
     def tree_to_dict(self):
         return self.dir_tree_widget.to_dict()
@@ -273,6 +274,11 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     @staticmethod
     def dict_to_pdf(pdf_path, index_dict):
         return add_bookmark(pdf_path, index_dict)
+
+    @staticmethod
+    def read_pdf_dir_text(pdf_path):
+        return "\n".join(get_bookmarks(pdf_path))
+
 
 def run():
     app = QtWidgets.QApplication(sys.argv)
