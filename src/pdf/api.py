@@ -72,13 +72,12 @@ class Pdf(object):
 
     def _outlines_to_bookmarks(self, outlines, current_level=0):
         index_list = []
-        i = 0
         for o in outlines:
             if isinstance(o, Destination):
                 try:
                     idnum = o.page if isinstance(o.page, int) else o.page.idnum
                     title = " " * current_level + o.title
-                    page_num = self.pages_num[idnum] = i
+                    page_num = self.pages_num[idnum] + 1
                     index_list.append("{title}  {page_num}".format(title=title, page_num=page_num))
                 except Exception as e:
                     logger.error(e)
@@ -87,7 +86,6 @@ class Pdf(object):
             else:
                 logger.error("Unknown outline type: {} in {}".format(type(o), o))
                 continue
-            i += 1
         return index_list
 
     def exist_bookmarks(self):
