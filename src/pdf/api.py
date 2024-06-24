@@ -75,10 +75,13 @@ class Pdf(object):
         i = 0
         for o in outlines:
             if isinstance(o, Destination):
-                idnum = o.page if isinstance(o.page, int) else o.page.idnum
-                title = " " * current_level + o.title
-                page_num = self.pages_num[idnum] = i
-                index_list.append("{title}  {page_num}".format(title=title, page_num=page_num))
+                try:
+                    idnum = o.page if isinstance(o.page, int) else o.page.idnum
+                    title = " " * current_level + o.title
+                    page_num = self.pages_num[idnum] = i
+                    index_list.append("{title}  {page_num}".format(title=title, page_num=page_num))
+                except Exception as e:
+                    logger.error(e)
             elif isinstance(o, list):
                 index_list += self._outlines_to_bookmarks(o, current_level + 1)
             else:
