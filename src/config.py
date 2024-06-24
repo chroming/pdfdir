@@ -18,7 +18,7 @@ RE_DICT = {
 
 class Config(object):
     APP_NAME = 'PDFDir'
-    VERSION = 'v0.3.0-beta22'
+    VERSION = 'v0.3.0-beta23'
     WINDOW_ICON = 'pdf.ico'
     HOME_PAGE_URL = 'https://github.com/chroming/pdfdir'
     HELP_PAGE_URL = 'https://github.com/chroming/pdfdir/blob/master/readme.md'
