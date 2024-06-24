@@ -144,7 +144,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     @staticmethod
     def alert_msg(msg, level="info", ok_action=None):
         box = QMessageBox()
-        if level == "warn":
+        if level == "info":
             box.setIcon(QMessageBox.Information)
             box.setWindowTitle("Infomation")
         else:
