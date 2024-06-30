@@ -215,7 +215,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def open_file_dialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, u'select PDF', filter="PDF (*.pdf)")
         self.pdf_path_edit.setText(filename)
-        self.dir_text_edit.setText(self.read_pdf_dir_text(filename))
+        exist_bookmarks = self.read_pdf_dir_text(filename)
+        if exist_bookmarks:
+            self.dir_text_edit.setText(exist_bookmarks)
+            self.space_level_box.setChecked(True)
 
     def tree_to_dict(self):
         return self.dir_tree_widget.to_dict()
