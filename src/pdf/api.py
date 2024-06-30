@@ -64,10 +64,13 @@ class Pdf(object):
     def _get_pages_num(pages):
         pages_num = {}
         for page in pages:
-            if isinstance(page, PageObject):
-                pages_num[page.indirect_ref.idnum] = page.page_number
-            else:
-                logger.error("Unknown page type {} for {}".format(type(page), page.page_number))
+            try:
+                if isinstance(page, PageObject):
+                    pages_num[page.indirect_ref.idnum] = page.page_number
+                else:
+                    logger.error("Unknown page type {} for {}".format(type(page), page.page_number))
+            except Exception as e:
+                logger.error(e)
         return pages_num
 
     def _outlines_to_bookmarks(self, outlines, current_level=0):
