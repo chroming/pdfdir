@@ -8,8 +8,11 @@ Public:
 - function: add_bookmark(path, index_dict)
 
 """
+import logging
 
 from .api import Pdf
+
+logger = logging.getLogger(__name__)
 
 
 def _add_bookmark(pdf, index_dict):
@@ -38,7 +41,13 @@ def add_bookmark(path, index_dict):
 
 
 def get_bookmarks(path):
-    return Pdf(path).exist_bookmarks()
+    if not path:
+        return []
+    try:
+        return Pdf(path).exist_bookmarks()
+    except Exception as e:
+        logging.warning("Read pdf %s failed! %s" % (path, e))
+        return []
 
 
 def check_bookmarks(path, index_dict):
