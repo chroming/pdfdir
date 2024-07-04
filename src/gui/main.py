@@ -6,6 +6,7 @@ The main GUI model of project.
 """
 
 import sys
+import traceback
 import webbrowser
 
 from PyQt5 import QtWidgets, QtCore, QtGui
@@ -304,9 +305,13 @@ def run():
 
 
 sys._excepthook = sys.excepthook
-def exception_hook(exctype, value, traceback):
-    sys._excepthook(exctype, value, traceback)
-    sys.exit(1)
+def exception_hook(exctype, value, exc_traceback):
+    sys._excepthook(exctype, value, exc_traceback)
+    error_message = ''.join(traceback.format_exception(exctype, value, exc_traceback))
+    QMessageBox.critical(None, "Unhandled Exception", error_message)
+    # Optionally, call the original excepthook
+    if hasattr(sys, '_excepthook'):
+        sys._excepthook(exctype, value, exc_traceback)
 sys.excepthook = exception_hook
 
 
