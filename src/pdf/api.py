@@ -45,20 +45,26 @@ class Pdf(object):
         self.path = path
         self.reader = PdfReader(open(path, "rb"), strict=False)
         self.pages_num = self._get_pages_num(self.reader.pages)
-        self.writer = PdfWriter()
-        # `clone_from=reader (clone_document_from_reader)` is slow when pdf is complex
-        # `append_pages_from_reader` is fast but will lose annotations in pdf
-        self.writer.append(self.reader, import_outline=False)
-        # Temporarily remove exist outline,
-        # to prevent `'DictionaryObject' object has no attribute 'insert_child'` error
-        # when adding bookmarks to some pdf which already have outline
-        self.writer._root_object.pop("/Outlines", None)
-
+        self._writer = None
 
     @property
     def _new_path(self):
         name, ext = os.path.splitext(self.path)
         return name + '_new' + ext
+
+    @property
+    def writer(self):
+        if not self._writer:
+            writer = PdfWriter()
+            # `clone_from=reader (clone_document_from_reader)` is slow when pdf is complex
+            # `append_pages_from_reader` is fast but will lose annotations in pdf
+            writer.append(self.reader, import_outline=False)
+            # Temporarily remove exist outline,
+            # to prevent `'DictionaryObject' object has no attribute 'insert_child'` error
+            # when adding bookmarks to some pdf which already have outline
+            writer._root_object.pop("/Outlines", None)
+            self._writer = writer
+        return self._writer
 
     @staticmethod
     def _get_pages_num(pages):
