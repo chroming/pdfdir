@@ -58,13 +58,29 @@ class Pdf(object):
             writer = PdfWriter()
             # `clone_from=reader (clone_document_from_reader)` is slow when pdf is complex
             # `append_pages_from_reader` is fast but will lose annotations in pdf
-            writer.append(self.reader, import_outline=False)
+            # writer.append(self.reader, import_outline=False)
+            self.copy_reader_to_writer(self.reader, writer)
             # Temporarily remove exist outline,
             # to prevent `'DictionaryObject' object has no attribute 'insert_child'` error
             # when adding bookmarks to some pdf which already have outline
             writer._root_object.pop("/Outlines", None)
             self._writer = writer
         return self._writer
+
+    @staticmethod
+    def copy_reader_to_writer(reader, writer):
+        # Use fallback function to make sure copy pdf always successes.
+        try:
+            # `clone_from=reader (clone_document_from_reader)` is slow when pdf is complex
+            # `append_pages_from_reader` is fast but will lose annotations in pdf
+            writer.append(reader, import_outline=False)
+        except Exception as e:
+            logger.warning("Copy pdf failed, {}, try to exclude /Annots and /B".format(e))
+            try:
+                writer.append(reader, import_outline=False, excluded_fields=["/Annots", "/B"])
+            except Exception as e:
+                logger.warning("Copy pdf failed again, {}, try to use append_pages_from_reader".format(e))
+                writer.append_pages_from_reader(reader)
 
     @staticmethod
     def _get_pages_num(pages):
