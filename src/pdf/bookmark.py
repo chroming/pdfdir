@@ -51,6 +51,8 @@ def get_bookmarks(path):
 
 
 def check_bookmarks(path, index_dict):
+    if not index_dict:
+        return
     pdf = Pdf(path)
     max_page_num = len(pdf.writer.pages)
     max_set_page_num = max([v.get('real_num', 1) for v in index_dict.values()])
