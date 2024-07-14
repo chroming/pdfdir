@@ -48,7 +48,7 @@ class Pdf(object):
         self.writer = PdfWriter()
         # `clone_from=reader (clone_document_from_reader)` is slow when pdf is complex
         # `append_pages_from_reader` is fast but will lose annotations in pdf
-        self.writer.append(self.reader)
+        self.writer.append(self.reader, import_outline=False)
         # Temporarily remove exist outline,
         # to prevent `'DictionaryObject' object has no attribute 'insert_child'` error
         # when adding bookmarks to some pdf which already have outline
