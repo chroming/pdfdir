@@ -490,15 +490,22 @@ p, li { white-space: pre-wrap; }
     <addaction name="help_action"/>
     <addaction name="update_action"/>
    </widget>
-   <widget class="QMenu" name="menu">
+   <widget class="QMenu" name="language_menu">
     <property name="title">
      <string>语言</string>
     </property>
     <addaction name="english_action"/>
     <addaction name="chinese_action"/>
    </widget>
+   <widget class="QMenu" name="options_menu">
+    <property name="title">
+     <string>选项</string>
+    </property>
+    <addaction name="fix_non_seq_action"/>
+   </widget>
+   <addaction name="options_menu"/>
    <addaction name="help_menu"/>
-   <addaction name="menu"/>
+   <addaction name="language_menu"/>
   </widget>
   <action name="home_page_action">
    <property name="text">
@@ -523,6 +530,17 @@ p, li { white-space: pre-wrap; }
   <action name="chinese_action">
    <property name="text">
     <string>中文</string>
+   </property>
+  </action>
+  <action name="fix_non_seq_action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>修复乱序页码</string>
+   </property>
+   <property name="iconText">
+    <string>修复乱序页码</string>
    </property>
   </action>
  </widget>

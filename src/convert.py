@@ -101,7 +101,8 @@ def _convert_dir_text(dir_text,
                       level4=None,
                       level5=None,
                       other=0,
-                      level_by_space=False):
+                      level_by_space=False,
+                      fix_non_seq=False):
     l0, l1, pagenum, index_dict = 0, 0, -float("inf"), {}
     l2, l3, l4 = 0, 0, 0
     dir_list = text_to_list(dir_text)
@@ -111,7 +112,7 @@ def _convert_dir_text(dir_text,
     for di in dir_list:
         di = di.rstrip()
         title, num = split_page_num(di)
-        if num > pagenum:
+        if num > pagenum or not fix_non_seq:
             pagenum = num
         index_dict[i] = {'title': title, 'real_num': pagenum + offset, 'num': pagenum}
         level = check_level(title, level0, level1, level2, level3, level4, level5, other=other)
@@ -145,7 +146,8 @@ def convert_dir_text(dir_text,
                      level4=None,
                      level5=None,
                      other=0,
-                     level_by_space=False):
+                     level_by_space=False,
+                     fix_non_seq=False):
     """
     convert directory text to dict.
 
@@ -162,4 +164,6 @@ def convert_dir_text(dir_text,
     :return: the dict of directory, like {0:{'title':'A', 'pagenum':1}, 1:{'title':'B', pagenum:2, parent: 0} ......}
 
     """
-    return _convert_dir_text(dir_text, offset, level0, level1, level2, level3, level4, level5, other=other, level_by_space=level_by_space)
+    return _convert_dir_text(dir_text, offset, level0, level1, level2, level3, level4, level5, other=other,
+                             level_by_space=level_by_space,
+                             fix_non_seq=fix_non_seq)
