@@ -1,4 +1,4 @@
-name: Build macos-12 release
+name: Build macos-14 release
 
 on:
   push:
@@ -13,7 +13,7 @@ permissions:
 jobs:
   deploy:
 
-    runs-on: macos-12
+    runs-on: macos-14
 
     steps:
     - uses: actions/checkout@v3
@@ -34,7 +34,7 @@ jobs:
     - name: Prepare file
       run: |
         chmod +x pdfdir.app
-        zip -r pdfdir_macos_12.zip pdfdir.app
+        zip -r pdfdir_macos_14.zip pdfdir.app
     
 
     - name: Upload package
@@ -42,4 +42,4 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       with:
         files: |
-          pdfdir_macos_12.zip
+          pdfdir_macos_14.zip
