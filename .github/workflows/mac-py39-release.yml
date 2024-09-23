@@ -39,12 +39,6 @@ jobs:
         chmod +x pdfdir.app
         zip -r pdfdir_mac_py39.zip pdfdir.app
 
-    - name: Prepare debug file
-      run: |
-        chmod +x pdfdir_mac_py39
-        zip -r pdfdir_debug_mac.zip pdfdir_debug 
-    
-
     - name: Upload package
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
