@@ -26,7 +26,7 @@ class Config(object):
     RELEASE_PAGE_URL = 'https://github.com/chroming/pdfdir/releases'
 
     cp = ConfigParser()
-    config_file = "config.ini"
+    config_file = os.path.join(os.getcwd(), "config.ini")
 
     # Check if config.ini exist
     if not os.path.exists(config_file):
