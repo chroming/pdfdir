@@ -29,7 +29,7 @@ jobs:
         pip install Pillow
     
     - name: Build package
-      run: pyinstaller -D run_gui.py -i "pdf.ico" --distpath . -n "pdfdir"  --noconsole
+      run: pyinstaller -D run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir"  --noconsole
 
     - name: Prepare file
       run: |

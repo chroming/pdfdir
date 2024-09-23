@@ -30,10 +30,10 @@ jobs:
         pip install -r requirements_build_addon.txt
 
     - name: Build package
-      run: pyinstaller -F run_gui.py -i "pdf.ico" --distpath . -n "pdfdir.exe"  --noconsole
+      run: pyinstaller -F run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir.exe"  --noconsole
 
     - name: Build debug package
-      run: pyinstaller -F run_gui.py -i "pdf.ico" --distpath . -n "pdfdir_debug.exe"
+      run: pyinstaller -F run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir_debug.exe"
 
     - name: Prepare file
       run: |
