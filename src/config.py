@@ -37,7 +37,9 @@ class Config(object):
 
     if os.path.exists(config_file):
         cp.read('config.ini', encoding='utf-8')
-    SELECTED_LEVEL = cp['LEVEL']['selected_level']
+        SELECTED_LEVEL = cp['LEVEL']['selected_level']
+    else:
+        SELECTED_LEVEL = 0
 
 
 CONFIG = Config()
