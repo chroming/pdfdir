@@ -28,13 +28,15 @@ class Config(object):
     cp = ConfigParser()
     config_file = os.path.join(os.getcwd(), "config.ini")
 
+    # TODO: In macOS, there will be "OSError: Read-only file system: '/config.ini'" When create config_file
     # Check if config.ini exist
-    if not os.path.exists(config_file):
-        with open(config_file, 'w') as configfile:
-            cp['LEVEL'] = {'selected_level': '0'}
-            cp.write(configfile)
+    # if not os.path.exists(config_file):
+    #     with open(config_file, 'w') as configfile:
+    #         cp['LEVEL'] = {'selected_level': '0'}
+    #         cp.write(configfile)
 
-    cp.read('config.ini', encoding='utf-8')
+    if os.path.exists(config_file):
+        cp.read('config.ini', encoding='utf-8')
     SELECTED_LEVEL = cp['LEVEL']['selected_level']
 
 
