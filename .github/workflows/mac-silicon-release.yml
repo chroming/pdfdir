@@ -34,7 +34,7 @@ jobs:
     - name: Prepare file
       run: |
         chmod +x pdfdir.app
-        zip -r pdfdir_macos_14.zip pdfdir.app
+        zip -r pdfdir_mac_silicon.zip pdfdir.app
     
 
     - name: Upload package
@@ -42,4 +42,4 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       with:
         files: |
-          pdfdir_macos_14.zip
+          pdfdir_mac_silicon.zip
