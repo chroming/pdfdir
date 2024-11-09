@@ -18,7 +18,7 @@ from src.gui.main_ui import Ui_PDFdir
 from src.isupdated import is_updated
 from src.config import RE_DICT, CONFIG
 from src.gui.base import TreeWidget
-from src.convert import convert_dir_text
+from src.convert import convert_dir_text, clean_clipboard_control_chars
 from src.pdf.bookmark import add_bookmark, get_bookmarks, check_bookmarks
 
 
@@ -223,6 +223,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.pdf_path_edit.setText(filename)
         exist_bookmarks = self.read_pdf_dir_text(filename)
         if exist_bookmarks:
+            exist_bookmarks = clean_clipboard_control_chars(exist_bookmarks)
             self.dir_text_edit.setText(exist_bookmarks)
             self.space_level_box.setChecked(True)
 

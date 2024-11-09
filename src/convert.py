@@ -55,6 +55,36 @@ def is_in(title, exp):
         print("Check regex error! %s" % e)
 
 
+def clean_clipboard_control_chars(text: str) -> str:
+    """
+    Clean control characters that could cause clipboard operations to fail
+
+    Core control characters handled:
+    - 0x00 (NUL): String terminator in Windows, will truncate strings
+    - 0x1A (SUB/Ctrl+Z): EOF marker in Windows, may truncate content
+
+    Optional control characters:
+    - 0x03 (ETX/Ctrl+C): Break signal, may interrupt copy operation
+    - 0x04 (EOT/Ctrl+D): EOF in Unix, may need handling in cross-platform scenarios
+    """
+    # Core problematic characters that must be handled
+    critical_chars = {
+        '\x00',  # NUL - Will truncate string
+        '\x1A',  # SUB/Ctrl+Z - May truncate in Windows
+    }
+
+    # Extended problematic characters (for stricter handling if needed)
+    extended_chars = {
+        '\x03',  # ETX/Ctrl+C
+        '\x04',  # EOT/Ctrl+D
+    }
+
+
+    problematic_chars = critical_chars | extended_chars  # Strict version
+
+    return ''.join(char for char in text if char not in problematic_chars)
+
+
 def check_level(title, level0, level1, level2, level3=None, level4=None, level5=None, other=0):
     """check the level of this title"""
     ls = [level0, level1, level2, level3, level4, level5]
