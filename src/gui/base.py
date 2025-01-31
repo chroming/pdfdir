@@ -2,8 +2,8 @@
 
 from functools import partial
 
-from PyQt5.QtWidgets import QMenu, QTreeWidgetItemIterator, QHeaderView
 from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtWidgets import QMenu, QTreeWidgetItemIterator, QHeaderView
 
 
 class MixinContextMenu(object):
@@ -51,7 +51,6 @@ class MixinContextMenu(object):
 
 
 class TreeWidget(MixinContextMenu):
-
     def fix_column(self):
         header = self.header()
         # Only resize first column
@@ -61,7 +60,7 @@ class TreeWidget(MixinContextMenu):
         super(TreeWidget, self).__init__(parents)
         self.itemPressed.connect(self.close_editor)
         self.itemDoubleClicked.connect(self.item_double_clicked)
-        self.add_action('删除', self.item_remove_current)
+        self.add_action("删除", self.item_remove_current)
         self.last_item = None
         self.last_column = None
 
@@ -125,7 +124,7 @@ class TreeWidget(MixinContextMenu):
         child_items = []
         for i in range(item.childCount()):
             child_item = item.child(i)
-            if not hasattr(child_item, '__hash__'):
+            if not hasattr(child_item, "__hash__"):
                 child_item.__hash__ = lambda: child_item.id
             child_items.append((child_item, self.children(child_item)))
         return child_items
@@ -142,13 +141,17 @@ class TreeWidget(MixinContextMenu):
         for child in children:
             k, vs = child
             real_num = int(k.text(2))
-            c = {'title': k.text(0),
-                 'num': int(k.text(1)),
-                 'real_num': real_num,
-                 'parent': parent_index}
+            c = {
+                "title": k.text(0),
+                "num": int(k.text(1)),
+                "real_num": real_num,
+                "parent": parent_index,
+            }
             children_dict[current_index] = c
             if vs:
-                children_dict.update(self.children_to_dict(vs, current_index + 1, current_index))
+                children_dict.update(
+                    self.children_to_dict(vs, current_index + 1, current_index)
+                )
             current_index = max(children_dict.keys()) + 1
         return children_dict
 
@@ -158,7 +161,11 @@ class TreeWidget(MixinContextMenu):
         dir_dict = {}
         for r in qtrees:
             k, vs = r
-            dir_dict[current_index] = {'title': k.text(0), 'num': int(k.text(1)), 'real_num': int(k.text(2))}
+            dir_dict[current_index] = {
+                "title": k.text(0),
+                "num": int(k.text(1)),
+                "real_num": int(k.text(2)),
+            }
             children_dict = self.children_to_dict(vs, current_index + 1, current_index)
             dir_dict.update(children_dict)
             current_index = max(dir_dict.keys()) + 1

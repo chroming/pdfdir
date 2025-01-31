@@ -11,15 +11,15 @@ import webbrowser
 
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QMessageBox
-# import qdarkstyle
 
-
+from src.config import CONFIG
+from src.convert import convert_dir_text, clean_clipboard_control_chars
+from src.gui.base import TreeWidget
 from src.gui.main_ui import Ui_PDFdir
 from src.isupdated import is_updated
-from src.config import RE_DICT, CONFIG
-from src.gui.base import TreeWidget
-from src.convert import convert_dir_text, clean_clipboard_control_chars
 from src.pdf.bookmark import add_bookmark, get_bookmarks, check_bookmarks
+
+# import qdarkstyle
 
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
@@ -45,9 +45,13 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.trans = trans
         self.setupUi(self)
         self.version = CONFIG.VERSION
-        self.setWindowTitle(u'{name} {version}'.format(name=CONFIG.APP_NAME, version=CONFIG.VERSION))
-        self.setWindowIcon(QtGui.QIcon('{icon}'.format(icon=CONFIG.WINDOW_ICON)))
-        self.dir_tree_widget = dynamic_base_class(self.dir_tree_widget, 'TreeWidget', TreeWidget)
+        self.setWindowTitle(
+            "{name} {version}".format(name=CONFIG.APP_NAME, version=CONFIG.VERSION)
+        )
+        self.setWindowIcon(QtGui.QIcon("{icon}".format(icon=CONFIG.WINDOW_ICON)))
+        self.dir_tree_widget = dynamic_base_class(
+            self.dir_tree_widget, "TreeWidget", TreeWidget
+        )
         self.dir_tree_widget.init_connect(parents=[self, self.dir_tree_widget])
         self.dir_tree_widget.fix_column()
         self._set_connect()
@@ -64,24 +68,25 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.level3_box.clicked.connect(self._change_level3_writable)
         self.level4_box.clicked.connect(self._change_level4_writable)
         self.level5_box.clicked.connect(self._change_level5_writable)
-        for act in (self.dir_text_edit.textChanged,
-                    self.offset_edit.textChanged,
-                    self.level0_box.stateChanged,
-                    self.level1_box.stateChanged,
-                    self.level2_box.stateChanged,
-                    self.level3_box.stateChanged,
-                    self.level4_box.stateChanged,
-                    self.level5_box.stateChanged,
-                    self.level0_edit.textChanged,
-                    self.level1_edit.textChanged,
-                    self.level2_edit.textChanged,
-                    self.level3_edit.textChanged,
-                    self.level4_edit.textChanged,
-                    self.level5_edit.textChanged,
-                    self.unknown_level_box.currentIndexChanged,
-                    self.space_level_box.stateChanged,
-                    self.fix_non_seq_action.changed,
-                    ):
+        for act in (
+            self.dir_text_edit.textChanged,
+            self.offset_edit.textChanged,
+            self.level0_box.stateChanged,
+            self.level1_box.stateChanged,
+            self.level2_box.stateChanged,
+            self.level3_box.stateChanged,
+            self.level4_box.stateChanged,
+            self.level5_box.stateChanged,
+            self.level0_edit.textChanged,
+            self.level1_edit.textChanged,
+            self.level2_edit.textChanged,
+            self.level3_edit.textChanged,
+            self.level4_edit.textChanged,
+            self.level5_edit.textChanged,
+            self.unknown_level_box.currentIndexChanged,
+            self.space_level_box.stateChanged,
+            self.fix_non_seq_action.changed,
+        ):
             act.connect(self.make_dir_tree)
 
     def _set_action(self):
@@ -130,16 +135,16 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         try:
             updated = is_updated(url, self.version)
         except Exception:
-            self.alert_msg(u"Check update failed", level="warn")
+            self.alert_msg("Check update failed", level="warn")
         else:
             if updated:
-                self.show_status(u"Find new version", 3000)
+                self.show_status("Find new version", 3000)
                 webbrowser.open(url, new=1)
             else:
-                self.show_status(u"No update", 3000)
-                self.alert_msg(u"No update")
+                self.show_status("No update", 3000)
+                self.alert_msg("No update")
 
-    def show_status(self, msg, timeout=10*3600*1000):
+    def show_status(self, msg, timeout=10 * 3600 * 1000):
         """Show message in status bar"""
         return self.statusbar.showMessage(msg, msecs=timeout)
 
@@ -219,7 +224,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         return self.fix_non_seq_action.isChecked()
 
     def open_file_dialog(self):
-        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, u'select PDF', filter="PDF (*.pdf)")
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "select PDF", filter="PDF (*.pdf)"
+        )
         self.pdf_path_edit.setText(filename)
         exist_bookmarks = self.read_pdf_dir_text(filename)
         if exist_bookmarks:
@@ -232,17 +239,19 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def make_dir_tree(self):
         self.dir_tree_widget.clear()
-        index_dict = convert_dir_text(self.dir_text,
-                                      self.offset_num,
-                                      self.level0_text,
-                                      self.level1_text,
-                                      self.level2_text,
-                                      self.level3_text,
-                                      self.level4_text,
-                                      self.level5_text,
-                                      other=self.other_level_index,
-                                      level_by_space=self.level_by_space,
-                                      fix_non_seq=self.fix_non_seq)
+        index_dict = convert_dir_text(
+            self.dir_text,
+            self.offset_num,
+            self.level0_text,
+            self.level1_text,
+            self.level2_text,
+            self.level3_text,
+            self.level4_text,
+            self.level5_text,
+            other=self.other_level_index,
+            level_by_space=self.level_by_space,
+            fix_non_seq=self.fix_non_seq,
+        )
         top_idx = 0
         inserted_items = {}
         children = {}
@@ -251,9 +260,13 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 children[i] = con
             else:
                 # Insert all top items
-                tree_item = QtWidgets.QTreeWidgetItem([con.get("title"),
-                                                       str(con.get("num", 1)),
-                                                       str(con.get("real_num", 1))])
+                tree_item = QtWidgets.QTreeWidgetItem(
+                    [
+                        con.get("title"),
+                        str(con.get("num", 1)),
+                        str(con.get("real_num", 1)),
+                    ]
+                )
                 self.dir_tree_widget.insertTopLevelItem(top_idx, tree_item)
                 inserted_items[i] = tree_item
                 top_idx += 1
@@ -266,9 +279,13 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 p_idx = con["parent"]
                 if p_idx in inserted_items:
                     p_item = inserted_items[p_idx]
-                    tree_item = QtWidgets.QTreeWidgetItem([con.get("title"),
-                                                           str(con.get("num", 1)),
-                                                           str(con.get("real_num", 1))])
+                    tree_item = QtWidgets.QTreeWidgetItem(
+                        [
+                            con.get("title"),
+                            str(con.get("num", 1)),
+                            str(con.get("real_num", 1)),
+                        ]
+                    )
                     p_item.addChild(tree_item)
                     children.pop(k)
                     inserted_items[k] = tree_item
@@ -286,9 +303,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             index_dict = self.tree_to_dict()
             self.pre_check(self.pdf_path, index_dict)
             new_path = self.dict_to_pdf(self.pdf_path, index_dict)
-            self.alert_msg(u"%s Finished！" % new_path)
+            self.alert_msg("%s Finished！" % new_path)
         except PermissionError:
-            self.alert_msg(u"Permission denied！", level="warn")
+            self.alert_msg("Permission denied！", level="warn")
 
     @staticmethod
     def dict_to_pdf(pdf_path, index_dict):
@@ -312,15 +329,19 @@ def run():
 
 
 sys._excepthook = sys.excepthook
+
+
 def exception_hook(exctype, value, exc_traceback):
     sys._excepthook(exctype, value, exc_traceback)
-    error_message = ''.join(traceback.format_exception(exctype, value, exc_traceback))
+    error_message = "".join(traceback.format_exception(exctype, value, exc_traceback))
     QMessageBox.critical(None, "Unhandled Exception", error_message)
     # Optionally, call the original excepthook
-    if hasattr(sys, '_excepthook'):
+    if hasattr(sys, "_excepthook"):
         sys._excepthook(exctype, value, exc_traceback)
+
+
 sys.excepthook = exception_hook
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run()

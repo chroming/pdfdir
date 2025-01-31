@@ -27,7 +27,8 @@ def split_page_num(text):
         # Support《》around numbers
         r"《(\d+)》",
         # Final pattern, without numbers
-        r"(\d*)"]
+        r"(\d*)",
+    ]
     con, num = "", 1
     # con, num = re.search(r"(.*?)((?<!-)-?\d+$|\d*$)", text).groups()
     for pat in page_num_patterns:
@@ -36,8 +37,8 @@ def split_page_num(text):
             con, num = res.groups()
             break
     if con:
-        con = con.rstrip(' .-')
-    if num == '':
+        con = con.rstrip(" .-")
+    if num == "":
         num = 1
     return con, int(num)
 
@@ -69,23 +70,24 @@ def clean_clipboard_control_chars(text: str) -> str:
     """
     # Core problematic characters that must be handled
     critical_chars = {
-        '\x00',  # NUL - Will truncate string
-        '\x1A',  # SUB/Ctrl+Z - May truncate in Windows
+        "\x00",  # NUL - Will truncate string
+        "\x1a",  # SUB/Ctrl+Z - May truncate in Windows
     }
 
     # Extended problematic characters (for stricter handling if needed)
     extended_chars = {
-        '\x03',  # ETX/Ctrl+C
-        '\x04',  # EOT/Ctrl+D
+        "\x03",  # ETX/Ctrl+C
+        "\x04",  # EOT/Ctrl+D
     }
-
 
     problematic_chars = critical_chars | extended_chars  # Strict version
 
-    return ''.join(char for char in text if char not in problematic_chars)
+    return "".join(char for char in text if char not in problematic_chars)
 
 
-def check_level(title, level0, level1, level2, level3=None, level4=None, level5=None, other=0):
+def check_level(
+    title, level0, level1, level2, level3=None, level4=None, level5=None, other=0
+):
     """check the level of this title"""
     ls = [level0, level1, level2, level3, level4, level5]
     for i in range(len(ls)):
@@ -122,62 +124,70 @@ def generate_level_pattern_by_prefix_space(dir_list):
     return level_patterns
 
 
-def _convert_dir_text(dir_text,
-                      offset=0,
-                      level0=None,
-                      level1=None,
-                      level2=None,
-                      level3=None,
-                      level4=None,
-                      level5=None,
-                      other=0,
-                      level_by_space=False,
-                      fix_non_seq=False):
+def _convert_dir_text(
+    dir_text,
+    offset=0,
+    level0=None,
+    level1=None,
+    level2=None,
+    level3=None,
+    level4=None,
+    level5=None,
+    other=0,
+    level_by_space=False,
+    fix_non_seq=False,
+):
     l0, l1, pagenum, index_dict = 0, 0, -float("inf"), {}
     l2, l3, l4 = 0, 0, 0
     dir_list = text_to_list(dir_text)
     if level_by_space:
-        level0, level1, level2, level3, level4, level5 = generate_level_pattern_by_prefix_space(dir_list)
+        level0, level1, level2, level3, level4, level5 = (
+            generate_level_pattern_by_prefix_space(dir_list)
+        )
     i = 0
     for di in dir_list:
         di = di.rstrip()
         title, num = split_page_num(di)
         if num > pagenum or not fix_non_seq:
             pagenum = num
-        index_dict[i] = {'title': title, 'real_num': pagenum + offset, 'num': pagenum}
-        level = check_level(title, level0, level1, level2, level3, level4, level5, other=other)
+        index_dict[i] = {"title": title, "real_num": pagenum + offset, "num": pagenum}
+        level = check_level(
+            title, level0, level1, level2, level3, level4, level5, other=other
+        )
         if level == 5 and i != l4:
-            index_dict[i]['parent'] = l4
+            index_dict[i]["parent"] = l4
         elif level == 4 and i != l3:
-            index_dict[i]['parent'] = l3
+            index_dict[i]["parent"] = l3
             l4 = i
         elif level == 3 and i != l2:
-            index_dict[i]['parent'] = l2
+            index_dict[i]["parent"] = l2
             l3 = i
         elif level == 2 and i != l1:
-            index_dict[i]['parent'] = l1
+            index_dict[i]["parent"] = l1
             l2 = i
         elif level == 1 and i != l0:
-            index_dict[i]['parent'] = l0
+            index_dict[i]["parent"] = l0
             l1 = i
         elif level == 0:
             l0 = i
-        index_dict[i]['title'] = title.lstrip()
+        index_dict[i]["title"] = title.lstrip()
         i += 1
     return index_dict
 
 
-def convert_dir_text(dir_text,
-                     offset=0,
-                     level0=None,
-                     level1=None,
-                     level2=None,
-                     level3=None,
-                     level4=None,
-                     level5=None,
-                     other=0,
-                     level_by_space=False,
-                     fix_non_seq=False):
+def convert_dir_text(
+    dir_text,
+    offset=0,
+    level0=None,
+    level1=None,
+    level2=None,
+    level3=None,
+    level4=None,
+    level5=None,
+    other=0,
+    level_by_space=False,
+    fix_non_seq=False,
+):
     """
     convert directory text to dict.
 
@@ -194,6 +204,16 @@ def convert_dir_text(dir_text,
     :return: the dict of directory, like {0:{'title':'A', 'pagenum':1}, 1:{'title':'B', pagenum:2, parent: 0} ......}
 
     """
-    return _convert_dir_text(dir_text, offset, level0, level1, level2, level3, level4, level5, other=other,
-                             level_by_space=level_by_space,
-                             fix_non_seq=fix_non_seq)
+    return _convert_dir_text(
+        dir_text,
+        offset,
+        level0,
+        level1,
+        level2,
+        level3,
+        level4,
+        level5,
+        other=other,
+        level_by_space=level_by_space,
+        fix_non_seq=fix_non_seq,
+    )

@@ -2,28 +2,26 @@ import os
 from configparser import ConfigParser
 
 RE_DICT = {
-    'level0': {
-        '第1章': '第\d章',
+    "level0": {
+        "第1章": "第\d章",
     },
-
-    'level1': {
-        '1.1': '\d\.\d',
-        '第1节': '第\d节',
+    "level1": {
+        "1.1": "\d\.\d",
+        "第1节": "第\d节",
     },
-    'level2': {
-        '1.1.1': '\d\.\d\.\d',
-    }
-
+    "level2": {
+        "1.1.1": "\d\.\d\.\d",
+    },
 }
 
 
 class Config(object):
-    APP_NAME = 'PDFDir'
-    VERSION = 'v0.3.0-beta35'
-    WINDOW_ICON = 'pdf.ico'
-    HOME_PAGE_URL = 'https://github.com/chroming/pdfdir'
-    HELP_PAGE_URL = 'https://github.com/chroming/pdfdir/blob/master/readme.md'
-    RELEASE_PAGE_URL = 'https://github.com/chroming/pdfdir/releases'
+    APP_NAME = "PDFDir"
+    VERSION = "v0.3.0-beta35"
+    WINDOW_ICON = "pdf.ico"
+    HOME_PAGE_URL = "https://github.com/chroming/pdfdir"
+    HELP_PAGE_URL = "https://github.com/chroming/pdfdir/blob/master/readme.md"
+    RELEASE_PAGE_URL = "https://github.com/chroming/pdfdir/releases"
 
     cp = ConfigParser()
     config_file = os.path.join(os.getcwd(), "config.ini")
@@ -36,8 +34,8 @@ class Config(object):
     #         cp.write(configfile)
 
     if os.path.exists(config_file):
-        cp.read('config.ini', encoding='utf-8')
-        SELECTED_LEVEL = cp['LEVEL']['selected_level']
+        cp.read("config.ini", encoding="utf-8")
+        SELECTED_LEVEL = cp["LEVEL"]["selected_level"]
     else:
         SELECTED_LEVEL = 0
 

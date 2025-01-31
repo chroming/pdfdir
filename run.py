@@ -16,7 +16,7 @@ def get_multiline_input(message):
     return sys.stdin.readlines()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pdf_path = get_input("Please input pdf file path: ")
     offset = int(get_input("Please input offset number: "))
     dir_text = get_multiline_input("Please input directory string: ")
