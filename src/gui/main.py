@@ -5,6 +5,7 @@ The main GUI model of project.
 
 """
 
+import os
 import sys
 import traceback
 import webbrowser
@@ -45,6 +46,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.trans = trans
         self.setupUi(self)
         self.version = CONFIG.VERSION
+        self.default_folder = CONFIG.DEFAULT_FOLDER
         self.setWindowTitle(
             "{name} {version}".format(name=CONFIG.APP_NAME, version=CONFIG.VERSION)
         )
@@ -225,8 +227,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def open_file_dialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "select PDF", filter="PDF (*.pdf)"
+            self, "select PDF", directory=self.default_folder, filter="PDF (*.pdf)"
         )
+        self.default_folder = os.path.dirname(filename)
         self.pdf_path_edit.setText(filename)
         exist_bookmarks = self.read_pdf_dir_text(filename)
         if exist_bookmarks:

@@ -22,6 +22,7 @@ class Config(object):
     HOME_PAGE_URL = "https://github.com/chroming/pdfdir"
     HELP_PAGE_URL = "https://github.com/chroming/pdfdir/blob/master/readme.md"
     RELEASE_PAGE_URL = "https://github.com/chroming/pdfdir/releases"
+    DEFAULT_FOLDER = os.getcwd()
 
     cp = ConfigParser()
     config_file = os.path.join(os.getcwd(), "config.ini")
