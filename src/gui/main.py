@@ -225,14 +225,23 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def fix_non_seq(self):
         return self.fix_non_seq_action.isChecked()
 
+    @property
+    def keep_exist_dir(self):
+        return self.keep_exist_dir_action.isChecked()
+
+    @property
+    def read_exist_dir(self):
+        return self.read_exist_dir_action.isChecked()
+
     def open_file_dialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, "select PDF", directory=self.default_folder, filter="PDF (*.pdf)"
         )
         self.default_folder = os.path.dirname(filename)
         self.pdf_path_edit.setText(filename)
+
         exist_bookmarks = self.read_pdf_dir_text(filename)
-        if exist_bookmarks:
+        if exist_bookmarks and self.read_exist_dir:
             exist_bookmarks = clean_clipboard_control_chars(exist_bookmarks)
             self.dir_text_edit.setText(exist_bookmarks)
             self.space_level_box.setChecked(True)
@@ -254,6 +263,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             other=self.other_level_index,
             level_by_space=self.level_by_space,
             fix_non_seq=self.fix_non_seq,
+            keep_exist_dir_action=self.keep_exist_dir
         )
         top_idx = 0
         inserted_items = {}
@@ -297,7 +307,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def pre_check(self, path, index_dict):
         try:
-            check_bookmarks(path, index_dict)
+            check_bookmarks(path, index_dict, self.keep_exist_dir)
         except ValueError as e:
             self.alert_msg(str(e), level="Warning")
 
@@ -305,14 +315,14 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         try:
             index_dict = self.tree_to_dict()
             self.pre_check(self.pdf_path, index_dict)
-            new_path = self.dict_to_pdf(self.pdf_path, index_dict)
+            new_path = self.dict_to_pdf(self.pdf_path, index_dict, self.keep_exist_dir)
             self.alert_msg("%s Finished！" % new_path)
         except PermissionError:
             self.alert_msg("Permission denied！", level="warn")
 
     @staticmethod
-    def dict_to_pdf(pdf_path, index_dict):
-        return add_bookmark(pdf_path, index_dict)
+    def dict_to_pdf(pdf_path, index_dict, keep_exist_dir=False):
+        return add_bookmark(pdf_path, index_dict, keep_exist_dir)
 
     @staticmethod
     def read_pdf_dir_text(pdf_path):

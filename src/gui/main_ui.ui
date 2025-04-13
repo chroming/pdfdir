@@ -502,6 +502,8 @@ p, li { white-space: pre-wrap; }
      <string>选项</string>
     </property>
     <addaction name="fix_non_seq_action"/>
+    <addaction name="read_exist_dir_action"/>
+    <addaction name="keep_exist_dir_action"/>
    </widget>
    <addaction name="options_menu"/>
    <addaction name="help_menu"/>
@@ -541,6 +543,25 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="iconText">
     <string>修复乱序页码</string>
+   </property>
+  </action>
+  <action name="keep_exist_dir_action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>保留已有目录</string>
+   </property>
+  </action>
+  <action name="read_exist_dir_action">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>读取目录文本</string>
    </property>
   </action>
  </widget>

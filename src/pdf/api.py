@@ -8,7 +8,7 @@ public:
 - class: Pdf(path)
 
 """
-
+import copy
 import logging
 import os
 
@@ -42,11 +42,12 @@ class Pdf(object):
 
     """
 
-    def __init__(self, path):
+    def __init__(self, path, keep_outline=False):
         self.path = path
         self.reader = PdfReader(open(path, "rb"), strict=False)
         self.pages_num = self._get_pages_num(self.reader.pages)
         self._writer = None
+        self.keep_outline = keep_outline
 
     @property
     def _new_path(self):
@@ -60,28 +61,31 @@ class Pdf(object):
             # `clone_from=reader (clone_document_from_reader)` is slow when pdf is complex
             # `append_pages_from_reader` is fast but will lose annotations in pdf
             # writer.append(self.reader, import_outline=False)
-            self.copy_reader_to_writer(self.reader, writer)
+            writer = self.copy_reader_to_writer(self.reader, writer, keep_outline=self.keep_outline)
             # Temporarily remove exist outline,
             # to prevent `'DictionaryObject' object has no attribute 'insert_child'` error
             # when adding bookmarks to some pdf which already have outline
-            writer._root_object.pop("/Outlines", None)
+            if not self.keep_outline:
+                writer._root_object.pop("/Outlines", None)
             self._writer = writer
         return self._writer
 
     @staticmethod
-    def copy_reader_to_writer(reader, writer):
+    def copy_reader_to_writer(reader, writer, keep_outline=False):
         # Use fallback function to make sure copy pdf always successes.
         try:
             # `clone_from=reader (clone_document_from_reader)` is slow when pdf is complex
             # `append_pages_from_reader` is fast but will lose annotations in pdf
-            writer.append(reader, import_outline=False)
+            new_writer = copy.deepcopy(writer)
+            new_writer.append(reader, import_outline=keep_outline)
         except Exception as e:
             logger.warning(
                 "Copy pdf failed, {}, try to exclude /Annots and /B".format(e)
             )
             try:
-                writer.append(
-                    reader, import_outline=False, excluded_fields=["/Annots", "/B"]
+                new_writer = copy.deepcopy(writer)
+                new_writer.append(
+                    reader, import_outline=keep_outline, excluded_fields=["/Annots", "/B"]
                 )
             except Exception as e:
                 logger.warning(
@@ -89,7 +93,9 @@ class Pdf(object):
                         e
                     )
                 )
-                writer.append_pages_from_reader(reader)
+                new_writer = copy.deepcopy(writer)
+                new_writer.append_pages_from_reader(reader)
+        return new_writer
 
     @staticmethod
     def _get_pages_num(pages):
