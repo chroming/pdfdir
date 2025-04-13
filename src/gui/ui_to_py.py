@@ -8,4 +8,4 @@ def ui_py(ui_file, py_file):
 
 
 if __name__ == "__main__":
-    ui_py("./src/gui/main_ui.ui", "./src/gui/main_ui.py")
+    ui_py("main_ui.ui", "main_ui.py")
