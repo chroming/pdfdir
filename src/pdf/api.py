@@ -13,7 +13,7 @@ import logging
 import os
 
 from pypdf import PdfWriter, PdfReader, PageObject
-from pypdf.generic import Destination
+from pypdf.generic import Destination, Fit
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +149,8 @@ class Pdf(object):
         parent: IndirectObject(the addBookmark() return object), the parent of this bookmark, the default is None.
 
         """
-        return self.writer.add_outline_item(title, pagenum, parent=parent)
+        # Set fit=Fit.xyz() to inherit zoom
+        return self.writer.add_outline_item(title, pagenum, parent=parent, fit=Fit.xyz())
 
     def save_pdf(self):
         """save the writer to a pdf file with name 'name_new.pdf'"""
