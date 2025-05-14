@@ -262,8 +262,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.level5_text,
             other=self.other_level_index,
             level_by_space=self.level_by_space,
-            fix_non_seq=self.fix_non_seq,
-            keep_exist_dir_action=self.keep_exist_dir
+            fix_non_seq=self.fix_non_seq
         )
         top_idx = 0
         inserted_items = {}
