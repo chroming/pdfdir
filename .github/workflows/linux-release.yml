@@ -21,6 +21,7 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: '3.10'
+        fetch-depth: 0
 
     - name: Install dependencies
       # install libxcb-xinerama0 to fix "Could not load the Qt platform plugin 'xcb'"
@@ -30,6 +31,17 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements_build_addon.txt
+
+    - name: Determine Version
+      id: get_version
+      shell: bash
+      run: |
+        VERSION=$(git describe --tags --always --dirty)
+        echo "VERSION=${VERSION}" >> $GITHUB_ENV
+        echo "Version determined: $VERSION"
+        echo "__version__ = '${{ env.VERSION }}'" > src/version.py
+        cat src/version.py
+
 
     - name: Build package
       run: pyinstaller -F run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir"  --noconsole

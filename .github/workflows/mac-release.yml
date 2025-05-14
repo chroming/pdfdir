@@ -21,6 +21,8 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: '3.7'
+        fetch-depth: 0
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -28,6 +30,16 @@ jobs:
         pip install -r requirements_build_addon.txt
         pip install Pillow
     
+    - name: Determine Version
+      id: get_version
+      shell: bash
+      run: |
+        VERSION=$(git describe --tags --always --dirty)
+        echo "VERSION=${VERSION}" >> $GITHUB_ENV
+        echo "Version determined: $VERSION"
+        echo "__version__ = '${{ env.VERSION }}'" > src/version.py
+        cat src/version.py
+
     - name: Build package
       run: pyinstaller -D run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir"  --noconsole
 
