@@ -1,4 +1,4 @@
-requests~=2.31.0
+requests~=2.32.3
 pypdf[crypto]~=3.17.0
 six~=1.16.0
 PyQt5~=5.15.7
