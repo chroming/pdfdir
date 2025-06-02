@@ -5,7 +5,7 @@ on:
     tags:
       - 'v*'
   release:
-    types: [published]
+    types: [ published ]
 
 permissions:
   contents: write
@@ -16,51 +16,51 @@ jobs:
     runs-on: macos-13
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.7'
-        fetch-depth: 0
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.7'
+          fetch-depth: 0
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements_build_addon.txt
-        pip install Pillow
-    
-    - name: Determine Version
-      id: get_version
-      shell: bash
-      run: |
-        VERSION=$(git describe --tags --always --dirty)
-        echo "VERSION=${VERSION}" >> $GITHUB_ENV
-        echo "Version determined: $VERSION"
-        echo "__version__ = '${{ env.VERSION }}'" > src/version.py
-        cat src/version.py
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements_build_addon.txt
+          pip install Pillow
 
-    - name: Build package
-      run: pyinstaller -D run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir"  --noconsole
+      - name: Determine Version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(git describe --tags --always --dirty)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "Version determined: $VERSION"
+          echo "__version__ = '${{ env.VERSION }}'" > src/version.py
+          cat src/version.py
 
-    - name: Build debug package
-      run: pyinstaller -D run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir_debug"
+      - name: Build package
+        run: pyinstaller -D run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir"  --noconsole
 
-    - name: Prepare file
-      run: |
-        chmod +x pdfdir.app
-        zip -r pdfdir_mac.zip pdfdir.app
+      - name: Build debug package
+        run: pyinstaller -D run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir_debug"
 
-    - name: Prepare debug file
-      run: |
-        chmod +x pdfdir_debug
-        zip -r pdfdir_debug_mac.zip pdfdir_debug 
-    
+      - name: Prepare file
+        run: |
+          chmod +x pdfdir.app
+          zip -r pdfdir_mac.zip pdfdir.app
 
-    - name: Upload package
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: |
-          pdfdir_mac.zip
-          pdfdir_debug_mac.zip
+      - name: Prepare debug file
+        run: |
+          chmod +x pdfdir_debug
+          zip -r pdfdir_debug_mac.zip pdfdir_debug 
+
+
+      - name: Upload package
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            pdfdir_mac.zip
+            pdfdir_debug_mac.zip

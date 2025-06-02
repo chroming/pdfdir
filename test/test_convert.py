@@ -1,7 +1,8 @@
 # -*- coding:utf-8 -*-
 
-from src.convert import *
 import pytest
+
+from src.convert import *
 
 
 @pytest.mark.parametrize(

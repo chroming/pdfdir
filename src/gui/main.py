@@ -10,15 +10,15 @@ import sys
 import traceback
 import webbrowser
 
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QMessageBox
 
 from src.config import CONFIG
-from src.convert import convert_dir_text, clean_clipboard_control_chars
+from src.convert import clean_clipboard_control_chars, convert_dir_text
 from src.gui.base import TreeWidget
 from src.gui.main_ui import Ui_PDFdir
 from src.isupdated import is_updated
-from src.pdf.bookmark import add_bookmark, get_bookmarks, check_bookmarks
+from src.pdf.bookmark import add_bookmark, check_bookmarks, get_bookmarks
 
 # import qdarkstyle
 
@@ -262,7 +262,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.level5_text,
             other=self.other_level_index,
             level_by_space=self.level_by_space,
-            fix_non_seq=self.fix_non_seq
+            fix_non_seq=self.fix_non_seq,
         )
         top_idx = 0
         inserted_items = {}

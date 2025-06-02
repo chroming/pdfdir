@@ -5,7 +5,7 @@ on:
     tags:
       - 'v*'
   release:
-    types: [published]
+    types: [ published ]
 
 permissions:
   contents: write
@@ -16,56 +16,56 @@ jobs:
     runs-on: windows-2019
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.10'
-        architecture: 'x86'
-        fetch-depth: 0
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+          architecture: 'x86'
+          fetch-depth: 0
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements_build_addon.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements_build_addon.txt
 
-    - name: Determine Version
-      id: get_version
-      shell: bash
-      run: |
-        VERSION=$(git describe --tags --always --dirty)
-        echo "VERSION=${VERSION}" >> $GITHUB_ENV
-        echo "Version determined: $VERSION"
-        echo "__version__ = '${{ env.VERSION }}'" > src/version.py
-        cat src/version.py
+      - name: Determine Version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(git describe --tags --always --dirty)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "Version determined: $VERSION"
+          echo "__version__ = '${{ env.VERSION }}'" > src/version.py
+          cat src/version.py
 
-    - name: Build package
-      run: pyinstaller -F run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir.exe"  --noconsole
+      - name: Build package
+        run: pyinstaller -F run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir.exe"  --noconsole
 
-    - name: Build folder package
-      run: pyinstaller -D run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir" --noconfirm --noconsole
+      - name: Build folder package
+        run: pyinstaller -D run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir" --noconfirm --noconsole
 
-    - name: Build debug package
-      run: pyinstaller -F run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir_debug.exe"
+      - name: Build debug package
+        run: pyinstaller -F run_gui.py -i "pdf.ico" --exclude config.ini --distpath . -n "pdfdir_debug.exe"
 
-    - name: Prepare file
-      run: |
-        tar.exe acvf pdfdir_win.zip pdfdir.exe
+      - name: Prepare file
+        run: |
+          tar.exe acvf pdfdir_win.zip pdfdir.exe
 
-    - name: Prepare folder
-      run: |
-        tar.exe acvf pdfdir_win_folder.zip pdfdir
+      - name: Prepare folder
+        run: |
+          tar.exe acvf pdfdir_win_folder.zip pdfdir
 
-    - name: Prepare debug file
-      run: |
-        tar.exe acvf pdfdir_debug_win.zip pdfdir_debug.exe
+      - name: Prepare debug file
+        run: |
+          tar.exe acvf pdfdir_debug_win.zip pdfdir_debug.exe
 
-    - name: Upload package
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: |
-          pdfdir_win.zip
-          pdfdir_win_folder.zip
-          pdfdir_debug_win.zip
+      - name: Upload package
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            pdfdir_win.zip
+            pdfdir_win_folder.zip
+            pdfdir_debug_win.zip

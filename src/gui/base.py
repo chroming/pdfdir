@@ -2,8 +2,8 @@
 
 from functools import partial
 
-from PyQt5.QtCore import Qt, QPoint
-from PyQt5.QtWidgets import QMenu, QTreeWidgetItemIterator, QHeaderView
+from PyQt5.QtCore import QPoint, Qt
+from PyQt5.QtWidgets import QHeaderView, QMenu, QTreeWidgetItemIterator
 
 
 class MixinContextMenu(object):

@@ -15,7 +15,9 @@ class Ui_PDFdir(object):
     def setupUi(self, PDFdir):
         PDFdir.setObjectName("PDFdir")
         PDFdir.resize(859, 450)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored
+        )
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(PDFdir.sizePolicy().hasHeightForWidth())
@@ -62,7 +64,9 @@ class Ui_PDFdir(object):
         self.horizontalLayout_5.addLayout(self.verticalLayout)
         self.verticalLayout_3 = QtWidgets.QVBoxLayout()
         self.verticalLayout_3.setObjectName("verticalLayout_3")
-        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacerItem = QtWidgets.QSpacerItem(
+            20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
+        )
         self.verticalLayout_3.addItem(spacerItem)
         self.offset_label = QtWidgets.QLabel(self.main_widget)
         self.offset_label.setObjectName("offset_label")
@@ -167,7 +171,9 @@ class Ui_PDFdir(object):
         self.dir_tree_widget.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.dir_tree_widget.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
         self.dir_tree_widget.setDefaultDropAction(QtCore.Qt.MoveAction)
-        self.dir_tree_widget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.dir_tree_widget.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection
+        )
         self.dir_tree_widget.setAutoExpandDelay(1)
         self.dir_tree_widget.setObjectName("dir_tree_widget")
         font = QtGui.QFont()
@@ -183,7 +189,9 @@ class Ui_PDFdir(object):
         self.horizontalLayout_5.addLayout(self.verticalLayout_4)
         self.verticalLayout_5 = QtWidgets.QVBoxLayout()
         self.verticalLayout_5.setObjectName("verticalLayout_5")
-        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacerItem1 = QtWidgets.QSpacerItem(
+            20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
+        )
         self.verticalLayout_5.addItem(spacerItem1)
         self.export_button = QtWidgets.QPushButton(self.main_widget)
         self.export_button.setObjectName("export_button")
@@ -248,11 +256,16 @@ class Ui_PDFdir(object):
         self.open_button.setText(_translate("PDFdir", "打开"))
         self.dir_text_label.setText(_translate("PDFdir", "目录文本"))
         self.space_level_box.setText(_translate("PDFdir", "以空格分层"))
-        self.dir_text_edit.setHtml(_translate("PDFdir", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
-"<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
-"p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'.AppleSystemUIFont\'; font-size:8pt; font-weight:400; font-style:italic;\">\n"
-"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:\'SimSun\'; font-style:normal;\"><br /></p></body></html>"))
+        self.dir_text_edit.setHtml(
+            _translate(
+                "PDFdir",
+                '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">\n'
+                '<html><head><meta name="qrichtext" content="1" /><style type="text/css">\n'
+                "p, li { white-space: pre-wrap; }\n"
+                "</style></head><body style=\" font-family:'.AppleSystemUIFont'; font-size:8pt; font-weight:400; font-style:italic;\">\n"
+                "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'SimSun'; font-style:normal;\"><br /></p></body></html>",
+            )
+        )
         self.offset_label.setText(_translate("PDFdir", "页差"))
         self.offset_edit.setText(_translate("PDFdir", "0"))
         self.sub_dir_group.setTitle(_translate("PDFdir", "目录分层"))
@@ -263,11 +276,17 @@ class Ui_PDFdir(object):
         self.level2_box.setText(_translate("PDFdir", "三层"))
         self.level2_edit.setText(_translate("PDFdir", "^\\d+\\.\\d+\\.\\d+\\w?\\s?"))
         self.level3_box.setText(_translate("PDFdir", "四层"))
-        self.level3_edit.setText(_translate("PDFdir", "^\\d+\\.\\d+\\.\\d+\\.\\d+\\w?\\s?"))
+        self.level3_edit.setText(
+            _translate("PDFdir", "^\\d+\\.\\d+\\.\\d+\\.\\d+\\w?\\s?")
+        )
         self.level4_box.setText(_translate("PDFdir", "五层"))
-        self.level4_edit.setText(_translate("PDFdir", "^\\d+\\.\\d+\\.\\d+\\.\\d+\\.\\d+\\w?\\s?"))
+        self.level4_edit.setText(
+            _translate("PDFdir", "^\\d+\\.\\d+\\.\\d+\\.\\d+\\.\\d+\\w?\\s?")
+        )
         self.level5_box.setText(_translate("PDFdir", "六层"))
-        self.level5_edit.setText(_translate("PDFdir", "^\\d+\\.\\d+\\.\\d+\\.\\d+\\.\\d+\\.\\d+\\w?\\s?"))
+        self.level5_edit.setText(
+            _translate("PDFdir", "^\\d+\\.\\d+\\.\\d+\\.\\d+\\.\\d+\\.\\d+\\w?\\s?")
+        )
         self.unknown_level_label.setText(_translate("PDFdir", "未识别"))
         self.unknown_level_box.setCurrentText(_translate("PDFdir", "首层"))
         self.unknown_level_box.setItemText(0, _translate("PDFdir", "首层"))

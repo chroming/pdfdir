@@ -1,4 +1,5 @@
 import argparse
+
 from src.pdfdirectory import add_directory
 
 if __name__ == "__main__":

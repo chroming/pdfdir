@@ -8,11 +8,12 @@ public:
 - class: Pdf(path)
 
 """
+
 import copy
 import logging
 import os
 
-from pypdf import PdfWriter, PdfReader, PageObject
+from pypdf import PageObject, PdfReader, PdfWriter
 from pypdf.generic import Destination, Fit
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,9 @@ class Pdf(object):
             # `clone_from=reader (clone_document_from_reader)` is slow when pdf is complex
             # `append_pages_from_reader` is fast but will lose annotations in pdf
             # writer.append(self.reader, import_outline=False)
-            writer = self.copy_reader_to_writer(self.reader, writer, keep_outline=self.keep_outline)
+            writer = self.copy_reader_to_writer(
+                self.reader, writer, keep_outline=self.keep_outline
+            )
             # Temporarily remove exist outline,
             # to prevent `'DictionaryObject' object has no attribute 'insert_child'` error
             # when adding bookmarks to some pdf which already have outline
@@ -85,7 +88,9 @@ class Pdf(object):
             try:
                 new_writer = copy.deepcopy(writer)
                 new_writer.append(
-                    reader, import_outline=keep_outline, excluded_fields=["/Annots", "/B"]
+                    reader,
+                    import_outline=keep_outline,
+                    excluded_fields=["/Annots", "/B"],
                 )
             except Exception as e:
                 logger.warning(
@@ -150,7 +155,9 @@ class Pdf(object):
 
         """
         # Set fit=Fit.xyz() to inherit zoom
-        return self.writer.add_outline_item(title, pagenum, parent=parent, fit=Fit.xyz())
+        return self.writer.add_outline_item(
+            title, pagenum, parent=parent, fit=Fit.xyz()
+        )
 
     def save_pdf(self):
         """save the writer to a pdf file with name 'name_new.pdf'"""

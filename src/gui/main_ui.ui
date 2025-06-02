@@ -1,570 +1,578 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>PDFdir</class>
- <widget class="QMainWindow" name="PDFdir">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>859</width>
-    <height>450</height>
-   </rect>
-  </property>
-  <property name="sizePolicy">
-   <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
-    <horstretch>0</horstretch>
-    <verstretch>0</verstretch>
-   </sizepolicy>
-  </property>
-  <property name="minimumSize">
-   <size>
-    <width>330</width>
-    <height>450</height>
-   </size>
-  </property>
-  <property name="maximumSize">
-   <size>
-    <width>1000000</width>
-    <height>1000000</height>
-   </size>
-  </property>
-  <property name="acceptDrops">
-   <bool>true</bool>
-  </property>
-  <property name="windowTitle">
-   <string>PDFdir</string>
-  </property>
-  <widget class="QWidget" name="main_widget">
-   <layout class="QHBoxLayout" name="horizontalLayout_5">
-    <item>
-     <layout class="QVBoxLayout" name="verticalLayout">
-      <item>
-       <widget class="QLabel" name="pdf_path_label">
-        <property name="text">
-         <string>PDF文件路径</string>
+    <class>PDFdir</class>
+    <widget class="QMainWindow" name="PDFdir">
+        <property name="geometry">
+            <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>859</width>
+                <height>450</height>
+            </rect>
         </property>
-       </widget>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout">
-        <item>
-         <widget class="QLineEdit" name="pdf_path_edit"/>
-        </item>
-        <item>
-         <widget class="QPushButton" name="open_button">
-          <property name="text">
-           <string>打开</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <widget class="QLabel" name="dir_text_label">
-        <property name="text">
-         <string>目录文本</string>
+        <property name="sizePolicy">
+            <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+            </sizepolicy>
         </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QCheckBox" name="space_level_box">
-        <property name="font">
-         <font>
-          <pointsize>10</pointsize>
-          <italic>true</italic>
-         </font>
+        <property name="minimumSize">
+            <size>
+                <width>330</width>
+                <height>450</height>
+            </size>
         </property>
-        <property name="text">
-         <string>以空格分层</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QTextEdit" name="dir_text_edit">
-        <property name="font">
-         <font>
-          <pointsize>8</pointsize>
-          <italic>true</italic>
-         </font>
-        </property>
-        <property name="html">
-         <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'.AppleSystemUIFont'; font-size:8pt; font-weight:400; font-style:italic;&quot;&gt;
-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'SimSun'; font-style:normal;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
-        <property name="acceptRichText">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <layout class="QVBoxLayout" name="verticalLayout_3">
-      <item>
-       <spacer name="verticalSpacer_2">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QLabel" name="offset_label">
-        <property name="text">
-         <string>页差</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLineEdit" name="offset_edit">
         <property name="maximumSize">
-         <size>
-          <width>220</width>
-          <height>16777215</height>
-         </size>
-        </property>
-        <property name="inputMethodHints">
-         <set>Qt::ImhDigitsOnly</set>
-        </property>
-        <property name="inputMask">
-         <string/>
-        </property>
-        <property name="text">
-         <string>0</string>
-        </property>
-        <property name="maxLength">
-         <number>32767</number>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QGroupBox" name="sub_dir_group">
-        <property name="maximumSize">
-         <size>
-          <width>240</width>
-          <height>16777215</height>
-         </size>
-        </property>
-        <property name="font">
-         <font>
-          <pointsize>10</pointsize>
-          <weight>75</weight>
-          <italic>false</italic>
-          <bold>true</bold>
-          <underline>false</underline>
-          <kerning>true</kerning>
-         </font>
-        </property>
-        <property name="autoFillBackground">
-         <bool>true</bool>
-        </property>
-        <property name="title">
-         <string>目录分层</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-        <property name="flat">
-         <bool>false</bool>
-        </property>
-        <property name="checkable">
-         <bool>false</bool>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout_2">
-         <item>
-          <widget class="QCheckBox" name="level0_box">
-           <property name="text">
-            <string>首层</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="level0_edit">
-           <property name="maximumSize">
             <size>
-             <width>220</width>
-             <height>16777215</height>
+                <width>1000000</width>
+                <height>1000000</height>
             </size>
-           </property>
-           <property name="text">
-            <string extracomment="可变部分用*代替，如“第*部分”">^\d+\.\s?</string>
-           </property>
-           <property name="echoMode">
-            <enum>QLineEdit::Normal</enum>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="level1_box">
-           <property name="text">
-            <string>二层</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="level1_edit">
-           <property name="maximumSize">
-            <size>
-             <width>220</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="text">
-            <string extracomment="可变部分用*代替，如“第*章”">^\d+\.\d+\w?\s?</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="level2_box">
-           <property name="text">
-            <string>三层</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="level2_edit">
-           <property name="maximumSize">
-            <size>
-             <width>220</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="text">
-            <string extracomment="可变部分用*代替，如“第*节”">^\d+\.\d+\.\d+\w?\s?</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="level3_box">
-           <property name="text">
-            <string>四层</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="level3_edit">
-           <property name="maximumSize">
-            <size>
-             <width>220</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="text">
-            <string>^\d+\.\d+\.\d+\.\d+\w?\s?</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="level4_box">
-           <property name="text">
-            <string>五层</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="level4_edit">
-           <property name="maximumSize">
-            <size>
-             <width>220</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="text">
-            <string>^\d+\.\d+\.\d+\.\d+\.\d+\w?\s?</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="level5_box">
-           <property name="text">
-            <string>六层</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="level5_edit">
-           <property name="maximumSize">
-            <size>
-             <width>220</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="text">
-            <string>^\d+\.\d+\.\d+\.\d+\.\d+\.\d+\w?\s?</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="unknown_level_label">
-           <property name="text">
-            <string extracomment="以上三层均未识别出的时归为哪层">未识别</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QComboBox" name="unknown_level_box">
-           <property name="maximumSize">
-            <size>
-             <width>220</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="currentText">
-            <string extracomment="以上三层均未识别出的时归为哪层">首层</string>
-           </property>
-           <item>
-            <property name="text">
-             <string>首层</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>二层</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>三层</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>四层</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>五层</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>六层</string>
-            </property>
-           </item>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <layout class="QVBoxLayout" name="verticalLayout_4">
-      <item>
-       <widget class="QLabel" name="preview_label">
-        <property name="text">
-         <string>预览</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QTreeWidget" name="dir_tree_widget">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="font">
-         <font>
-          <pointsize>8</pointsize>
-          <weight>50</weight>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="contextMenuPolicy">
-         <enum>Qt::CustomContextMenu</enum>
         </property>
         <property name="acceptDrops">
-         <bool>true</bool>
+            <bool>true</bool>
         </property>
-        <property name="autoScroll">
-         <bool>false</bool>
+        <property name="windowTitle">
+            <string>PDFdir</string>
         </property>
-        <property name="editTriggers">
-         <set>QAbstractItemView::NoEditTriggers</set>
-        </property>
-        <property name="dragDropMode">
-         <enum>QAbstractItemView::DragDrop</enum>
-        </property>
-        <property name="defaultDropAction">
-         <enum>Qt::MoveAction</enum>
-        </property>
-        <property name="selectionMode">
-         <enum>QAbstractItemView::ExtendedSelection</enum>
-        </property>
-        <property name="autoExpandDelay">
-         <number>1</number>
-        </property>
-        <attribute name="headerVisible">
-         <bool>true</bool>
-        </attribute>
-        <attribute name="headerCascadingSectionResizes">
-         <bool>false</bool>
-        </attribute>
-        <attribute name="headerStretchLastSection">
-         <bool>false</bool>
-        </attribute>
-        <column>
-         <property name="text">
-          <string>目录</string>
-         </property>
-         <property name="font">
-          <font>
-           <family>黑体</family>
-          </font>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>标注页码</string>
-         </property>
-         <property name="font">
-          <font>
-           <family>黑体</family>
-          </font>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>实际页数</string>
-         </property>
-        </column>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <layout class="QVBoxLayout" name="verticalLayout_5">
-      <item>
-       <spacer name="verticalSpacer">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QPushButton" name="export_button">
-        <property name="text">
-         <string>写入</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
-   </layout>
-  </widget>
-  <widget class="QStatusBar" name="statusbar">
-   <property name="font">
-    <font>
-     <pointsize>7</pointsize>
-    </font>
-   </property>
-  </widget>
-  <widget class="QMenuBar" name="menuBar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>859</width>
-     <height>24</height>
-    </rect>
-   </property>
-   <widget class="QMenu" name="help_menu">
-    <property name="title">
-     <string>帮助</string>
-    </property>
-    <addaction name="home_page_action"/>
-    <addaction name="help_action"/>
-    <addaction name="update_action"/>
-   </widget>
-   <widget class="QMenu" name="language_menu">
-    <property name="title">
-     <string>语言</string>
-    </property>
-    <addaction name="english_action"/>
-    <addaction name="chinese_action"/>
-   </widget>
-   <widget class="QMenu" name="options_menu">
-    <property name="title">
-     <string>选项</string>
-    </property>
-    <addaction name="fix_non_seq_action"/>
-    <addaction name="read_exist_dir_action"/>
-    <addaction name="keep_exist_dir_action"/>
-   </widget>
-   <addaction name="options_menu"/>
-   <addaction name="help_menu"/>
-   <addaction name="language_menu"/>
-  </widget>
-  <action name="home_page_action">
-   <property name="text">
-    <string>主页</string>
-   </property>
-  </action>
-  <action name="help_action">
-   <property name="text">
-    <string>帮助手册</string>
-   </property>
-  </action>
-  <action name="update_action">
-   <property name="text">
-    <string>检查更新</string>
-   </property>
-  </action>
-  <action name="english_action">
-   <property name="text">
-    <string>English</string>
-   </property>
-  </action>
-  <action name="chinese_action">
-   <property name="text">
-    <string>中文</string>
-   </property>
-  </action>
-  <action name="fix_non_seq_action">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>修复乱序页码</string>
-   </property>
-   <property name="iconText">
-    <string>修复乱序页码</string>
-   </property>
-  </action>
-  <action name="keep_exist_dir_action">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>保留已有目录</string>
-   </property>
-  </action>
-  <action name="read_exist_dir_action">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="checked">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>读取目录文本</string>
-   </property>
-  </action>
- </widget>
- <resources/>
- <connections/>
+        <widget class="QWidget" name="main_widget">
+            <layout class="QHBoxLayout" name="horizontalLayout_5">
+                <item>
+                    <layout class="QVBoxLayout" name="verticalLayout">
+                        <item>
+                            <widget class="QLabel" name="pdf_path_label">
+                                <property name="text">
+                                    <string>PDF文件路径</string>
+                                </property>
+                            </widget>
+                        </item>
+                        <item>
+                            <layout class="QHBoxLayout" name="horizontalLayout">
+                                <item>
+                                    <widget class="QLineEdit" name="pdf_path_edit"/>
+                                </item>
+                                <item>
+                                    <widget class="QPushButton" name="open_button">
+                                        <property name="text">
+                                            <string>打开</string>
+                                        </property>
+                                    </widget>
+                                </item>
+                            </layout>
+                        </item>
+                        <item>
+                            <widget class="QLabel" name="dir_text_label">
+                                <property name="text">
+                                    <string>目录文本</string>
+                                </property>
+                            </widget>
+                        </item>
+                        <item>
+                            <widget class="QCheckBox" name="space_level_box">
+                                <property name="font">
+                                    <font>
+                                        <pointsize>10</pointsize>
+                                        <italic>true</italic>
+                                    </font>
+                                </property>
+                                <property name="text">
+                                    <string>以空格分层</string>
+                                </property>
+                            </widget>
+                        </item>
+                        <item>
+                            <widget class="QTextEdit" name="dir_text_edit">
+                                <property name="font">
+                                    <font>
+                                        <pointsize>8</pointsize>
+                                        <italic>true</italic>
+                                    </font>
+                                </property>
+                                <property name="html">
+                                    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+                                        &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot;
+                                        /&gt;&lt;style type=&quot;text/css&quot;&gt;
+                                        p, li { white-space: pre-wrap; }
+                                        &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot;
+                                        font-family:'.AppleSystemUIFont'; font-size:8pt; font-weight:400;
+                                        font-style:italic;&quot;&gt;
+                                        &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px;
+                                        margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;
+                                        font-family:'SimSun'; font-style:normal;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;
+                                    </string>
+                                </property>
+                                <property name="acceptRichText">
+                                    <bool>false</bool>
+                                </property>
+                            </widget>
+                        </item>
+                    </layout>
+                </item>
+                <item>
+                    <layout class="QVBoxLayout" name="verticalLayout_3">
+                        <item>
+                            <spacer name="verticalSpacer_2">
+                                <property name="orientation">
+                                    <enum>Qt::Vertical</enum>
+                                </property>
+                                <property name="sizeHint" stdset="0">
+                                    <size>
+                                        <width>20</width>
+                                        <height>40</height>
+                                    </size>
+                                </property>
+                            </spacer>
+                        </item>
+                        <item>
+                            <widget class="QLabel" name="offset_label">
+                                <property name="text">
+                                    <string>页差</string>
+                                </property>
+                            </widget>
+                        </item>
+                        <item>
+                            <widget class="QLineEdit" name="offset_edit">
+                                <property name="maximumSize">
+                                    <size>
+                                        <width>220</width>
+                                        <height>16777215</height>
+                                    </size>
+                                </property>
+                                <property name="inputMethodHints">
+                                    <set>Qt::ImhDigitsOnly</set>
+                                </property>
+                                <property name="inputMask">
+                                    <string/>
+                                </property>
+                                <property name="text">
+                                    <string>0</string>
+                                </property>
+                                <property name="maxLength">
+                                    <number>32767</number>
+                                </property>
+                            </widget>
+                        </item>
+                        <item>
+                            <widget class="QGroupBox" name="sub_dir_group">
+                                <property name="maximumSize">
+                                    <size>
+                                        <width>240</width>
+                                        <height>16777215</height>
+                                    </size>
+                                </property>
+                                <property name="font">
+                                    <font>
+                                        <pointsize>10</pointsize>
+                                        <weight>75</weight>
+                                        <italic>false</italic>
+                                        <bold>true</bold>
+                                        <underline>false</underline>
+                                        <kerning>true</kerning>
+                                    </font>
+                                </property>
+                                <property name="autoFillBackground">
+                                    <bool>true</bool>
+                                </property>
+                                <property name="title">
+                                    <string>目录分层</string>
+                                </property>
+                                <property name="alignment">
+                                    <set>Qt::AlignCenter</set>
+                                </property>
+                                <property name="flat">
+                                    <bool>false</bool>
+                                </property>
+                                <property name="checkable">
+                                    <bool>false</bool>
+                                </property>
+                                <layout class="QVBoxLayout" name="verticalLayout_2">
+                                    <item>
+                                        <widget class="QCheckBox" name="level0_box">
+                                            <property name="text">
+                                                <string>首层</string>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QLineEdit" name="level0_edit">
+                                            <property name="maximumSize">
+                                                <size>
+                                                    <width>220</width>
+                                                    <height>16777215</height>
+                                                </size>
+                                            </property>
+                                            <property name="text">
+                                                <string extracomment="可变部分用*代替，如“第*部分”">^\d+\.\s?</string>
+                                            </property>
+                                            <property name="echoMode">
+                                                <enum>QLineEdit::Normal</enum>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QCheckBox" name="level1_box">
+                                            <property name="text">
+                                                <string>二层</string>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QLineEdit" name="level1_edit">
+                                            <property name="maximumSize">
+                                                <size>
+                                                    <width>220</width>
+                                                    <height>16777215</height>
+                                                </size>
+                                            </property>
+                                            <property name="text">
+                                                <string extracomment="可变部分用*代替，如“第*章”">^\d+\.\d+\w?\s?
+                                                </string>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QCheckBox" name="level2_box">
+                                            <property name="text">
+                                                <string>三层</string>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QLineEdit" name="level2_edit">
+                                            <property name="maximumSize">
+                                                <size>
+                                                    <width>220</width>
+                                                    <height>16777215</height>
+                                                </size>
+                                            </property>
+                                            <property name="text">
+                                                <string extracomment="可变部分用*代替，如“第*节”">^\d+\.\d+\.\d+\w?\s?
+                                                </string>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QCheckBox" name="level3_box">
+                                            <property name="text">
+                                                <string>四层</string>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QLineEdit" name="level3_edit">
+                                            <property name="maximumSize">
+                                                <size>
+                                                    <width>220</width>
+                                                    <height>16777215</height>
+                                                </size>
+                                            </property>
+                                            <property name="text">
+                                                <string>^\d+\.\d+\.\d+\.\d+\w?\s?</string>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QCheckBox" name="level4_box">
+                                            <property name="text">
+                                                <string>五层</string>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QLineEdit" name="level4_edit">
+                                            <property name="maximumSize">
+                                                <size>
+                                                    <width>220</width>
+                                                    <height>16777215</height>
+                                                </size>
+                                            </property>
+                                            <property name="text">
+                                                <string>^\d+\.\d+\.\d+\.\d+\.\d+\w?\s?</string>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QCheckBox" name="level5_box">
+                                            <property name="text">
+                                                <string>六层</string>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QLineEdit" name="level5_edit">
+                                            <property name="maximumSize">
+                                                <size>
+                                                    <width>220</width>
+                                                    <height>16777215</height>
+                                                </size>
+                                            </property>
+                                            <property name="text">
+                                                <string>^\d+\.\d+\.\d+\.\d+\.\d+\.\d+\w?\s?</string>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QLabel" name="unknown_level_label">
+                                            <property name="text">
+                                                <string extracomment="以上三层均未识别出的时归为哪层">未识别</string>
+                                            </property>
+                                        </widget>
+                                    </item>
+                                    <item>
+                                        <widget class="QComboBox" name="unknown_level_box">
+                                            <property name="maximumSize">
+                                                <size>
+                                                    <width>220</width>
+                                                    <height>16777215</height>
+                                                </size>
+                                            </property>
+                                            <property name="currentText">
+                                                <string extracomment="以上三层均未识别出的时归为哪层">首层</string>
+                                            </property>
+                                            <item>
+                                                <property name="text">
+                                                    <string>首层</string>
+                                                </property>
+                                            </item>
+                                            <item>
+                                                <property name="text">
+                                                    <string>二层</string>
+                                                </property>
+                                            </item>
+                                            <item>
+                                                <property name="text">
+                                                    <string>三层</string>
+                                                </property>
+                                            </item>
+                                            <item>
+                                                <property name="text">
+                                                    <string>四层</string>
+                                                </property>
+                                            </item>
+                                            <item>
+                                                <property name="text">
+                                                    <string>五层</string>
+                                                </property>
+                                            </item>
+                                            <item>
+                                                <property name="text">
+                                                    <string>六层</string>
+                                                </property>
+                                            </item>
+                                        </widget>
+                                    </item>
+                                </layout>
+                            </widget>
+                        </item>
+                    </layout>
+                </item>
+                <item>
+                    <layout class="QVBoxLayout" name="verticalLayout_4">
+                        <item>
+                            <widget class="QLabel" name="preview_label">
+                                <property name="text">
+                                    <string>预览</string>
+                                </property>
+                            </widget>
+                        </item>
+                        <item>
+                            <widget class="QTreeWidget" name="dir_tree_widget">
+                                <property name="enabled">
+                                    <bool>true</bool>
+                                </property>
+                                <property name="font">
+                                    <font>
+                                        <pointsize>8</pointsize>
+                                        <weight>50</weight>
+                                        <bold>false</bold>
+                                    </font>
+                                </property>
+                                <property name="contextMenuPolicy">
+                                    <enum>Qt::CustomContextMenu</enum>
+                                </property>
+                                <property name="acceptDrops">
+                                    <bool>true</bool>
+                                </property>
+                                <property name="autoScroll">
+                                    <bool>false</bool>
+                                </property>
+                                <property name="editTriggers">
+                                    <set>QAbstractItemView::NoEditTriggers</set>
+                                </property>
+                                <property name="dragDropMode">
+                                    <enum>QAbstractItemView::DragDrop</enum>
+                                </property>
+                                <property name="defaultDropAction">
+                                    <enum>Qt::MoveAction</enum>
+                                </property>
+                                <property name="selectionMode">
+                                    <enum>QAbstractItemView::ExtendedSelection</enum>
+                                </property>
+                                <property name="autoExpandDelay">
+                                    <number>1</number>
+                                </property>
+                                <attribute name="headerVisible">
+                                    <bool>true</bool>
+                                </attribute>
+                                <attribute name="headerCascadingSectionResizes">
+                                    <bool>false</bool>
+                                </attribute>
+                                <attribute name="headerStretchLastSection">
+                                    <bool>false</bool>
+                                </attribute>
+                                <column>
+                                    <property name="text">
+                                        <string>目录</string>
+                                    </property>
+                                    <property name="font">
+                                        <font>
+                                            <family>黑体</family>
+                                        </font>
+                                    </property>
+                                </column>
+                                <column>
+                                    <property name="text">
+                                        <string>标注页码</string>
+                                    </property>
+                                    <property name="font">
+                                        <font>
+                                            <family>黑体</family>
+                                        </font>
+                                    </property>
+                                </column>
+                                <column>
+                                    <property name="text">
+                                        <string>实际页数</string>
+                                    </property>
+                                </column>
+                            </widget>
+                        </item>
+                    </layout>
+                </item>
+                <item>
+                    <layout class="QVBoxLayout" name="verticalLayout_5">
+                        <item>
+                            <spacer name="verticalSpacer">
+                                <property name="orientation">
+                                    <enum>Qt::Vertical</enum>
+                                </property>
+                                <property name="sizeHint" stdset="0">
+                                    <size>
+                                        <width>20</width>
+                                        <height>40</height>
+                                    </size>
+                                </property>
+                            </spacer>
+                        </item>
+                        <item>
+                            <widget class="QPushButton" name="export_button">
+                                <property name="text">
+                                    <string>写入</string>
+                                </property>
+                            </widget>
+                        </item>
+                    </layout>
+                </item>
+            </layout>
+        </widget>
+        <widget class="QStatusBar" name="statusbar">
+            <property name="font">
+                <font>
+                    <pointsize>7</pointsize>
+                </font>
+            </property>
+        </widget>
+        <widget class="QMenuBar" name="menuBar">
+            <property name="geometry">
+                <rect>
+                    <x>0</x>
+                    <y>0</y>
+                    <width>859</width>
+                    <height>24</height>
+                </rect>
+            </property>
+            <widget class="QMenu" name="help_menu">
+                <property name="title">
+                    <string>帮助</string>
+                </property>
+                <addaction name="home_page_action"/>
+                <addaction name="help_action"/>
+                <addaction name="update_action"/>
+            </widget>
+            <widget class="QMenu" name="language_menu">
+                <property name="title">
+                    <string>语言</string>
+                </property>
+                <addaction name="english_action"/>
+                <addaction name="chinese_action"/>
+            </widget>
+            <widget class="QMenu" name="options_menu">
+                <property name="title">
+                    <string>选项</string>
+                </property>
+                <addaction name="fix_non_seq_action"/>
+                <addaction name="read_exist_dir_action"/>
+                <addaction name="keep_exist_dir_action"/>
+            </widget>
+            <addaction name="options_menu"/>
+            <addaction name="help_menu"/>
+            <addaction name="language_menu"/>
+        </widget>
+        <action name="home_page_action">
+            <property name="text">
+                <string>主页</string>
+            </property>
+        </action>
+        <action name="help_action">
+            <property name="text">
+                <string>帮助手册</string>
+            </property>
+        </action>
+        <action name="update_action">
+            <property name="text">
+                <string>检查更新</string>
+            </property>
+        </action>
+        <action name="english_action">
+            <property name="text">
+                <string>English</string>
+            </property>
+        </action>
+        <action name="chinese_action">
+            <property name="text">
+                <string>中文</string>
+            </property>
+        </action>
+        <action name="fix_non_seq_action">
+            <property name="checkable">
+                <bool>true</bool>
+            </property>
+            <property name="text">
+                <string>修复乱序页码</string>
+            </property>
+            <property name="iconText">
+                <string>修复乱序页码</string>
+            </property>
+        </action>
+        <action name="keep_exist_dir_action">
+            <property name="checkable">
+                <bool>true</bool>
+            </property>
+            <property name="text">
+                <string>保留已有目录</string>
+            </property>
+        </action>
+        <action name="read_exist_dir_action">
+            <property name="checkable">
+                <bool>true</bool>
+            </property>
+            <property name="checked">
+                <bool>true</bool>
+            </property>
+            <property name="text">
+                <string>读取目录文本</string>
+            </property>
+        </action>
+    </widget>
+    <resources/>
+    <connections/>
 </ui>
