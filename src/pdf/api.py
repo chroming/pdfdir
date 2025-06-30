@@ -139,6 +139,30 @@ class Pdf(object):
                 continue
         return index_list
 
+    def _extract_bookmarks(self, outlines, parent=None, result=None):
+        if result is None:
+            result = []
+
+        last_destination = None
+
+        for item in outlines:
+            if isinstance(item, list):
+                self._extract_bookmarks(
+                    item, parent=last_destination, result=result
+                )
+            elif isinstance(item, Destination):
+                page_number = self.reader.get_destination_page_number(item)
+                node = {
+                    "title": item.title,
+                    "page_number": page_number,
+                    "parent": parent,
+                }
+                result.append(node)
+                last_destination = item
+            else:
+                continue
+        return result
+
     def exist_bookmarks(self):
         return self._outlines_to_bookmarks(self.reader.outline)
 
