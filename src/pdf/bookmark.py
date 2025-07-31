@@ -32,6 +32,30 @@ def _add_bookmark(pdf, index_dict):
         parent_dict[i] = inobject
 
 
+def merge_bookmarks(existing_bookmarks, new_bookmarks):
+    """
+    Merge existing bookmarks with new bookmarks.
+    :param existing_bookmarks: List of existing bookmarks.
+    :param new_bookmarks: List of new bookmarks (index_dict.values()).
+    :return: Merged bookmarks list
+    """
+    merged = existing_bookmarks.copy()
+    offset = len(existing_bookmarks)
+    new_key_map = {}
+    for i, new in enumerate(new_bookmarks):
+        new_key_map[i] = offset + i
+    for i, new in enumerate(new_bookmarks):
+        bm = {"title": new["title"], "pagenum": new["pagenum"]}
+        parent = new.get("parent")
+        if parent is not None:
+            if parent in new_key_map:
+                bm["parent"] = new_key_map[parent]
+            else:
+                bm["parent"] = parent
+        merged.append(bm)
+    return merged
+
+
 def add_bookmark(path, index_dict, keep_exist_dir=False):
     """
     Add directory bookmarks to the pdf file.
