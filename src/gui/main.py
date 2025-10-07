@@ -17,7 +17,7 @@ from src.config import CONFIG
 from src.convert import clean_clipboard_control_chars, convert_dir_text
 from src.gui.base import TreeWidget
 from src.gui.main_ui import Ui_PDFdir
-from src.isupdated import is_updated
+from src.updater import is_updated
 from src.pdf.bookmark import add_bookmark, check_bookmarks, get_bookmarks
 
 # import qdarkstyle

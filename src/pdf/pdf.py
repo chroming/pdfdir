@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-The add bookmark api for a pdf file.
+The add bookmark class for a pdf file.
 
 public:
 

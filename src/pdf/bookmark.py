@@ -11,7 +11,7 @@ Public:
 
 import logging
 
-from .api import Pdf
+from .pdf import Pdf
 
 logger = logging.getLogger(__name__)
 
