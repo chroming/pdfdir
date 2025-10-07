@@ -74,7 +74,7 @@ Windows/macOS/Ubuntu:
 
 + Python2/3 均可，推荐Python3
 + PyQt5
-+ PyPDF2
++ PyPDF
 + six
 
 *注意：Python2与Python3 不兼容，某些系统（如macOS）系统自带Python2，使用`python`命令调用，若自行安装Python3则可能需要通过`python3`来调用Python3，pip同理。本文不区分python/python3, pip/pip3，请用户按当前系统所安装版本使用对应命令。*
@@ -95,7 +95,7 @@ https://www.python.org/downloads/
 
 `pip install -r requirements.txt`
 
-`pip install -r pyqt5`
+`pip install PyQt5`
 
 若提示`No matching distribution found for pyqt5` 可参照[PyQt官方文档](http://pyqt.sourceforge.net/Docs/PyQt5/installation.html)进行安装。
 
