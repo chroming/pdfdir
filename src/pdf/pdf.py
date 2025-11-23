@@ -100,6 +100,8 @@ class Pdf(object):
                 )
                 new_writer = copy.deepcopy(writer)
                 new_writer.append_pages_from_reader(reader)
+        if reader.metadata is not None:
+            new_writer.add_metadata(reader.metadata)
         return new_writer
 
     @staticmethod
