@@ -8,34 +8,42 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+# Pre-compile regex patterns to avoid recompilation on every call
+_PAGE_NUM_PATTERNS_RAW = [
+    # Support negative numbers
+    r"((?<!-)-?\d+)",
+    # Support () around numbers
+    r"\((\d+)\)",
+    # Support [] around numbers
+    r"\[(\d+)\]",
+    # Support {} around numbers
+    r"\{(\d+)\}",
+    # Support <> around numbers
+    r"\<(\d+)\>",
+    # Support（）around numbers
+    r"（(\d+)）",
+    # Support【】around numbers
+    r"【(\d+)】",
+    # Support「」around numbers
+    r"「(\d+)」",
+    # Support《》around numbers
+    r"《(\d+)》",
+    # Final pattern, without numbers
+    r"(\d*)",
+]
+
+COMPILED_PAGE_NUM_PATTERNS = [
+    re.compile(r"(.*?)%s$" % pat) for pat in _PAGE_NUM_PATTERNS_RAW
+]
+
+PREFIX_SPACE_PATTERN = re.compile(r"\s*")
+
+
 def split_page_num(text):
     """split between title and page number"""
-    page_num_patterns = [
-        # Support negative numbers
-        r"((?<!-)-?\d+)",
-        # Support () around numbers
-        r"\((\d+)\)",
-        # Support [] around numbers
-        r"\[(\d+)\]",
-        # Support {} around numbers
-        r"\{(\d+)\}",
-        # Support <> around numbers
-        r"\<(\d+)\>",
-        # Support（）around numbers
-        r"（(\d+)）",
-        # Support【】around numbers
-        r"【(\d+)】",
-        # Support「」around numbers
-        r"「(\d+)」",
-        # Support《》around numbers
-        r"《(\d+)》",
-        # Final pattern, without numbers
-        r"(\d*)",
-    ]
     con, num = "", 1
-    # con, num = re.search(r"(.*?)((?<!-)-?\d+$|\d*$)", text).groups()
-    for pat in page_num_patterns:
-        res = re.search("(.*?)%s$" % pat, text)
+    for pat in COMPILED_PAGE_NUM_PATTERNS:
+        res = pat.search(text)
         if res:
             con, num = res.groups()
             break
@@ -108,7 +116,7 @@ def generate_level_pattern_by_prefix_space(dir_list):
     # All space count in dir text
     count_set = set()
     for d in dir_list:
-        match = re.match(r"\s*", d)
+        match = PREFIX_SPACE_PATTERN.match(d)
         if match:
             count_set.add(len(match.group(0)))
     space_count_list = sorted(count_set)
