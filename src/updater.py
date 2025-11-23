@@ -10,6 +10,9 @@ from urllib import parse
 
 import requests
 from six.moves import zip
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _compare_tag(l_tag, c_tag, split="."):
@@ -39,6 +42,8 @@ def is_updated(github_url, current_tag, with_dl=False, split="."):
 
     """
     release = Release(github_url)
+    if not release.latest_tag:
+        return False
     if _compare_tag(release.latest_tag, current_tag, split):
         return True if not with_dl else release.get_latest_dl()
     else:
@@ -71,7 +76,13 @@ class Release(object):
 
     def _get_response(self, url_path):
         url = self.base_api_url + url_path
-        return json.loads(requests.get(url).text)
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.warning("Get release info failed: %s", e)
+            return {}
 
     @staticmethod
     def _get_download_url(response, name=None, order_num=0):

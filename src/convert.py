@@ -3,6 +3,9 @@
 """Convert a directory text which from website to index dict"""
 
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def split_page_num(text):
@@ -52,8 +55,9 @@ def text_to_list(text):
 def is_in(title, exp):
     try:
         return bool(re.match(exp, title)) if exp else False
-    except Exception as e:
-        print("Check regex error! %s" % e)
+    except re.error as e:
+        logger.error("Check regex error! %s", e)
+        return False
 
 
 def clean_clipboard_control_chars(text: str) -> str:
