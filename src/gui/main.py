@@ -14,17 +14,12 @@ from PyQt6.QtWidgets import QMessageBox
 
 from src.config import CONFIG
 from src.convert import clean_clipboard_control_chars, convert_dir_text
-from src.gui.base import TreeWidget
+from src.gui.base import TreeWidgetWrapper
 from src.gui.main_ui import Ui_PDFdir
 from src.updater import is_updated
 from src.pdf.bookmark import add_bookmark, check_bookmarks, get_bookmarks
 
 # import qdarkstyle
-
-
-def dynamic_base_class(instance, cls_name, new_class, **kwargs):
-    instance.__class__ = type(cls_name, (new_class, instance.__class__), kwargs)
-    return instance
 
 
 class ControlButtonMixin:
@@ -54,10 +49,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             "{name} {version}".format(name=CONFIG.APP_NAME, version=CONFIG.VERSION)
         )
         self.setWindowIcon(QtGui.QIcon("{icon}".format(icon=CONFIG.WINDOW_ICON)))
-        self.dir_tree_widget = dynamic_base_class(
-            self.dir_tree_widget, "TreeWidget", TreeWidget
+        self.dir_tree_widget = TreeWidgetWrapper(
+            self.dir_tree_widget, parents=[self, self.dir_tree_widget]
         )
-        self.dir_tree_widget.init_connect(parents=[self, self.dir_tree_widget])
         self.dir_tree_widget.fix_column()
         self._set_connect()
         self._set_action()

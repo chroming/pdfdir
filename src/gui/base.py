@@ -4,23 +4,26 @@ from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtWidgets import QHeaderView, QMenu, QTreeWidgetItemIterator
 
 
-class MixinContextMenu:
-    def __init__(self, parents=None):
-        self._init_context_menu()
-        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.customContextMenuRequested.connect(self._show_context_menu)
-        self._base_pos = self.pos()
+class TreeWidgetWrapper:
+    def __init__(self, widget, parents=None):
+        self.widget = widget
         self.parents = parents
+        self._init_context_menu()
+        self.widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.widget.customContextMenuRequested.connect(self._show_context_menu)
+        self._base_pos = self.widget.pos()
+        
+        self.widget.itemPressed.connect(self.close_editor)
+        self.widget.itemDoubleClicked.connect(self.item_double_clicked)
+        self.add_action("删除", self.item_remove_current)
+        self.last_item = None
+        self.last_column = None
 
     def _init_context_menu(self):
         self.context_menu = QMenu()
 
     @property
     def base_pos(self):
-        """
-        If this class is inherited by a child widget,
-        you should set instance.base_pos = parent.pos()
-        """
         if self.parents:
             self._base_pos = QPoint()
             for p in self.parents:
@@ -32,8 +35,8 @@ class MixinContextMenu:
         self._base_pos = value
 
     def _show_context_menu(self, pos):
-        if self.currentItem():
-            self.context_menu.exec(self.viewport().mapToGlobal(pos))
+        if self.widget.currentItem():
+            self.context_menu.exec(self.widget.viewport().mapToGlobal(pos))
 
     def add_action(self, name, handler, menu=None):
         menu = menu or self.context_menu
@@ -47,62 +50,25 @@ class MixinContextMenu:
         child_menu.add_menu = partial(self.add_menu, menu=menu)
         return child_menu
 
-
-class TreeWidget(MixinContextMenu):
     def fix_column(self):
-        header = self.header()
+        header = self.widget.header()
         # Only resize first column
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
 
-    def init_connect(self, parents=None):
-        super().__init__(parents)
-        self.itemPressed.connect(self.close_editor)
-        self.itemDoubleClicked.connect(self.item_double_clicked)
-        self.add_action("删除", self.item_remove_current)
-        self.last_item = None
-        self.last_column = None
-
-    # TODO: Fix page num when drop item
-    def dropEvent(self, event):
-        """"""
-        # self.current_item.setText('')
-        super().dropEvent(event)
-
-    @property
-    def current_item(self):
-        return self.currentItem()
-
-    @property
-    def all_items(self):
-        it = QTreeWidgetItemIterator(self)
-        while it.value():
-            yield it.value()
-            it += 1
-
-    def _set_all_items(self, items):
-        self.clear()
-        self.addTopLevelItems(items)
-
-    def set_items(self, items):
-        self._set_all_items(items)
-
     def close_editor(self, *args):
         if None not in (self.last_item, self.last_column):
-            self.closePersistentEditor(self.last_item, self.last_column)
-
-    def item_clicked(self, item):
-        self.closePersistentEditor(item, self.currentColumn())
+            self.widget.closePersistentEditor(self.last_item, self.last_column)
 
     def item_double_clicked(self, item):
-        current_column = self.currentColumn()
+        current_column = self.widget.currentColumn()
         if self.last_item == item:
             if self.last_column == current_column:
-                self.closePersistentEditor(item, current_column)
+                self.widget.closePersistentEditor(item, current_column)
                 return
             else:
-                self.closePersistentEditor(item, self.last_column)
+                self.widget.closePersistentEditor(item, self.last_column)
 
-        self.openPersistentEditor(item, current_column)
+        self.widget.openPersistentEditor(item, current_column)
         self.last_item = item
         self.last_column = current_column
 
@@ -111,10 +77,10 @@ class TreeWidget(MixinContextMenu):
         if parent:
             parent.removeChild(item)
         else:
-            self.takeTopLevelItem(self.indexOfTopLevelItem(item))
+            self.widget.takeTopLevelItem(self.widget.indexOfTopLevelItem(item))
 
     def item_remove_current(self):
-        selecteds = self.selectedItems()
+        selecteds = self.widget.selectedItems()
         for item in selecteds:
             self.remove_item(item)
 
@@ -129,8 +95,8 @@ class TreeWidget(MixinContextMenu):
 
     def to_qtree(self):
         items = []
-        for i in range(self.topLevelItemCount()):
-            item = self.topLevelItem(i)
+        for i in range(self.widget.topLevelItemCount()):
+            item = self.widget.topLevelItem(i)
             items.append((item, self.children(item)))
         return items
 
@@ -169,13 +135,12 @@ class TreeWidget(MixinContextMenu):
             current_index = max(dir_dict.keys()) + 1
         return dir_dict
 
-    @staticmethod
-    def set_pagenum(item, num, real_num):
-        item.setText(1, str(num), str(real_num))
-
-    def from_dict(self, dir_dict):
-        pass
-
     def clear(self):
         self.last_item = None
-        return super().clear()
+        return self.widget.clear()
+
+    def insertTopLevelItem(self, index, item):
+        self.widget.insertTopLevelItem(index, item)
+
+    def __getattr__(self, name):
+         return getattr(self.widget, name)
