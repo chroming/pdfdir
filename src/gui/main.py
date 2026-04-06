@@ -10,6 +10,8 @@ import sys
 import traceback
 import webbrowser
 
+import platform
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QMessageBox
 
@@ -21,9 +23,6 @@ from src.updater import is_updated
 from src.pdf.bookmark import add_bookmark, check_bookmarks, get_bookmarks
 
 # import qdarkstyle
-
-
-QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
 
 def dynamic_base_class(instance, cls_name, new_class, **kwargs):
@@ -38,6 +37,12 @@ class ControlButtonMixin(object):
 
 
 class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
+    # Minimum readable font sizes per platform
+    _MIN_FONT_SIZES = {
+        "Darwin": 12,   # macOS: default 8pt is too small on Retina
+        "default": 8,
+    }
+
     def __init__(self, app, trans):
         super(Main, self).__init__()
         # self.setWindowFlags(Qt.FramelessWindowHint)
@@ -45,6 +50,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.app = app
         self.trans = trans
         self.setupUi(self)
+        self._fix_small_fonts()
         self.version = CONFIG.VERSION
         self.default_folder = CONFIG.DEFAULT_FOLDER
         self.setWindowTitle(
@@ -60,6 +66,35 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._set_action()
         self._set_unwritable()
         self._worker = None
+
+    def _fix_small_fonts(self):
+        """Override hardcoded small font sizes from main_ui.py for readability.
+
+        The auto-generated UI file uses 7-10pt fonts which are unreadably small
+        on macOS (especially Retina displays). This method ensures all widget
+        fonts meet a minimum readable size for the current platform.
+        """
+        system = platform.system()
+        min_size = self._MIN_FONT_SIZES.get(system, self._MIN_FONT_SIZES["default"])
+
+        # Widgets whose hardcoded font sizes need fixing
+        widgets = [
+            self.dir_text_edit,       # 8pt in .ui
+            self.dir_tree_widget,     # 8pt in .ui
+            self.space_level_box,     # 10pt in .ui
+            self.sub_dir_group,       # 10pt in .ui
+            self.statusbar,           # 7pt in .ui
+        ]
+        for widget in widgets:
+            font = widget.font()
+            if font.pointSize() < min_size:
+                font.setPointSize(min_size)
+                widget.setFont(font)
+                
+                # If it's a QTextEdit, it might have inline HTML styles like font-size:8pt.
+                # Setting this explicitly ensures readability isn't broken by those inline styles.
+                if isinstance(widget, QtWidgets.QTextEdit):
+                    widget.setStyleSheet("QTextEdit { font-size: " + str(min_size) + "pt; }")
 
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
@@ -329,6 +364,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
 
 def run():
+    # High DPI must be set before QApplication creation
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
+
     app = QtWidgets.QApplication(sys.argv)
     # app.setStyle('fusion')
     # app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())

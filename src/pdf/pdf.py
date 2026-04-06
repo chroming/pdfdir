@@ -9,7 +9,6 @@ public:
 
 """
 
-import copy
 import logging
 import os
 
@@ -79,14 +78,14 @@ class Pdf(object):
         try:
             # `clone_from=reader (clone_document_from_reader)` is slow when pdf is complex
             # `append_pages_from_reader` is fast but will lose annotations in pdf
-            new_writer = copy.deepcopy(writer)
+            new_writer = writer
             new_writer.append(reader, import_outline=keep_outline)
         except Exception as e:
             logger.warning(
                 "Copy pdf failed, {}, try to exclude /Annots and /B".format(e)
             )
             try:
-                new_writer = copy.deepcopy(writer)
+                new_writer = type(writer)()
                 new_writer.append(
                     reader,
                     import_outline=keep_outline,
@@ -98,19 +97,31 @@ class Pdf(object):
                         e
                     )
                 )
-                new_writer = copy.deepcopy(writer)
+                new_writer = type(writer)()
                 new_writer.append_pages_from_reader(reader)
         if reader.metadata is not None:
             new_writer.add_metadata(reader.metadata)
         return new_writer
 
     @staticmethod
-    def _get_pages_num(pages):
+    def _get_page_ref(page):
+        return getattr(page, "indirect_reference", None) or getattr(
+            page, "indirect_ref", None
+        )
+
+    @classmethod
+    def _get_pages_num(cls, pages):
         pages_num = {}
         for page in pages:
             try:
                 if isinstance(page, PageObject):
-                    pages_num[page.indirect_ref.idnum] = page.page_number
+                    page_ref = cls._get_page_ref(page)
+                    if page_ref is None:
+                        logger.error(
+                            "Unknown page reference for page %s", page.page_number
+                        )
+                        continue
+                    pages_num[page_ref.idnum] = page.page_number
                 else:
                     logger.error(
                         "Unknown page type {} for {}".format(
