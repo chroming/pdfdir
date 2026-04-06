@@ -9,8 +9,8 @@ import sys
 import traceback
 import webbrowser
 
-from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtWidgets import QMessageBox
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtWidgets import QMessageBox
 
 from src.config import CONFIG
 from src.convert import clean_clipboard_control_chars, convert_dir_text
@@ -356,7 +356,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
 
 def run():
-    # In PyQt6, high DPI scaling is always enabled — no need for
+    # In PySide6, high DPI scaling is always enabled — no need for
     # AA_EnableHighDpiScaling / AA_UseHighDpiPixmaps attributes.
     app = QtWidgets.QApplication(sys.argv)
     # app.setStyle('fusion')
