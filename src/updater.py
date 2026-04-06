@@ -2,11 +2,9 @@
 Check if github repository release is updated.
 """
 
-import json
 import re
 from urllib import parse
 
-import requests
 import logging
 
 logger = logging.getLogger(__name__)
@@ -74,9 +72,10 @@ class Release:
     def _get_response(self, url_path):
         url = self.base_api_url + url_path
         try:
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            return response.json()
+            import urllib.request
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                return json.loads(response.read().decode())
         except Exception as e:
             logger.warning("Get release info failed: %s", e)
             return {}

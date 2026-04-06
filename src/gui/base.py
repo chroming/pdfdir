@@ -1,7 +1,7 @@
 from functools import partial
 
 from PySide6.QtCore import QPoint, Qt
-from PySide6.QtWidgets import QHeaderView, QMenu, QTreeWidgetItemIterator
+from PySide6.QtWidgets import QHeaderView, QMenu
 
 
 class TreeWidgetWrapper:
