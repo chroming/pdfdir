@@ -1,5 +1,3 @@
-# -*- coding:utf-8 -*-
-
 """
 Check if github repository release is updated.
 """
@@ -9,7 +7,6 @@ import re
 from urllib import parse
 
 import requests
-from six.moves import zip
 import logging
 
 logger = logging.getLogger(__name__)
@@ -50,7 +47,7 @@ def is_updated(github_url, current_tag, with_dl=False, split="."):
         return False
 
 
-class Release(object):
+class Release:
     def __init__(self, url):
         """
         Github release object.

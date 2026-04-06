@@ -1,4 +1,4 @@
-from PyQt5.uic import compileUi
+from PyQt6.uic import compileUi
 
 
 def ui_py(ui_file, py_file):

@@ -1,0 +1,14 @@
+### TODO:
+
++ 增加预览导航的界面，界面中可直接拖动来修改层级
++ 更友好的正则选项
++ 默认打开目录
++ 配置文件
++ 支持增量写入
++ 双击放大
+
+
+1. 支持乱序目录
+2. release页显示sha256
+3. File has not been decrypted (PRIME_PROART_TUF_GAMING_Intel_600_Series_BIOS_EM_WEB_SC.pdf)
+4. 字体优化

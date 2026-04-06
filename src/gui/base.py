@@ -1,15 +1,13 @@
-# -*- coding:utf-8 -*-
-
 from functools import partial
 
-from PyQt5.QtCore import QPoint, Qt
-from PyQt5.QtWidgets import QHeaderView, QMenu, QTreeWidgetItemIterator
+from PyQt6.QtCore import QPoint, Qt
+from PyQt6.QtWidgets import QHeaderView, QMenu, QTreeWidgetItemIterator
 
 
-class MixinContextMenu(object):
+class MixinContextMenu:
     def __init__(self, parents=None):
         self._init_context_menu()
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
         self._base_pos = self.pos()
         self.parents = parents
@@ -35,7 +33,7 @@ class MixinContextMenu(object):
 
     def _show_context_menu(self, pos):
         if self.currentItem():
-            self.context_menu.exec_(self.viewport().mapToGlobal(pos))
+            self.context_menu.exec(self.viewport().mapToGlobal(pos))
 
     def add_action(self, name, handler, menu=None):
         menu = menu or self.context_menu
@@ -54,10 +52,10 @@ class TreeWidget(MixinContextMenu):
     def fix_column(self):
         header = self.header()
         # Only resize first column
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
 
     def init_connect(self, parents=None):
-        super(TreeWidget, self).__init__(parents)
+        super().__init__(parents)
         self.itemPressed.connect(self.close_editor)
         self.itemDoubleClicked.connect(self.item_double_clicked)
         self.add_action("删除", self.item_remove_current)
@@ -68,7 +66,7 @@ class TreeWidget(MixinContextMenu):
     def dropEvent(self, event):
         """"""
         # self.current_item.setText('')
-        super(TreeWidget, self).dropEvent(event)
+        super().dropEvent(event)
 
     @property
     def current_item(self):
@@ -180,4 +178,4 @@ class TreeWidget(MixinContextMenu):
 
     def clear(self):
         self.last_item = None
-        return super(TreeWidget, self).clear()
+        return super().clear()

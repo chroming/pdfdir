@@ -20,7 +20,7 @@ RE_DICT = {
 }
 
 
-class Config(object):
+class Config:
     APP_NAME = "PDFDir"
     VERSION = __version__ if __version__.startswith("v") else "v0.3.0-beta"
     WINDOW_ICON = "pdf.ico"

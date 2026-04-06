@@ -50,8 +50,10 @@ def split_page_num(text):
     if con:
         con = con.rstrip(" .-")
     if num == "":
-        num = 1
-    return con, int(num)
+        num = None
+    else:
+        num = int(num)
+    return con, num
 
 
 def text_to_list(text):
@@ -160,6 +162,12 @@ def _convert_dir_text(
     for di in dir_list:
         di = di.rstrip()
         title, num = split_page_num(di)
+        
+        # If no number found, inherit previous pagenum
+        # If no previous pagenum (start of list), default to 1
+        if num is None:
+            num = pagenum if pagenum != -float("inf") else 1
+
         if num > pagenum or not fix_non_seq:
             pagenum = num
         index_dict[i] = {"title": title, "real_num": pagenum + offset, "num": pagenum}

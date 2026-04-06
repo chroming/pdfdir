@@ -1,17 +1,16 @@
-# -*- coding: utf-8 -*-
-
 """
 The main GUI model of project.
 
 """
 
 import os
+import platform
 import sys
 import traceback
 import webbrowser
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QMessageBox
+from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6.QtWidgets import QMessageBox
 
 from src.config import CONFIG
 from src.convert import clean_clipboard_control_chars, convert_dir_text
@@ -23,28 +22,32 @@ from src.pdf.bookmark import add_bookmark, check_bookmarks, get_bookmarks
 # import qdarkstyle
 
 
-QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-
-
 def dynamic_base_class(instance, cls_name, new_class, **kwargs):
     instance.__class__ = type(cls_name, (new_class, instance.__class__), kwargs)
     return instance
 
 
-class ControlButtonMixin(object):
+class ControlButtonMixin:
     def set_control_button(self, min_button, exit_button):
         min_button.clicked.connect(self.showMinimized)
         exit_button.clicked.connect(self.close)
 
 
 class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
+    # Minimum readable font sizes per platform
+    _MIN_FONT_SIZES = {
+        "Darwin": 12,   # macOS: default 8pt is too small on Retina
+        "default": 8,
+    }
+
     def __init__(self, app, trans):
-        super(Main, self).__init__()
+        super().__init__()
         # self.setWindowFlags(Qt.FramelessWindowHint)
         # self.menuBar.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.app = app
         self.trans = trans
         self.setupUi(self)
+        self._fix_small_fonts()
         self.version = CONFIG.VERSION
         self.default_folder = CONFIG.DEFAULT_FOLDER
         self.setWindowTitle(
@@ -60,6 +63,36 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._set_action()
         self._set_unwritable()
         self._worker = None
+
+    def _fix_small_fonts(self):
+        """Override hardcoded small font sizes from main_ui.py for readability.
+
+        The auto-generated UI file uses 7-10pt fonts which are unreadably small
+        on macOS (especially Retina displays). This method ensures all widget
+        fonts meet a minimum readable size for the current platform.
+        """
+        system = platform.system()
+        min_size = self._MIN_FONT_SIZES.get(system, self._MIN_FONT_SIZES["default"])
+
+        # Widgets whose hardcoded font sizes need fixing
+        widgets = [
+            self.dir_text_edit,       # 8pt in .ui
+            self.dir_tree_widget,     # 8pt in .ui
+            self.space_level_box,     # 10pt in .ui
+            self.sub_dir_group,       # 10pt in .ui
+            self.statusbar,           # 7pt in .ui
+        ]
+        for widget in widgets:
+            font = widget.font()
+            if font.pointSize() < min_size:
+                font.setPointSize(min_size)
+                widget.setFont(font)
+
+                # QTextEdit may have inline HTML styles that override setFont
+                if isinstance(widget, QtWidgets.QTextEdit):
+                    widget.setStyleSheet(
+                        "QTextEdit { font-size: " + str(min_size) + "pt; }"
+                    )
 
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
@@ -154,16 +187,16 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def alert_msg(msg, level="info", ok_action=None):
         box = QMessageBox()
         if level == "info":
-            box.setIcon(QMessageBox.Information)
+            box.setIcon(QMessageBox.Icon.Information)
             box.setWindowTitle("Infomation")
         else:
-            box.setIcon(QMessageBox.Warning)
+            box.setIcon(QMessageBox.Icon.Warning)
             box.setWindowTitle("Warning")
         if ok_action:
-            box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+            box.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
             box.buttonClicked.connect(ok_action)
         box.setText(msg)
-        box.exec_()
+        box.exec()
 
     def to_english(self):
         self.trans.load("./language/en")
@@ -329,6 +362,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
 
 def run():
+    # In PyQt6, high DPI scaling is always enabled — no need for
+    # AA_EnableHighDpiScaling / AA_UseHighDpiPixmaps attributes.
     app = QtWidgets.QApplication(sys.argv)
     # app.setStyle('fusion')
     # app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
@@ -337,7 +372,7 @@ def run():
     # app.installTranslator(trans)
     window = Main(app, trans)
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 sys._excepthook = sys.excepthook
