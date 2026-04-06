@@ -90,6 +90,11 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             if font.pointSize() < min_size:
                 font.setPointSize(min_size)
                 widget.setFont(font)
+                
+                # If it's a QTextEdit, it might have inline HTML styles like font-size:8pt.
+                # Setting this explicitly ensures readability isn't broken by those inline styles.
+                if isinstance(widget, QtWidgets.QTextEdit):
+                    widget.setStyleSheet("QTextEdit { font-size: " + str(min_size) + "pt; }")
 
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
