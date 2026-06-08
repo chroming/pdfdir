@@ -21,6 +21,8 @@ from src.gui.base import TreeWidget
 from src.gui.main_ui import Ui_PDFdir
 from src.updater import is_updated
 from src.pdf.bookmark import add_bookmark, check_bookmarks, get_bookmarks
+from src.pdf.page_offset import infer_page_offset
+from src.pdf.toc import extract_toc_text
 
 # import qdarkstyle
 
@@ -34,6 +36,54 @@ class ControlButtonMixin(object):
     def set_control_button(self, min_button, exit_button):
         min_button.clicked.connect(self.showMinimized)
         exit_button.clicked.connect(self.close)
+
+
+class PageOffsetWorker(QtCore.QObject):
+    finished = QtCore.pyqtSignal(object)
+    failed = QtCore.pyqtSignal(str)
+    progress = QtCore.pyqtSignal(int, int)
+
+    def __init__(self, pdf_path, dir_text):
+        super(PageOffsetWorker, self).__init__()
+        self.pdf_path = pdf_path
+        self.dir_text = dir_text
+
+    @QtCore.pyqtSlot()
+    def run(self):
+        try:
+            offset = infer_page_offset(
+                self.pdf_path,
+                self.dir_text,
+                use_ocr=True,
+                progress_callback=self.progress.emit,
+            )
+        except Exception as e:
+            self.failed.emit(str(e))
+        else:
+            self.finished.emit(offset)
+
+
+class TocTextWorker(QtCore.QObject):
+    finished = QtCore.pyqtSignal(str)
+    failed = QtCore.pyqtSignal(str)
+    progress = QtCore.pyqtSignal(int, int)
+
+    def __init__(self, pdf_path):
+        super(TocTextWorker, self).__init__()
+        self.pdf_path = pdf_path
+
+    @QtCore.pyqtSlot()
+    def run(self):
+        try:
+            toc_text = extract_toc_text(
+                self.pdf_path,
+                use_ocr=True,
+                progress_callback=self.progress.emit,
+            )
+        except Exception as e:
+            self.failed.emit(str(e))
+        else:
+            self.finished.emit(toc_text)
 
 
 class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
@@ -50,6 +100,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.app = app
         self.trans = trans
         self.setupUi(self)
+        self._init_auto_offset_button()
+        self._init_auto_toc_button()
         self._fix_small_fonts()
         self.version = CONFIG.VERSION
         self.default_folder = CONFIG.DEFAULT_FOLDER
@@ -66,6 +118,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._set_action()
         self._set_unwritable()
         self._worker = None
+        self._worker_thread = None
 
     def _fix_small_fonts(self):
         """Override hardcoded small font sizes from main_ui.py for readability.
@@ -96,9 +149,27 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 if isinstance(widget, QtWidgets.QTextEdit):
                     widget.setStyleSheet("QTextEdit { font-size: " + str(min_size) + "pt; }")
 
+    def _init_auto_offset_button(self):
+        self.auto_offset_button = QtWidgets.QPushButton(self.main_widget)
+        self.auto_offset_button.setObjectName("auto_offset_button")
+        self.auto_offset_button.setText("自动填充页差")
+        self.verticalLayout_3.insertWidget(
+            self.verticalLayout_3.indexOf(self.sub_dir_group), self.auto_offset_button
+        )
+
+    def _init_auto_toc_button(self):
+        self.auto_toc_button = QtWidgets.QPushButton(self.main_widget)
+        self.auto_toc_button.setObjectName("auto_toc_button")
+        self.auto_toc_button.setText("自动读取目录")
+        self.verticalLayout_3.insertWidget(
+            self.verticalLayout_3.indexOf(self.sub_dir_group), self.auto_toc_button
+        )
+
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
         self.export_button.clicked.connect(self.write_tree_to_pdf)
+        self.auto_offset_button.clicked.connect(self.fill_offset)
+        self.auto_toc_button.clicked.connect(self.fill_toc_text)
         self.level0_box.clicked.connect(self._change_level0_writable)
         self.level1_box.clicked.connect(self._change_level1_writable)
         self.level2_box.clicked.connect(self._change_level2_writable)
@@ -338,6 +409,104 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                     inserted_items[k] = tree_item
         for item in inserted_items.values():
             item.setExpanded(1)
+
+    def fill_offset(self):
+        if self._worker_thread and self._worker_thread.isRunning():
+            self.alert_msg("Page offset inference is already running", level="warn")
+            return
+        if not self.pdf_path:
+            self.alert_msg("Please select PDF first", level="warn")
+            return
+        if not self.dir_text.strip():
+            self.alert_msg("Please input directory text first", level="warn")
+            return
+
+        self.auto_offset_button.setEnabled(False)
+        self.show_status("Inferring page offset, OCR may take a while...")
+
+        self._worker_thread = QtCore.QThread(self)
+        self._worker = PageOffsetWorker(self.pdf_path, self.dir_text)
+        self._worker.moveToThread(self._worker_thread)
+        self._worker_thread.started.connect(self._worker.run)
+        self._worker.finished.connect(self._offset_inferred)
+        self._worker.failed.connect(self._offset_failed)
+        self._worker.progress.connect(self._offset_progress)
+        self._worker.finished.connect(self._worker_thread.quit)
+        self._worker.failed.connect(self._worker_thread.quit)
+        self._worker.finished.connect(self._worker.deleteLater)
+        self._worker.failed.connect(self._worker.deleteLater)
+        self._worker_thread.finished.connect(self._worker_thread.deleteLater)
+        self._worker_thread.finished.connect(self._offset_worker_finished)
+        self._worker_thread.start()
+
+    def fill_toc_text(self):
+        if self._worker_thread and self._worker_thread.isRunning():
+            self.alert_msg("A background task is already running", level="warn")
+            return
+        if not self.pdf_path:
+            self.alert_msg("Please select PDF first", level="warn")
+            return
+
+        self.auto_toc_button.setEnabled(False)
+        self.show_status("Reading table of contents, OCR may take a while...")
+
+        self._worker_thread = QtCore.QThread(self)
+        self._worker = TocTextWorker(self.pdf_path)
+        self._worker.moveToThread(self._worker_thread)
+        self._worker_thread.started.connect(self._worker.run)
+        self._worker.finished.connect(self._toc_text_inferred)
+        self._worker.failed.connect(self._toc_text_failed)
+        self._worker.progress.connect(self._toc_progress)
+        self._worker.finished.connect(self._worker_thread.quit)
+        self._worker.failed.connect(self._worker_thread.quit)
+        self._worker.finished.connect(self._worker.deleteLater)
+        self._worker.failed.connect(self._worker.deleteLater)
+        self._worker_thread.finished.connect(self._worker_thread.deleteLater)
+        self._worker_thread.finished.connect(self._toc_worker_finished)
+        self._worker_thread.start()
+
+    def _offset_inferred(self, offset):
+        if offset is None:
+            self.alert_msg("Could not infer page offset", level="warn")
+            return
+        display_offset = offset - 1
+        self.offset_edit.setText(str(display_offset))
+        self.show_status(
+            "Page offset inferred: {}".format(display_offset), 3000
+        )
+
+    def _offset_failed(self, message):
+        self.alert_msg("Infer page offset failed: {}".format(message), level="warn")
+
+    def _offset_progress(self, current, total):
+        self.show_status(
+            "Inferring page offset with OCR: {}/{} pages".format(current, total)
+        )
+
+    def _offset_worker_finished(self):
+        self.auto_offset_button.setEnabled(True)
+        self._worker = None
+        self._worker_thread = None
+
+    def _toc_text_inferred(self, toc_text):
+        if not toc_text:
+            self.alert_msg("Could not read table of contents", level="warn")
+            return
+        self.dir_text_edit.setPlainText(toc_text)
+        self.show_status("Table of contents loaded", 3000)
+
+    def _toc_text_failed(self, message):
+        self.alert_msg("Read table of contents failed: {}".format(message), level="warn")
+
+    def _toc_progress(self, current, total):
+        self.show_status(
+            "Reading table of contents with OCR: {}/{} pages".format(current, total)
+        )
+
+    def _toc_worker_finished(self):
+        self.auto_toc_button.setEnabled(True)
+        self._worker = None
+        self._worker_thread = None
 
     def pre_check(self, path, index_dict):
         try:

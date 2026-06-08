@@ -1,0 +1,5 @@
+PyMuPDF~=1.24.0
+Pillow~=10.0
+paddleocr>=2.7
+paddlepaddle>=2.6
+pytesseract~=0.3.10

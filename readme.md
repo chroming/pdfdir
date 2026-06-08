@@ -32,9 +32,9 @@ Windows/macOS/Ubuntu:
 ### 基本用法
 
 + 选择文件：在 "PDF文件路径" 文本框中填入pdf文件路径（如D:/统计思维.pdf）或点击 "打开" 按钮通过文件管理器选择所需的pdf文件。
-+ 目录文本：将目录文本粘贴到“目录文本”框中。[如何获取目录文本](#获取目录文本)。
++ 目录文本：将目录文本粘贴到“目录文本”框中。[如何获取目录文本](#获取目录文本)。对于已有目录页的文字版或扫描版 PDF，也可以点击“自动读取目录”从 PDF 前部目录页中识别并填充目录文本。
 + 编辑写入目录（可选项）：根据目录文本自动生成的实际写入目录，可双击任一目录或页数进行编辑。同时支持拖动改变顺序/目录上下级关系。
-+ 编辑页数增加（可选项）：
++ 编辑页差（可选项）：当目录中的标注页码与 PDF 实际页数不一致时，可在“页差”中填写差值，程序会在预览中换算出实际页数。也可以点击“自动填充页差”根据目录标题在 PDF 中的位置自动推断页差；文字版 PDF 可直接使用，扫描版 PDF 需要安装 OCR 可选依赖。
 + 写入：点击右下角的“写入”按钮，稍等片刻，待状态栏提示"******* Finished!"表示写入成功，此时可在pdf目录下找到包含书签的 *原文件名\_new.pdf* 文件。
 
 ###  获取目录文本
@@ -96,6 +96,12 @@ https://www.python.org/downloads/
 `pip install -r requirements.txt`
 
 `pip install PyQt5`
+
+如需为扫描版 PDF 自动读取目录或自动填充页差，还需要安装 OCR 可选依赖，并执行：
+
+`pip install -r requirements_ocr.txt`
+
+自动读取目录会优先使用 PaddleOCR 识别中文目录页；如果 PaddleOCR 不可用，会回退到 Tesseract OCR。自动填充页差仍使用 Tesseract OCR。
 
 若提示`No matching distribution found for pyqt5` 可参照[PyQt官方文档](http://pyqt.sourceforge.net/Docs/PyQt5/installation.html)进行安装。
 
