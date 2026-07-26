@@ -1,2 +1,4 @@
-pyinstaller
-Pillow
+-r requirements.txt
+Pillow>=10
+pyinstaller>=6,<7
+pytest>=8,<10

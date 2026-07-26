@@ -1,50 +1,72 @@
-# -*- coding: utf-8 -*-
-
 """
 The main GUI model of project.
 
 """
 
+import logging
 import os
+import platform
 import sys
 import traceback
 import webbrowser
+from pathlib import Path
+from typing import ClassVar
 
-import platform
-
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QMessageBox
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtWidgets import QMessageBox
 
 from src.config import CONFIG
 from src.convert import clean_clipboard_control_chars, convert_dir_text
-from src.gui.base import TreeWidget
+from src.gui.base import TreeWidgetController
 from src.gui.main_ui import Ui_PDFdir
-from src.updater import is_updated
 from src.pdf.bookmark import add_bookmark, check_bookmarks, get_bookmarks
+from src.updater import is_updated
 
 # import qdarkstyle
 
-
-def dynamic_base_class(instance, cls_name, new_class, **kwargs):
-    instance.__class__ = type(cls_name, (new_class, instance.__class__), kwargs)
-    return instance
+logger = logging.getLogger(__name__)
+_original_excepthook = sys.excepthook
 
 
-class ControlButtonMixin(object):
+class ControlButtonMixin:
     def set_control_button(self, min_button, exit_button):
         min_button.clicked.connect(self.showMinimized)
         exit_button.clicked.connect(self.close)
 
 
+class BookmarkWorkerThread(QtCore.QThread):
+    result = QtCore.Signal(bool, str)
+
+    def __init__(self, pdf_path, index_dict, keep_existing=False, parent=None):
+        super().__init__(parent)
+        self.pdf_path = pdf_path
+        self.index_dict = index_dict
+        self.keep_existing = keep_existing
+
+    def run(self):
+        try:
+            check_bookmarks(self.pdf_path, self.index_dict, self.keep_existing)
+            output_path = add_bookmark(
+                self.pdf_path, self.index_dict, self.keep_existing
+            )
+        except PermissionError:
+            self.result.emit(False, "Permission denied!")
+        except Exception as error:
+            logger.exception("Writing PDF bookmarks failed")
+            self.result.emit(False, str(error) or type(error).__name__)
+        else:
+            self.result.emit(True, f"{output_path} Finished!")
+
+
 class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     # Minimum readable font sizes per platform
-    _MIN_FONT_SIZES = {
-        "Darwin": 12,   # macOS: default 8pt is too small on Retina
+    _MIN_FONT_SIZES: ClassVar[dict[str, int]] = {
+        "Darwin": 12,  # macOS: default 8pt is too small on Retina
         "default": 8,
     }
 
     def __init__(self, app, trans):
-        super(Main, self).__init__()
+        super().__init__()
         # self.setWindowFlags(Qt.FramelessWindowHint)
         # self.menuBar.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.app = app
@@ -53,15 +75,12 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._fix_small_fonts()
         self.version = CONFIG.VERSION
         self.default_folder = CONFIG.DEFAULT_FOLDER
-        self.setWindowTitle(
-            "{name} {version}".format(name=CONFIG.APP_NAME, version=CONFIG.VERSION)
+        self.setWindowTitle(f"{CONFIG.APP_NAME} {CONFIG.VERSION}")
+        self.setWindowIcon(QtGui.QIcon(str(self._resource_path(CONFIG.WINDOW_ICON))))
+        self.dir_tree_controller = TreeWidgetController(
+            self.dir_tree_widget, parents=[self, self.dir_tree_widget]
         )
-        self.setWindowIcon(QtGui.QIcon("{icon}".format(icon=CONFIG.WINDOW_ICON)))
-        self.dir_tree_widget = dynamic_base_class(
-            self.dir_tree_widget, "TreeWidget", TreeWidget
-        )
-        self.dir_tree_widget.init_connect(parents=[self, self.dir_tree_widget])
-        self.dir_tree_widget.fix_column()
+        self.dir_tree_controller.fix_column()
         self._set_connect()
         self._set_action()
         self._set_unwritable()
@@ -79,22 +98,22 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
         # Widgets whose hardcoded font sizes need fixing
         widgets = [
-            self.dir_text_edit,       # 8pt in .ui
-            self.dir_tree_widget,     # 8pt in .ui
-            self.space_level_box,     # 10pt in .ui
-            self.sub_dir_group,       # 10pt in .ui
-            self.statusbar,           # 7pt in .ui
+            self.dir_text_edit,  # 8pt in .ui
+            self.dir_tree_widget,  # 8pt in .ui
+            self.space_level_box,  # 10pt in .ui
+            self.sub_dir_group,  # 10pt in .ui
+            self.statusbar,  # 7pt in .ui
         ]
         for widget in widgets:
             font = widget.font()
             if font.pointSize() < min_size:
                 font.setPointSize(min_size)
                 widget.setFont(font)
-                
+
                 # If it's a QTextEdit, it might have inline HTML styles like font-size:8pt.
                 # Setting this explicitly ensures readability isn't broken by those inline styles.
                 if isinstance(widget, QtWidgets.QTextEdit):
-                    widget.setStyleSheet("QTextEdit { font-size: " + str(min_size) + "pt; }")
+                    widget.setStyleSheet(f"QTextEdit {{ font-size: {min_size}pt; }}")
 
     def _set_connect(self):
         self.open_button.clicked.connect(self.open_file_dialog)
@@ -142,22 +161,22 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.level5_edit.setEnabled(False)
 
     def _change_level0_writable(self):
-        self.level0_edit.setEnabled(True if self.level0_box.isChecked() else False)
+        self.level0_edit.setEnabled(self.level0_box.isChecked())
 
     def _change_level1_writable(self):
-        self.level1_edit.setEnabled(True if self.level1_box.isChecked() else False)
+        self.level1_edit.setEnabled(self.level1_box.isChecked())
 
     def _change_level2_writable(self):
-        self.level2_edit.setEnabled(True if self.level2_box.isChecked() else False)
+        self.level2_edit.setEnabled(self.level2_box.isChecked())
 
     def _change_level3_writable(self):
-        self.level3_edit.setEnabled(True if self.level3_box.isChecked() else False)
+        self.level3_edit.setEnabled(self.level3_box.isChecked())
 
     def _change_level4_writable(self):
-        self.level4_edit.setEnabled(True if self.level4_box.isChecked() else False)
+        self.level4_edit.setEnabled(self.level4_box.isChecked())
 
     def _change_level5_writable(self):
-        self.level5_edit.setEnabled(True if self.level5_box.isChecked() else False)
+        self.level5_edit.setEnabled(self.level5_box.isChecked())
 
     @staticmethod
     def _open_home_page():
@@ -171,7 +190,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         url = CONFIG.RELEASE_PAGE_URL
         try:
             updated = is_updated(url, self.version)
-        except Exception:
+        except Exception:  # noqa: BLE001 - an update check must never crash the GUI
             self.alert_msg("Check update failed", level="warn")
         else:
             if updated:
@@ -183,27 +202,55 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def show_status(self, msg, timeout=10 * 3600 * 1000):
         """Show message in status bar"""
-        return self.statusbar.showMessage(msg, msecs=timeout)
+        return self.statusbar.showMessage(msg, timeout)
 
     @staticmethod
     def alert_msg(msg, level="info", ok_action=None):
         box = QMessageBox()
         if level == "info":
-            box.setIcon(QMessageBox.Information)
-            box.setWindowTitle("Infomation")
+            box.setIcon(QMessageBox.Icon.Information)
+            box.setWindowTitle("Information")
         else:
-            box.setIcon(QMessageBox.Warning)
+            box.setIcon(QMessageBox.Icon.Warning)
             box.setWindowTitle("Warning")
         if ok_action:
-            box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+            box.setStandardButtons(
+                QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
+            )
             box.buttonClicked.connect(ok_action)
         box.setText(msg)
-        box.exec_()
+        box.exec()
+
+    @staticmethod
+    def _resource_path(relative_path):
+        bundle_root = getattr(sys, "_MEIPASS", None)
+        candidates = []
+        if bundle_root:
+            candidates.append(Path(bundle_root) / "src" / relative_path)
+            candidates.append(Path(bundle_root) / relative_path)
+        source_root = Path(__file__).resolve().parents[2]
+        package_root = Path(__file__).resolve().parents[1]
+        candidates.extend((source_root / relative_path, package_root / relative_path))
+        return next((path for path in candidates if path.exists()), candidates[0])
+
+    def _load_translation(self, language_code):
+        translation_name = f"{language_code}.qm"
+        candidates = (
+            self._resource_path(f"language/{translation_name}"),
+            Path(self.app.applicationDirPath()) / "language" / translation_name,
+            Path(__file__).resolve().parent / translation_name,
+        )
+        return any(
+            candidate.exists() and self.trans.load(str(candidate))
+            for candidate in candidates
+        )
 
     def to_english(self):
-        self.trans.load("./language/en")
-        self.app.installTranslator(self.trans)
-        self.retranslateUi(self)
+        if self._load_translation("en"):
+            self.app.installTranslator(self.trans)
+            self.retranslateUi(self)
+        else:
+            self.alert_msg("English translation file not found", level="warn")
 
     def to_chinese(self):
         self.app.removeTranslator(self.trans)
@@ -272,6 +319,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, "select PDF", directory=self.default_folder, filter="PDF (*.pdf)"
         )
+        if not filename:
+            return
         self.default_folder = os.path.dirname(filename)
         self.pdf_path_edit.setText(filename)
 
@@ -282,10 +331,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.space_level_box.setChecked(True)
 
     def tree_to_dict(self):
-        return self.dir_tree_widget.to_dict()
+        return self.dir_tree_controller.to_dict()
 
     def make_dir_tree(self):
-        self.dir_tree_widget.clear()
+        self.dir_tree_controller.clear()
         index_dict = convert_dir_text(
             self.dir_text,
             self.offset_num,
@@ -339,24 +388,41 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         for item in inserted_items.values():
             item.setExpanded(1)
 
-    def pre_check(self, path, index_dict):
-        try:
-            check_bookmarks(path, index_dict, self.keep_exist_dir)
-        except ValueError as e:
-            self.alert_msg(str(e), level="Warning")
-
     def write_tree_to_pdf(self):
-        try:
-            index_dict = self.tree_to_dict()
-            self.pre_check(self.pdf_path, index_dict)
-            new_path = self.dict_to_pdf(self.pdf_path, index_dict, self.keep_exist_dir)
-            self.alert_msg("%s Finished！" % new_path)
-        except PermissionError:
-            self.alert_msg("Permission denied！", level="warn")
+        if self._worker is not None and self._worker.isRunning():
+            return
+        if not self.pdf_path:
+            self.alert_msg("Please select a PDF file first.", level="warn")
+            return
 
-    @staticmethod
-    def dict_to_pdf(pdf_path, index_dict, keep_exist_dir=False):
-        return add_bookmark(pdf_path, index_dict, keep_exist_dir)
+        self.show_status("Writing bookmarks to PDF...")
+        self.export_button.setEnabled(False)
+        self._worker = BookmarkWorkerThread(
+            self.pdf_path,
+            self.tree_to_dict(),
+            self.keep_exist_dir,
+            parent=self,
+        )
+        self._worker.result.connect(self._write_pdf_result)
+        self._worker.finished.connect(self._write_pdf_finished)
+        self._worker.start()
+
+    def _write_pdf_result(self, succeeded, message):
+        self.alert_msg(message, level="info" if succeeded else "warn")
+
+    def _write_pdf_finished(self):
+        self.show_status("Done", timeout=1000)
+        self.export_button.setEnabled(True)
+        if self._worker is not None:
+            self._worker.deleteLater()
+            self._worker = None
+
+    def closeEvent(self, event):
+        if self._worker is not None and self._worker.isRunning():
+            self.show_status("Please wait for the PDF write to finish.")
+            event.ignore()
+            return
+        super().closeEvent(event)
 
     @staticmethod
     def read_pdf_dir_text(pdf_path):
@@ -364,11 +430,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
 
 def run():
-    # High DPI must be set before QApplication creation
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
-
     app = QtWidgets.QApplication(sys.argv)
+    sys.excepthook = exception_hook
     # app.setStyle('fusion')
     # app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     trans = QtCore.QTranslator()
@@ -376,22 +439,14 @@ def run():
     # app.installTranslator(trans)
     window = Main(app, trans)
     window.show()
-    sys.exit(app.exec_())
-
-
-sys._excepthook = sys.excepthook
+    sys.exit(app.exec())
 
 
 def exception_hook(exctype, value, exc_traceback):
-    sys._excepthook(exctype, value, exc_traceback)
     error_message = "".join(traceback.format_exception(exctype, value, exc_traceback))
-    QMessageBox.critical(None, "Unhandled Exception", error_message)
-    # Optionally, call the original excepthook
-    if hasattr(sys, "_excepthook"):
-        sys._excepthook(exctype, value, exc_traceback)
-
-
-sys.excepthook = exception_hook
+    if QtWidgets.QApplication.instance() is not None:
+        QMessageBox.critical(None, "Unhandled Exception", error_message)
+    _original_excepthook(exctype, value, exc_traceback)
 
 
 if __name__ == "__main__":

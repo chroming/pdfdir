@@ -425,7 +425,6 @@
                                     </property>
                                     <property name="font">
                                         <font>
-                                            <family>黑体</family>
                                         </font>
                                     </property>
                                 </column>
@@ -435,7 +434,6 @@
                                     </property>
                                     <property name="font">
                                         <font>
-                                            <family>黑体</family>
                                         </font>
                                     </property>
                                 </column>

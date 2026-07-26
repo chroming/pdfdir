@@ -1,33 +1,23 @@
-# -*- coding:utf-8 -*-
-
 """
 Check if github repository release is updated.
 """
 
 import json
-import re
-from urllib import parse
-
-import requests
-from six.moves import zip
 import logging
+from urllib import parse, request
+
+from packaging.version import InvalidVersion, Version
 
 logger = logging.getLogger(__name__)
 
 
 def _compare_tag(l_tag, c_tag, split="."):
-    tag_pattern = re.compile(r"((?:\d*\%s){0,4}\d+)" % split)
-    l_list = re.search(tag_pattern, l_tag).group().split(split)
-    c_list = re.search(tag_pattern, c_tag).group().split(split)
-    if len(l_list) == len(c_list):
-        for l, c in zip(l_list, c_list):
-            if l > c:
-                return True
-            elif l < c:
-                return False
+    try:
+        latest = Version(l_tag.replace(split, "."))
+        current = Version(c_tag.replace(split, "."))
+    except (AttributeError, InvalidVersion):
         return False
-    else:
-        return True
+    return latest > current
 
 
 def is_updated(github_url, current_tag, with_dl=False, split="."):
@@ -50,7 +40,7 @@ def is_updated(github_url, current_tag, with_dl=False, split="."):
         return False
 
 
-class Release(object):
+class Release:
     def __init__(self, url):
         """
         Github release object.
@@ -77,10 +67,16 @@ class Release(object):
     def _get_response(self, url_path):
         url = self.base_api_url + url_path
         try:
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
+            api_request = request.Request(
+                url,
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "User-Agent": "pdfdir",
+                },
+            )
+            with request.urlopen(api_request, timeout=10) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except (OSError, ValueError) as e:
             logger.warning("Get release info failed: %s", e)
             return {}
 

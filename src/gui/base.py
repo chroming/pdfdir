@@ -1,32 +1,32 @@
-# -*- coding:utf-8 -*-
-
 from functools import partial
 
-from PyQt5.QtCore import QPoint, Qt
-from PyQt5.QtWidgets import QHeaderView, QMenu, QTreeWidgetItemIterator
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtWidgets import QHeaderView, QMenu
 
 
-class MixinContextMenu(object):
-    def __init__(self, parents=None):
-        self._init_context_menu()
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self._show_context_menu)
-        self._base_pos = self.pos()
+class TreeWidgetController:
+    """Add bookmark-tree behavior without changing the Qt widget's runtime type."""
+
+    def __init__(self, widget, parents=None):
+        self.widget = widget
         self.parents = parents
+        self.context_menu = QMenu(widget)
+        self._base_pos = widget.pos()
+        self.last_item = None
+        self.last_column = None
 
-    def _init_context_menu(self):
-        self.context_menu = QMenu()
+        widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        widget.customContextMenuRequested.connect(self._show_context_menu)
+        widget.itemPressed.connect(self.close_editor)
+        widget.itemDoubleClicked.connect(self.item_double_clicked)
+        self.add_action("删除", self.item_remove_current)
 
     @property
     def base_pos(self):
-        """
-        If this class is inherited by a child widget,
-        you should set instance.base_pos = parent.pos()
-        """
         if self.parents:
             self._base_pos = QPoint()
-            for p in self.parents:
-                self._base_pos += p.pos()
+            for parent in self.parents:
+                self._base_pos += parent.pos()
         return self._base_pos
 
     @base_pos.setter
@@ -34,77 +34,40 @@ class MixinContextMenu(object):
         self._base_pos = value
 
     def _show_context_menu(self, pos):
-        if self.currentItem():
-            self.context_menu.exec_(self.viewport().mapToGlobal(pos))
+        if self.widget.currentItem():
+            self.context_menu.exec(self.widget.viewport().mapToGlobal(pos))
 
     def add_action(self, name, handler, menu=None):
         menu = menu or self.context_menu
         action = menu.addAction(name)
         action.triggered.connect(handler)
+        return action
 
     def add_menu(self, name, menu=None):
         menu = menu or self.context_menu
         child_menu = menu.addMenu(name)
-        child_menu.add_action = partial(self.add_action, menu=menu)
-        child_menu.add_menu = partial(self.add_menu, menu=menu)
+        child_menu.add_action = partial(self.add_action, menu=child_menu)
+        child_menu.add_menu = partial(self.add_menu, menu=child_menu)
         return child_menu
 
-
-class TreeWidget(MixinContextMenu):
     def fix_column(self):
-        header = self.header()
-        # Only resize first column
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        self.widget.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
 
-    def init_connect(self, parents=None):
-        super(TreeWidget, self).__init__(parents)
-        self.itemPressed.connect(self.close_editor)
-        self.itemDoubleClicked.connect(self.item_double_clicked)
-        self.add_action("删除", self.item_remove_current)
-        self.last_item = None
-        self.last_column = None
-
-    # TODO: Fix page num when drop item
-    def dropEvent(self, event):
-        """"""
-        # self.current_item.setText('')
-        super(TreeWidget, self).dropEvent(event)
-
-    @property
-    def current_item(self):
-        return self.currentItem()
-
-    @property
-    def all_items(self):
-        it = QTreeWidgetItemIterator(self)
-        while it.value():
-            yield it.value()
-            it += 1
-
-    def _set_all_items(self, items):
-        self.clear()
-        self.addTopLevelItems(items)
-
-    def set_items(self, items):
-        self._set_all_items(items)
-
-    def close_editor(self, *args):
+    def close_editor(self, *_args):
         if None not in (self.last_item, self.last_column):
-            self.closePersistentEditor(self.last_item, self.last_column)
-
-    def item_clicked(self, item):
-        self.closePersistentEditor(item, self.currentColumn())
+            self.widget.closePersistentEditor(self.last_item, self.last_column)
 
     def item_double_clicked(self, item):
-        current_column = self.currentColumn()
+        current_column = self.widget.currentColumn()
         if self.last_item == item:
             if self.last_column == current_column:
-                self.closePersistentEditor(item, current_column)
+                self.widget.closePersistentEditor(item, current_column)
+                self.last_item = None
+                self.last_column = None
                 return
-            else:
-                self.closePersistentEditor(item, self.last_column)
+            self.widget.closePersistentEditor(item, self.last_column)
 
-        self.openPersistentEditor(item, current_column)
+        self.widget.openPersistentEditor(item, current_column)
         self.last_item = item
         self.last_column = current_column
 
@@ -113,71 +76,59 @@ class TreeWidget(MixinContextMenu):
         if parent:
             parent.removeChild(item)
         else:
-            self.takeTopLevelItem(self.indexOfTopLevelItem(item))
+            self.widget.takeTopLevelItem(self.widget.indexOfTopLevelItem(item))
 
     def item_remove_current(self):
-        selecteds = self.selectedItems()
-        for item in selecteds:
+        for item in self.widget.selectedItems():
             self.remove_item(item)
 
     def children(self, item):
-        child_items = []
-        for i in range(item.childCount()):
-            child_item = item.child(i)
-            if not hasattr(child_item, "__hash__"):
-                child_item.__hash__ = lambda: child_item.id
-            child_items.append((child_item, self.children(child_item)))
-        return child_items
+        return [
+            (item.child(index), self.children(item.child(index)))
+            for index in range(item.childCount())
+        ]
 
     def to_qtree(self):
-        items = []
-        for i in range(self.topLevelItemCount()):
-            item = self.topLevelItem(i)
-            items.append((item, self.children(item)))
-        return items
+        return [
+            (
+                self.widget.topLevelItem(index),
+                self.children(self.widget.topLevelItem(index)),
+            )
+            for index in range(self.widget.topLevelItemCount())
+        ]
 
     def children_to_dict(self, children, current_index, parent_index):
         children_dict = {}
-        for child in children:
-            k, vs = child
-            real_num = int(k.text(2))
-            c = {
-                "title": k.text(0),
-                "num": int(k.text(1)),
-                "real_num": real_num,
+        for item, descendants in children:
+            children_dict[current_index] = {
+                "title": item.text(0),
+                "num": int(item.text(1)),
+                "real_num": int(item.text(2)),
                 "parent": parent_index,
             }
-            children_dict[current_index] = c
-            if vs:
+            if descendants:
                 children_dict.update(
-                    self.children_to_dict(vs, current_index + 1, current_index)
+                    self.children_to_dict(descendants, current_index + 1, current_index)
                 )
-            current_index = max(children_dict.keys()) + 1
+            current_index = max(children_dict) + 1
         return children_dict
 
     def to_dict(self):
-        qtrees = self.to_qtree()
         current_index = 0
-        dir_dict = {}
-        for r in qtrees:
-            k, vs = r
-            dir_dict[current_index] = {
-                "title": k.text(0),
-                "num": int(k.text(1)),
-                "real_num": int(k.text(2)),
+        result = {}
+        for item, children in self.to_qtree():
+            result[current_index] = {
+                "title": item.text(0),
+                "num": int(item.text(1)),
+                "real_num": int(item.text(2)),
             }
-            children_dict = self.children_to_dict(vs, current_index + 1, current_index)
-            dir_dict.update(children_dict)
-            current_index = max(dir_dict.keys()) + 1
-        return dir_dict
-
-    @staticmethod
-    def set_pagenum(item, num, real_num):
-        item.setText(1, str(num), str(real_num))
-
-    def from_dict(self, dir_dict):
-        pass
+            result.update(
+                self.children_to_dict(children, current_index + 1, current_index)
+            )
+            current_index = max(result) + 1
+        return result
 
     def clear(self):
         self.last_item = None
-        return super(TreeWidget, self).clear()
+        self.last_column = None
+        self.widget.clear()

@@ -72,12 +72,10 @@ Windows/macOS/Ubuntu:
 
 运行源码所需环境：
 
-+ Python2/3 均可，推荐Python3
-+ PyQt5
-+ PyPDF
-+ six
-
-*注意：Python2与Python3 不兼容，某些系统（如macOS）系统自带Python2，使用`python`命令调用，若自行安装Python3则可能需要通过`python3`来调用Python3，pip同理。本文不区分python/python3, pip/pip3，请用户按当前系统所安装版本使用对应命令。*
++ Python 3.9+
++ PySide6
++ pypdf
++ 推荐使用 [uv](https://docs.astral.sh/uv/)
 
 #### 获取代码
 
@@ -85,42 +83,42 @@ Windows/macOS/Ubuntu:
 
 #### 安装运行环境
 
-安装Python:
+安装 Python：
 
 https://www.python.org/downloads/
 
-安装依赖包:
+安装依赖包：
 
-进入项目目录，执行：
+进入项目目录后，推荐执行：
 
-`pip install -r requirements.txt`
+`uv sync`
 
-`pip install PyQt5`
+也可以使用 pip：
 
-若提示`No matching distribution found for pyqt5` 可参照[PyQt官方文档](http://pyqt.sourceforge.net/Docs/PyQt5/installation.html)进行安装。
+`python -m pip install -r requirements.txt`
 
 环境装好之后进入源码目录，运行以下命令：
 
+`uv run pdfdir-gui`
+
+或者：
+
 `python run_gui.py`
-
-如果不需要GUI界面:
-
-`python run.py`
 
 #### 通过源码运行命令行接口
 
-可以通过程序的`run_cli.py` 在没有Qt的环境下运行.  
+可以通过程序的 `run_cli.py` 或安装后的 `pdfdir` 命令运行。
 通过cli运行接口支持最多6级目录, 目录文本通过文件输入更加容易编辑.
 
 ```
-python run_cli.py --help                                                                                                                                                                                                                            myrepo/pdfdir
-usage: run_cli.py [-h] [--offset OFFSET] [--l0 L0] [--l1 L1] [--l2 L2] [--l3 L3] [--l4 L4] [--l5 L5] pdfPath tocPath
+uv run pdfdir --help
+usage: pdfdir [-h] [--offset OFFSET] [--l0 L0] [--l1 L1] [--l2 L2] [--l3 L3] [--l4 L4] [--l5 L5] pdf_path toc_path
 
 Add content to PDF.
 
 positional arguments:
-  pdfPath          path of PDF
-  tocPath          path of contents file
+  pdf_path         path of PDF
+  toc_path         path of contents file
 
 options:
   -h, --help       show this help message and exit
@@ -137,13 +135,19 @@ options:
 
 如果你想在本机打包此程序：
 
-安装Pyinstaller
+同步打包依赖：
 
-`pip install pyinstaller`
+`uv sync --locked --group build`
 
 打包程序
 
-`pyinstaller.py -F run_gui.py -n "PDFdir.exe"  --noconsole`
+Windows 可直接运行：
+
+`export_exe.bat`
+
+其他平台可以执行：
+
+`uv run pyinstaller -F run_gui.py -i pdf.ico --add-data "pdf.ico:src" --add-data "src/language:src/language" -n pdfdir --noconsole`
 
 
 ### 目录文本格式
@@ -170,4 +174,3 @@ options:
 
 + \*, \+ 符号会匹配尽可能多的内容，比如如果用"第\w\*章" 来匹配，"第一节如何阅读此章"这段内容也会被匹配到，更好的写法是确定要匹配内容的长度，写成"第\w{1,2}章"。
 + 要匹配一个不是正则表达式中的正常字符直接写即可，如"第", "1", 甚至包括空格。但正则表达式中有定义用于匹配的一些特殊字符如果要作为普通字符匹配，则要在前面加一个"\\"，比如匹配"1.1"这种格式，可以写成"\d\\.\d"。"\\"符号本身也要如此。
-

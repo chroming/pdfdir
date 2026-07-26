@@ -8,21 +8,21 @@ except ImportError:
 
 RE_DICT = {
     "level0": {
-        "第1章": "第\d章",
+        "第1章": r"第\d章",
     },
     "level1": {
-        "1.1": "\d\.\d",
-        "第1节": "第\d节",
+        "1.1": r"\d\.\d",
+        "第1节": r"第\d节",
     },
     "level2": {
-        "1.1.1": "\d\.\d\.\d",
+        "1.1.1": r"\d\.\d\.\d",
     },
 }
 
 
-class Config(object):
+class Config:
     APP_NAME = "PDFDir"
-    VERSION = __version__ if __version__.startswith("v") else "v0.3.0-beta"
+    VERSION = __version__
     WINDOW_ICON = "pdf.ico"
     HOME_PAGE_URL = "https://github.com/chroming/pdfdir"
     HELP_PAGE_URL = "https://github.com/chroming/pdfdir/blob/master/readme.md"
