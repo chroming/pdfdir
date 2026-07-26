@@ -1,0 +1,38 @@
+name: OpenCodeReview
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: open-code-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Review pull request
+        # Pinned to the upstream main commit from 2026-07-26.
+        uses: alibaba/open-code-review@25c3661c62c6fa5be2dee7ce6706c4f1517672cb
+        with:
+          llm_url: ${{ secrets.OCR_LLM_URL }}
+          llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          llm_model: ${{ vars.OCR_LLM_MODEL }}
+          llm_use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC }}
+          language: 中文
+          background: ${{ github.event.pull_request.title }}
+          sticky_summary: 'true'
+          incremental: 'true'
+          upload_artifacts: 'true'
