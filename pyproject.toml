@@ -53,6 +53,9 @@ packages = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 qt_api = "pyside6"
+markers = [
+    "e2e: exercises a complete desktop user journey through the real Qt window",
+]
 
 [tool.coverage.run]
 branch = true

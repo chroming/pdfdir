@@ -334,17 +334,7 @@ class Ui_PDFdir(object):
         self.open_button.setText(QCoreApplication.translate("PDFdir", u"\u6253\u5f00", None))
         self.dir_text_label.setText(QCoreApplication.translate("PDFdir", u"\u76ee\u5f55\u6587\u672c", None))
         self.space_level_box.setText(QCoreApplication.translate("PDFdir", u"\u4ee5\u7a7a\u683c\u5206\u5c42", None))
-        self.dir_text_edit.setHtml(QCoreApplication.translate("PDFdir", u"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
-"                                        <html><head><meta name=\"qrichtext\" content=\"1\"\n"
-"                                        /><style type=\"text/css\">\n"
-"                                        p, li { white-space: pre-wrap; }\n"
-"                                        </style></head><body style=\"\n"
-"                                        font-family:'.AppleSystemUIFont'; font-size:8pt; font-weight:400;\n"
-"                                        font-style:italic;\">\n"
-"                                        <p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px;\n"
-"                                        margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\n"
-"                                        font-family:'SimSun'; font-style:normal;\"><br /></p></body></html>\n"
-"                                    ", None))
+        self.dir_text_edit.setPlainText("")
         self.offset_label.setText(QCoreApplication.translate("PDFdir", u"\u9875\u5dee", None))
         self.offset_edit.setInputMask("")
         self.offset_edit.setText(QCoreApplication.translate("PDFdir", u"0", None))

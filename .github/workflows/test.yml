@@ -40,11 +40,16 @@ jobs:
           python -m pip install uv
           uv sync --locked
 
+      - name: Run desktop E2E
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run pytest -q -m e2e --strict-markers
+
       - name: Run tests with branch coverage
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          uv run coverage run -m pytest -q
+          uv run coverage run -m pytest -q -m "not e2e" --strict-markers
           uv run coverage report
           uv run coverage xml
 

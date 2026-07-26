@@ -42,3 +42,13 @@ def test_frozen_smoke_uses_absolute_resources_with_external_spec_directory():
         '--add-data "$GITHUB_WORKSPACE/src/language:src/language"'
         in test_workflow
     )
+
+
+def test_test_matrix_runs_desktop_e2e_as_an_explicit_suite():
+    test_workflow = (PROJECT_ROOT / ".github/workflows/test.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Run desktop E2E" in test_workflow
+    assert "uv run pytest -q -m e2e --strict-markers" in test_workflow
+    assert 'coverage run -m pytest -q -m "not e2e" --strict-markers' in test_workflow
