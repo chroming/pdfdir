@@ -24,8 +24,7 @@ jobs:
 
       - name: Install system and project dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes libxcb-xinerama0
+          bash .github/scripts/install-linux-qt-deps.sh
           python -m pip install uv
           uv sync --locked --group build
 

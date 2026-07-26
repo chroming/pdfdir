@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -42,6 +43,21 @@ def test_main_builds_nested_bookmark_tree(window):
 
     assert window.dir_tree_widget.topLevelItemCount() == 1
     assert window.tree_to_dict()[1]["parent"] == 0
+
+
+@pytest.mark.parametrize(
+    ("level", "title"),
+    [
+        (0, "1. Chapter"),
+        (1, "1.1 Section"),
+        (2, "1.1.1 Topic"),
+    ],
+)
+def test_gui_default_level_patterns_match_numbered_titles(window, level, title):
+    pattern = getattr(window, f"level{level}_edit").text()
+
+    assert "\n" not in pattern
+    assert re.match(pattern, title)
 
 
 def test_translation_loader_finds_packaged_translation(window):
@@ -241,6 +257,21 @@ def test_export_without_pdf_shows_warning(window):
     window.write_tree_to_pdf()
 
     assert messages == [("warn", "Please select a PDF file first.")]
+    assert window._worker is None
+
+
+def test_invalid_tree_page_edit_preserves_export_controls(window):
+    messages = _capture_alerts(window)
+    window.pdf_path_edit.setText("source.pdf")
+    window.dir_text_edit.setPlainText("Chapter 1")
+    tree_item = window.dir_tree_widget.topLevelItem(0)
+    tree_item.setText(2, "not-a-page")
+
+    window.write_tree_to_pdf()
+
+    assert messages == [("warn", "Page numbers must be integers.")]
+    assert tree_item.text(2) == "not-a-page"
+    assert window.export_button.isEnabled()
     assert window._worker is None
 
 

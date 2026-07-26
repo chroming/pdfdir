@@ -398,11 +398,17 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.alert_msg("Please select a PDF file first.", level="warn")
             return
 
+        try:
+            index_dict = self.tree_to_dict()
+        except (TypeError, ValueError):
+            self.alert_msg("Page numbers must be integers.", level="warn")
+            return
+
         self.show_status("Writing bookmarks to PDF...")
         self.export_button.setEnabled(False)
         self._worker = BookmarkWorkerThread(
             self.pdf_path,
-            self.tree_to_dict(),
+            index_dict,
             self.keep_exist_dir,
             parent=self,
         )

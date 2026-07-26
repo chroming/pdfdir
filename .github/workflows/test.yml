@@ -31,6 +31,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Install Linux Qt runtime dependencies
+        if: runner.os == 'Linux'
+        run: bash .github/scripts/install-linux-qt-deps.sh
+
       - name: Install dependencies
         run: |
           python -m pip install uv
@@ -60,6 +64,9 @@ jobs:
         with:
           python-version: "3.9"
 
+      - name: Install Linux Qt runtime dependencies
+        run: bash .github/scripts/install-linux-qt-deps.sh
+
       - name: Install uv
         run: python -m pip install uv
 
@@ -84,8 +91,7 @@ jobs:
 
       - name: Install system and project dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes libxcb-xinerama0
+          bash .github/scripts/install-linux-qt-deps.sh
           python -m pip install uv
           uv sync --locked --group build
 
@@ -103,7 +109,7 @@ jobs:
 
       - name: Build and start frozen GUI
         run: |
-          uv run pyinstaller -F run_gui.py -i pdf.ico --add-data "pdf.ico:src" --add-data "src/language:src/language" --distpath "$RUNNER_TEMP/frozen" --workpath "$RUNNER_TEMP/pyinstaller-build" --specpath "$RUNNER_TEMP" -n pdfdir --noconfirm --clean --noconsole
+          uv run pyinstaller -F run_gui.py -i "$GITHUB_WORKSPACE/pdf.ico" --add-data "$GITHUB_WORKSPACE/pdf.ico:src" --add-data "$GITHUB_WORKSPACE/src/language:src/language" --distpath "$RUNNER_TEMP/frozen" --workpath "$RUNNER_TEMP/pyinstaller-build" --specpath "$RUNNER_TEMP" -n pdfdir --noconfirm --clean --noconsole
           set +e
           QT_QPA_PLATFORM=offscreen timeout 5s "$RUNNER_TEMP/frozen/pdfdir"
           STATUS=$?

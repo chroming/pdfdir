@@ -352,11 +352,9 @@ class Ui_PDFdir(object):
         self.level0_box.setText(QCoreApplication.translate("PDFdir", u"\u9996\u5c42", None))
         self.level0_edit.setText(QCoreApplication.translate("PDFdir", u"^\\d+\\.\\s?", None))
         self.level1_box.setText(QCoreApplication.translate("PDFdir", u"\u4e8c\u5c42", None))
-        self.level1_edit.setText(QCoreApplication.translate("PDFdir", u"^\\d+\\.\\d+\\w?\\s?\n"
-"                                                ", None))
+        self.level1_edit.setText(QCoreApplication.translate("PDFdir", u"^\\d+\\.\\d+\\w?\\s?", None))
         self.level2_box.setText(QCoreApplication.translate("PDFdir", u"\u4e09\u5c42", None))
-        self.level2_edit.setText(QCoreApplication.translate("PDFdir", u"^\\d+\\.\\d+\\.\\d+\\w?\\s?\n"
-"                                                ", None))
+        self.level2_edit.setText(QCoreApplication.translate("PDFdir", u"^\\d+\\.\\d+\\.\\d+\\w?\\s?", None))
         self.level3_box.setText(QCoreApplication.translate("PDFdir", u"\u56db\u5c42", None))
         self.level3_edit.setText(QCoreApplication.translate("PDFdir", u"^\\d+\\.\\d+\\.\\d+\\.\\d+\\w?\\s?", None))
         self.level4_box.setText(QCoreApplication.translate("PDFdir", u"\u4e94\u5c42", None))
