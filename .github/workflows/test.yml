@@ -46,7 +46,7 @@ jobs:
 
       - name: Require coverage for changed lines
         if: github.event_name == 'pull_request' && matrix.os == 'ubuntu-latest'
-        run: uv run diff-cover coverage.xml --compare-branch "origin/${{ github.base_ref }}" --fail-under=90
+        run: uv run diff-cover coverage.xml --compare-branch "origin/${{ github.base_ref }}" --fail-under=95
 
   minimum-dependencies:
     name: Python 3.9 / minimum dependencies

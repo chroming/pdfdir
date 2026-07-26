@@ -317,7 +317,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def open_file_dialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "select PDF", directory=self.default_folder, filter="PDF (*.pdf)"
+            self,
+            "select PDF",
+            self.default_folder,
+            "PDF (*.pdf)",
         )
         if not filename:
             return

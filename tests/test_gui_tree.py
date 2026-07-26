@@ -48,7 +48,7 @@ def test_tree_controller_removes_selected_top_level_and_child_items(qtbot):
     child.setSelected(True)
     other.setSelected(True)
 
-    controller.item_remove_current()
+    controller.context_menu.actions()[0].trigger()
 
     assert parent.childCount() == 0
     assert widget.topLevelItemCount() == 1
@@ -70,6 +70,21 @@ def test_tree_controller_toggles_persistent_editor(qtbot):
     controller.item_double_clicked(item)
     assert not widget.isPersistentEditorOpen(item, 0)
     assert controller.last_item is None
+
+
+def test_tree_double_click_signal_opens_editor(qtbot):
+    widget = QtWidgets.QTreeWidget()
+    widget.setColumnCount(3)
+    qtbot.addWidget(widget)
+    controller = TreeWidgetController(widget)
+    item = _tree_item("Editable", 1)
+    widget.addTopLevelItem(item)
+    widget.setCurrentItem(item, 0)
+
+    widget.itemDoubleClicked.emit(item, 0)
+
+    assert controller.last_item is item
+    assert widget.isPersistentEditorOpen(item, 0)
 
 
 def test_tree_controller_clear_resets_editor_state(qtbot):
