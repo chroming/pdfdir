@@ -19,7 +19,7 @@ from src.config import CONFIG
 from src.convert import clean_clipboard_control_chars, convert_dir_text
 from src.gui.base import TreeWidgetController
 from src.gui.main_ui import Ui_PDFdir
-from src.pdf.bookmark import add_bookmark, check_bookmarks, get_bookmarks
+from src.pdf.bookmark import add_bookmark, get_bookmarks
 from src.updater import is_updated
 
 # import qdarkstyle
@@ -45,7 +45,6 @@ class BookmarkWorkerThread(QtCore.QThread):
 
     def run(self):
         try:
-            check_bookmarks(self.pdf_path, self.index_dict, self.keep_existing)
             output_path = add_bookmark(
                 self.pdf_path, self.index_dict, self.keep_existing
             )
@@ -267,9 +266,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     @property
     def offset_num(self):
         offset = self.offset_edit.text()
-        if isinstance(offset, str) and offset.lstrip("-").isdigit():
+        try:
             return int(offset)
-        return 0
+        except (TypeError, ValueError):
+            return 0
 
     @property
     def level0_text(self):

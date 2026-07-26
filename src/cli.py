@@ -1,7 +1,16 @@
 import argparse
+import re
 from pathlib import Path
 
 from src.pdfdirectory import add_directory
+
+
+def regex_pattern(value):
+    try:
+        re.compile(value)
+    except re.error as error:
+        raise argparse.ArgumentTypeError(f"Invalid regular expression: {error}") from error
+    return value
 
 
 def build_parser():
@@ -15,6 +24,7 @@ def build_parser():
         parser.add_argument(
             f"--l{level}",
             default=pattern,
+            type=regex_pattern,
             help=f"Regular expression for bookmark level {level}",
         )
     return parser

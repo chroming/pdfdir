@@ -23,6 +23,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -34,7 +36,79 @@ jobs:
           python -m pip install uv
           uv sync --locked
 
-      - name: Run tests
+      - name: Run tests with branch coverage
         env:
           QT_QPA_PLATFORM: offscreen
-        run: uv run pytest -q
+        run: |
+          uv run coverage run -m pytest -q
+          uv run coverage report
+          uv run coverage xml
+
+      - name: Require coverage for changed lines
+        if: github.event_name == 'pull_request' && matrix.os == 'ubuntu-latest'
+        run: uv run diff-cover coverage.xml --compare-branch "origin/${{ github.base_ref }}" --fail-under=90
+
+  minimum-dependencies:
+    name: Python 3.9 / minimum dependencies
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+
+      - name: Install uv
+        run: python -m pip install uv
+
+      - name: Run minimum dependency tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          uv run --python 3.9 --with "pypdf[crypto]==3.17.4" --with "PySide6==6.5.3" coverage run -m pytest -q
+          uv run --python 3.9 --with "pypdf[crypto]==3.17.4" --with "PySide6==6.5.3" coverage report
+
+  package:
+    name: Wheel and frozen GUI smoke tests
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install system and project dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libxcb-xinerama0
+          python -m pip install uv
+          uv sync --locked --group build
+
+      - name: Build and inspect distributions
+        run: |
+          uv build
+          uvx twine check dist/*
+          uvx check-wheel-contents --ignore W005 dist/*.whl
+
+      - name: Test installed wheel
+        run: |
+          uv venv "$RUNNER_TEMP/package-venv" --python 3.13
+          uv pip install --python "$RUNNER_TEMP/package-venv/bin/python" dist/*.whl
+          "$RUNNER_TEMP/package-venv/bin/python" tests/package_smoke.py "$RUNNER_TEMP/package-smoke" "$RUNNER_TEMP/package-venv/bin/pdfdir"
+
+      - name: Build and start frozen GUI
+        run: |
+          uv run pyinstaller -F run_gui.py -i pdf.ico --add-data "pdf.ico:src" --add-data "src/language:src/language" --distpath "$RUNNER_TEMP/frozen" --workpath "$RUNNER_TEMP/pyinstaller-build" --specpath "$RUNNER_TEMP" -n pdfdir --noconfirm --clean --noconsole
+          set +e
+          QT_QPA_PLATFORM=offscreen timeout 5s "$RUNNER_TEMP/frozen/pdfdir"
+          STATUS=$?
+          set -e
+          if [ "$STATUS" -ne 124 ]; then
+            echo "Frozen GUI exited unexpectedly with status $STATUS"
+            exit 1
+          fi

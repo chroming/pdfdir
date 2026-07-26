@@ -28,3 +28,28 @@ def test_ui_compiler_reports_missing_executable(monkeypatch):
 
     with pytest.raises(RuntimeError, match="pyside6-uic"):
         ui_to_py.ui_py(Path("input.ui"), Path("output.py"))
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        ([], ("main_ui.ui", "main_ui.py")),
+        (["custom.ui", "custom.py"], ("custom.ui", "custom.py")),
+    ],
+)
+def test_ui_compiler_main_resolves_arguments(monkeypatch, arguments, expected):
+    calls = []
+    monkeypatch.setattr(
+        ui_to_py,
+        "ui_py",
+        lambda source, output: calls.append((Path(source).name, Path(output).name)),
+    )
+
+    ui_to_py.main(arguments)
+
+    assert calls == [expected]
+
+
+def test_ui_compiler_main_rejects_partial_arguments():
+    with pytest.raises(SystemExit, match="usage"):
+        ui_to_py.main(["only-input.ui"])

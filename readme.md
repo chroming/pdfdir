@@ -149,6 +149,17 @@ Windows 可直接运行：
 
 `uv run pyinstaller -F run_gui.py -i pdf.ico --add-data "pdf.ico:src" --add-data "src/language:src/language" -n pdfdir --noconsole`
 
+### 测试
+
+运行完整测试及分支覆盖率检查：
+
+```
+uv sync --locked
+uv run coverage run -m pytest -q
+uv run coverage report
+```
+
+测试覆盖 PDF 写入、目录转换性质、GUI 后台任务、命令行接口、更新检查和打包资源。有效源码的覆盖率下限为 85%；生成的 `src/gui/main_ui.py` 不计入覆盖率。
 
 ### 目录文本格式
 

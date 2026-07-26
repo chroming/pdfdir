@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 The add bookmark class for a pdf file.
 
@@ -11,6 +9,8 @@ public:
 
 import logging
 import os
+import tempfile
+from pathlib import Path
 
 from pypdf import PageObject, PdfReader, PdfWriter
 from pypdf.generic import Destination, Fit
@@ -18,7 +18,7 @@ from pypdf.generic import Destination, Fit
 logger = logging.getLogger(__name__)
 
 
-class Pdf(object):
+class Pdf:
     """
     Add bookmarks to a pdf file.
 
@@ -44,7 +44,7 @@ class Pdf(object):
 
     def __init__(self, path, keep_outline=False):
         self.path = path
-        self.reader = PdfReader(open(path, "rb"), strict=False)
+        self.reader = PdfReader(path, strict=False)
         self.pages_num = self._get_pages_num(self.reader.pages)
         self._writer = None
         self.keep_outline = keep_outline
@@ -80,10 +80,8 @@ class Pdf(object):
             # `append_pages_from_reader` is fast but will lose annotations in pdf
             new_writer = writer
             new_writer.append(reader, import_outline=keep_outline)
-        except Exception as e:
-            logger.warning(
-                "Copy pdf failed, {}, try to exclude /Annots and /B".format(e)
-            )
+        except Exception as e:  # noqa: BLE001 - pypdf failures vary by PDF structure
+            logger.warning(f"Copy pdf failed, {e}, try to exclude /Annots and /B")
             try:
                 new_writer = type(writer)()
                 new_writer.append(
@@ -91,11 +89,9 @@ class Pdf(object):
                     import_outline=keep_outline,
                     excluded_fields=["/Annots", "/B"],
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - final compatibility fallback
                 logger.warning(
-                    "Copy pdf failed again, {}, try to use append_pages_from_reader".format(
-                        e
-                    )
+                    f"Copy pdf failed again, {e}, try to use append_pages_from_reader"
                 )
                 new_writer = type(writer)()
                 new_writer.append_pages_from_reader(reader)
@@ -124,11 +120,9 @@ class Pdf(object):
                     pages_num[page_ref.idnum] = page.page_number
                 else:
                     logger.error(
-                        "Unknown page type {} for {}".format(
-                            type(page), page.page_number
-                        )
+                        f"Unknown page type {type(page)} for {page.page_number}"
                     )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - tolerate malformed page objects
                 logger.error(e)
         return pages_num
 
@@ -137,18 +131,15 @@ class Pdf(object):
         for o in outlines:
             if isinstance(o, Destination):
                 try:
-                    idnum = o.page if isinstance(o.page, int) else o.page.idnum
                     title = " " * current_level + o.title.strip()
-                    page_num = self.pages_num[idnum] + 1
-                    index_list.append(
-                        "{title}  {page_num}".format(title=title, page_num=page_num)
-                    )
-                except Exception as e:
+                    page_num = self.reader.get_destination_page_number(o) + 1
+                    index_list.append(f"{title}  {page_num}")
+                except Exception as e:  # noqa: BLE001 - tolerate malformed outlines
                     logger.error(e)
             elif isinstance(o, list):
                 index_list += self._outlines_to_bookmarks(o, current_level + 1)
             else:
-                logger.error("Unknown outline type: {} in {}".format(type(o), o))
+                logger.error(f"Unknown outline type: {type(o)} in {o}")
                 continue
         return index_list
 
@@ -198,8 +189,21 @@ class Pdf(object):
 
     def save_pdf(self):
         """save the writer to a pdf file with name 'name_new.pdf'"""
-        if os.path.exists(self._new_path):
-            os.remove(self._new_path)
-        with open(self._new_path, "wb") as out:
-            self.writer.write(out)
+        output_path = Path(self._new_path)
+        temporary_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="wb",
+                dir=output_path.parent,
+                prefix=f".{output_path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as out:
+                temporary_path = Path(out.name)
+                self.writer.write(out)
+            os.replace(temporary_path, output_path)
+        except Exception:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+            raise
         return self._new_path

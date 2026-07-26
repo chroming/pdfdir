@@ -98,4 +98,6 @@ class Release:
                 if asset.get("name") == name:
                     return asset.get("browser_download_url")
         else:
-            return assets[order_num].get("browser_download_url")
+            if 0 <= order_num < len(assets):
+                return assets[order_num].get("browser_download_url")
+        return None
