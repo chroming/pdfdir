@@ -50,6 +50,15 @@ def test_collect_paddleocr_texts_supports_common_result_shapes():
     ]
 
 
+def test_collect_paddleocr_texts_supports_paddleocr_3_result_shape():
+    result = [{"res": {"rec_texts": ["第1章 古典密码学 1", "1.1 引言 2"]}}]
+
+    assert _collect_paddleocr_texts(result) == [
+        "第1章 古典密码学 1",
+        "1.1 引言 2",
+    ]
+
+
 def test_extract_toc_text_merges_paddleocr_wrapped_lines():
     page_texts = [
         (

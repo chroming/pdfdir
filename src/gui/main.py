@@ -21,7 +21,7 @@ from src.gui.base import TreeWidget
 from src.gui.main_ui import Ui_PDFdir
 from src.updater import is_updated
 from src.pdf.bookmark import add_bookmark, check_bookmarks, get_bookmarks
-from src.pdf.page_offset import infer_page_offset
+from src.pdf.page_offset import OcrCancelledError, infer_page_offset
 from src.pdf.toc import extract_toc_text
 
 # import qdarkstyle
@@ -41,6 +41,7 @@ class ControlButtonMixin(object):
 class PageOffsetWorker(QtCore.QObject):
     finished = QtCore.pyqtSignal(object)
     failed = QtCore.pyqtSignal(str)
+    cancelled = QtCore.pyqtSignal()
     progress = QtCore.pyqtSignal(int, int)
 
     def __init__(self, pdf_path, dir_text):
@@ -56,7 +57,10 @@ class PageOffsetWorker(QtCore.QObject):
                 self.dir_text,
                 use_ocr=True,
                 progress_callback=self.progress.emit,
+                cancel_callback=QtCore.QThread.currentThread().isInterruptionRequested,
             )
+        except OcrCancelledError:
+            self.cancelled.emit()
         except Exception as e:
             self.failed.emit(str(e))
         else:
@@ -66,6 +70,7 @@ class PageOffsetWorker(QtCore.QObject):
 class TocTextWorker(QtCore.QObject):
     finished = QtCore.pyqtSignal(str)
     failed = QtCore.pyqtSignal(str)
+    cancelled = QtCore.pyqtSignal()
     progress = QtCore.pyqtSignal(int, int)
 
     def __init__(self, pdf_path):
@@ -79,7 +84,10 @@ class TocTextWorker(QtCore.QObject):
                 self.pdf_path,
                 use_ocr=True,
                 progress_callback=self.progress.emit,
+                cancel_callback=QtCore.QThread.currentThread().isInterruptionRequested,
             )
+        except OcrCancelledError:
+            self.cancelled.emit()
         except Exception as e:
             self.failed.emit(str(e))
         else:
@@ -119,6 +127,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._set_unwritable()
         self._worker = None
         self._worker_thread = None
+        self._close_pending = False
 
     def _fix_small_fonts(self):
         """Override hardcoded small font sizes from main_ui.py for readability.
@@ -433,8 +442,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._worker.progress.connect(self._offset_progress)
         self._worker.finished.connect(self._worker_thread.quit)
         self._worker.failed.connect(self._worker_thread.quit)
+        self._worker.cancelled.connect(self._worker_thread.quit)
         self._worker.finished.connect(self._worker.deleteLater)
         self._worker.failed.connect(self._worker.deleteLater)
+        self._worker.cancelled.connect(self._worker.deleteLater)
         self._worker_thread.finished.connect(self._worker_thread.deleteLater)
         self._worker_thread.finished.connect(self._offset_worker_finished)
         self._worker_thread.start()
@@ -459,23 +470,29 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._worker.progress.connect(self._toc_progress)
         self._worker.finished.connect(self._worker_thread.quit)
         self._worker.failed.connect(self._worker_thread.quit)
+        self._worker.cancelled.connect(self._worker_thread.quit)
         self._worker.finished.connect(self._worker.deleteLater)
         self._worker.failed.connect(self._worker.deleteLater)
+        self._worker.cancelled.connect(self._worker.deleteLater)
         self._worker_thread.finished.connect(self._worker_thread.deleteLater)
         self._worker_thread.finished.connect(self._toc_worker_finished)
         self._worker_thread.start()
 
     def _offset_inferred(self, offset):
+        if self._close_pending:
+            return
         if offset is None:
             self.alert_msg("Could not infer page offset", level="warn")
             return
-        display_offset = offset - 1
+        display_offset = offset
         self.offset_edit.setText(str(display_offset))
         self.show_status(
             "Page offset inferred: {}".format(display_offset), 3000
         )
 
     def _offset_failed(self, message):
+        if self._close_pending:
+            return
         self.alert_msg("Infer page offset failed: {}".format(message), level="warn")
 
     def _offset_progress(self, current, total):
@@ -487,8 +504,11 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.auto_offset_button.setEnabled(True)
         self._worker = None
         self._worker_thread = None
+        self._close_after_worker()
 
     def _toc_text_inferred(self, toc_text):
+        if self._close_pending:
+            return
         if not toc_text:
             self.alert_msg("Could not read table of contents", level="warn")
             return
@@ -496,6 +516,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.show_status("Table of contents loaded", 3000)
 
     def _toc_text_failed(self, message):
+        if self._close_pending:
+            return
         self.alert_msg("Read table of contents failed: {}".format(message), level="warn")
 
     def _toc_progress(self, current, total):
@@ -507,6 +529,20 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.auto_toc_button.setEnabled(True)
         self._worker = None
         self._worker_thread = None
+        self._close_after_worker()
+
+    def _close_after_worker(self):
+        if self._close_pending:
+            QtCore.QTimer.singleShot(0, self.close)
+
+    def closeEvent(self, event):
+        if self._worker_thread and self._worker_thread.isRunning():
+            self._close_pending = True
+            self._worker_thread.requestInterruption()
+            self.show_status("Cancelling background task...")
+            event.ignore()
+            return
+        super(Main, self).closeEvent(event)
 
     def pre_check(self, path, index_dict):
         try:

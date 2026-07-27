@@ -8,7 +8,9 @@ import sys
 from io import BytesIO
 
 from src.pdf.page_offset import (
+    OcrCancelledError,
     OcrUnavailableError,
+    _check_cancelled,
     _load_ocr_dependencies,
     _tesseract_config,
     extract_pdf_texts,
@@ -519,6 +521,9 @@ def _collect_paddleocr_texts(result):
                 if isinstance(value, list):
                     texts.extend(str(text) for text in value if text)
                     return
+            if "res" in item:
+                collect(item["res"])
+                return
             text = item.get("text")
             if isinstance(text, str) and text:
                 texts.append(text)
@@ -580,6 +585,7 @@ def extract_toc_text_by_paddleocr(
     dpi=130,
     languages="ch",
     progress_callback=None,
+    cancel_callback=None,
 ):
     np, ocr = _load_paddleocr_dependencies(languages)
     page_toc_entries = []
@@ -588,6 +594,7 @@ def extract_toc_text_by_paddleocr(
 
     try:
         for page_index, page_count, image in _render_pdf_pages(pdf_path, max_pages, dpi):
+            _check_cancelled(cancel_callback)
             text = _paddleocr_image_to_text(ocr, np, image)
             page_entries = _extract_toc_entries_from_text(text)
             page_toc_entries.append(page_entries)
@@ -602,7 +609,7 @@ def extract_toc_text_by_paddleocr(
                 if weak_pages_after_toc >= 2:
                     break
     except Exception as e:
-        if isinstance(e, OcrUnavailableError):
+        if isinstance(e, (OcrUnavailableError, OcrCancelledError)):
             raise
         raise OcrUnavailableError("PaddleOCR page text failed: {}".format(e)) from e
 
@@ -615,6 +622,8 @@ def extract_toc_text_by_tesseract(
     dpi=240,
     languages="chi_sim+eng",
     progress_callback=None,
+    cancel_callback=None,
+    timeout=30,
 ):
     fitz, pytesseract, Image = _load_ocr_dependencies()
     scale = dpi / 72.0
@@ -626,12 +635,13 @@ def extract_toc_text_by_tesseract(
     try:
         page_count = min(len(document), max_pages)
         for page_index in range(page_count):
+            _check_cancelled(cancel_callback)
             page = document.load_page(page_index)
             pixmap = page.get_pixmap(matrix=matrix, alpha=False)
             image = Image.open(BytesIO(pixmap.tobytes("png")))
             page_texts.append(
                 pytesseract.image_to_string(
-                    image, lang=languages, config=config
+                    image, lang=languages, config=config, timeout=timeout
                 )
             )
             if progress_callback:
@@ -650,6 +660,8 @@ def extract_toc_text_by_ocr(
     progress_callback=None,
     backend="paddle",
     fallback_to_tesseract=True,
+    cancel_callback=None,
+    timeout=30,
 ):
     if backend == "tesseract":
         return extract_toc_text_by_tesseract(
@@ -658,6 +670,8 @@ def extract_toc_text_by_ocr(
             dpi=240 if dpi == 220 else dpi,
             languages="chi_sim+eng",
             progress_callback=progress_callback,
+            cancel_callback=cancel_callback,
+            timeout=timeout,
         )
     if backend != "paddle":
         raise ValueError("Unknown OCR backend: {}".format(backend))
@@ -669,6 +683,7 @@ def extract_toc_text_by_ocr(
             dpi=dpi,
             languages=languages,
             progress_callback=progress_callback,
+            cancel_callback=cancel_callback,
         )
         if toc_text or not fallback_to_tesseract:
             return toc_text
@@ -680,6 +695,8 @@ def extract_toc_text_by_ocr(
         pdf_path,
         max_pages=max_pages,
         progress_callback=progress_callback,
+        cancel_callback=cancel_callback,
+        timeout=timeout,
     )
 
 
@@ -689,8 +706,12 @@ def extract_toc_text(
     use_ocr=True,
     ocr_backend="paddle",
     progress_callback=None,
+    cancel_callback=None,
+    ocr_timeout=30,
 ):
-    page_texts = extract_pdf_texts(pdf_path)[:max_pages]
+    page_texts = extract_pdf_texts(
+        pdf_path, max_pages=max_pages, cancel_callback=cancel_callback
+    )
     toc_text = extract_toc_text_from_page_texts(page_texts)
     if toc_text or not use_ocr:
         return toc_text
@@ -700,4 +721,6 @@ def extract_toc_text(
         max_pages=max_pages,
         backend=ocr_backend,
         progress_callback=progress_callback,
+        cancel_callback=cancel_callback,
+        timeout=ocr_timeout,
     )

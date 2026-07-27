@@ -1,6 +1,12 @@
 # -*- coding:utf-8 -*-
 
+import pytest
+
+import src.pdf.page_offset as page_offset_module
+
 from src.pdf.page_offset import (
+    OcrCancelledError,
+    extract_pdf_texts,
     infer_page_offset_from_texts,
     normalize_page_text,
     page_contains_title,
@@ -80,3 +86,48 @@ def test_infer_page_offset_skips_title_only_toc_entries():
 
 def test_page_contains_title_allows_ocr_noise():
     assert page_contains_title("密码学原理与实践", "党码学原理与实践 第三版")
+
+
+def test_infer_page_offset_supports_negative_offsets():
+    page_texts = [""] * 10
+    page_texts[0] = "Chapter Ten"
+    page_texts[9] = "Chapter Nineteen"
+
+    offset = infer_page_offset_from_texts(
+        "Chapter Ten 10\nChapter Nineteen 19",
+        page_texts,
+    )
+
+    assert offset == -9
+
+
+def test_extract_pdf_texts_respects_page_limit(monkeypatch, tmp_path):
+    class FakePage(object):
+        def __init__(self, text):
+            self.text = text
+
+        def extract_text(self):
+            return self.text
+
+    class FakeReader(object):
+        def __init__(self, handle, strict=False):
+            self.pages = [FakePage(str(index)) for index in range(5)]
+
+    monkeypatch.setattr(page_offset_module, "PdfReader", FakeReader)
+    pdf_path = tmp_path / "book.pdf"
+    pdf_path.write_bytes(b"pdf")
+
+    assert extract_pdf_texts(str(pdf_path), max_pages=2) == ["0", "1"]
+
+
+def test_extract_pdf_texts_can_be_cancelled(monkeypatch, tmp_path):
+    class FakeReader(object):
+        def __init__(self, handle, strict=False):
+            self.pages = [object()]
+
+    monkeypatch.setattr(page_offset_module, "PdfReader", FakeReader)
+    pdf_path = tmp_path / "book.pdf"
+    pdf_path.write_bytes(b"pdf")
+
+    with pytest.raises(OcrCancelledError):
+        extract_pdf_texts(str(pdf_path), cancel_callback=lambda: True)

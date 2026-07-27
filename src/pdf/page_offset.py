@@ -20,6 +20,15 @@ class OcrUnavailableError(RuntimeError):
     """Raised when OCR fallback cannot run in the current environment."""
 
 
+class OcrCancelledError(RuntimeError):
+    """Raised when an OCR operation is cancelled."""
+
+
+def _check_cancelled(cancel_callback):
+    if cancel_callback and cancel_callback():
+        raise OcrCancelledError("OCR operation cancelled")
+
+
 def normalize_page_text(text):
     """Normalize text so titles can match despite whitespace differences."""
     if not text:
@@ -109,8 +118,6 @@ def _infer_page_offset_from_candidates(candidates, page_texts, log_insufficient=
 
         for candidate_index, printed_num in page_matches:
             offset = page_index + 1 - printed_num
-            if offset < 0:
-                continue
             match = offset_matches.setdefault(
                 offset, {"pages": set(), "candidates": set()}
             )
@@ -150,12 +157,15 @@ def infer_page_offset_from_texts(dir_text, page_texts, max_entries=20):
     return _infer_page_offset_from_candidates(candidates, page_texts)
 
 
-def extract_pdf_texts(pdf_path):
+def extract_pdf_texts(pdf_path, max_pages=None, cancel_callback=None):
     """Extract page texts from a PDF text layer."""
     page_texts = []
     with open(pdf_path, "rb") as handle:
         reader = PdfReader(handle, strict=False)
-        for page in reader.pages:
+        for page_index, page in enumerate(reader.pages):
+            if max_pages is not None and page_index >= max_pages:
+                break
+            _check_cancelled(cancel_callback)
             try:
                 page_texts.append(page.extract_text() or "")
             except Exception as e:
@@ -192,6 +202,8 @@ def extract_pdf_texts_by_ocr(
     dpi=160,
     languages="chi_sim+eng",
     progress_callback=None,
+    cancel_callback=None,
+    timeout=30,
 ):
     """Extract page texts by rendering pages and running OCR.
 
@@ -213,12 +225,13 @@ def extract_pdf_texts_by_ocr(
     try:
         page_count = min(len(document), max_pages)
         for page_index in range(page_count):
+            _check_cancelled(cancel_callback)
             page = document.load_page(page_index)
             pixmap = page.get_pixmap(matrix=matrix, alpha=False)
             image = Image.open(BytesIO(pixmap.tobytes("png")))
             try:
                 text = pytesseract.image_to_string(
-                    image, lang=languages, config=tesseract_config
+                    image, lang=languages, config=tesseract_config, timeout=timeout
                 )
             except Exception as e:
                 raise OcrUnavailableError("OCR page text failed: {}".format(e)) from e
@@ -239,6 +252,8 @@ def infer_page_offset_by_ocr(
     dpi=160,
     languages="chi_sim+eng",
     progress_callback=None,
+    cancel_callback=None,
+    timeout=30,
 ):
     """Infer page offset by OCR, stopping as soon as enough evidence exists."""
     candidates = list(iter_toc_candidates(dir_text, max_entries=max_entries))
@@ -259,12 +274,13 @@ def infer_page_offset_by_ocr(
     try:
         page_count = min(len(document), max_pages)
         for page_index in range(page_count):
+            _check_cancelled(cancel_callback)
             page = document.load_page(page_index)
             pixmap = page.get_pixmap(matrix=matrix, alpha=False)
             image = Image.open(BytesIO(pixmap.tobytes("png")))
             try:
                 text = pytesseract.image_to_string(
-                    image, lang=languages, config=tesseract_config
+                    image, lang=languages, config=tesseract_config, timeout=timeout
                 )
             except Exception as e:
                 raise OcrUnavailableError("OCR page text failed: {}".format(e)) from e
@@ -291,9 +307,11 @@ def infer_page_offset(
     ocr_max_pages=120,
     ocr_languages="chi_sim+eng",
     progress_callback=None,
+    cancel_callback=None,
+    ocr_timeout=30,
 ):
     """Infer page offset from a PDF and directory text."""
-    page_texts = extract_pdf_texts(pdf_path)
+    page_texts = extract_pdf_texts(pdf_path, cancel_callback=cancel_callback)
     offset = infer_page_offset_from_texts(
         dir_text, page_texts, max_entries=max_entries
     )
@@ -307,4 +325,6 @@ def infer_page_offset(
         max_pages=ocr_max_pages,
         languages=ocr_languages,
         progress_callback=progress_callback,
+        cancel_callback=cancel_callback,
+        timeout=ocr_timeout,
     )
