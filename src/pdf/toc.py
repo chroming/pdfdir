@@ -2,9 +2,9 @@
 
 """Extract table-of-contents text from PDF pages."""
 
+import logging
 import os
 import re
-import sys
 from io import BytesIO
 
 from src.pdf.page_offset import (
@@ -12,10 +12,13 @@ from src.pdf.page_offset import (
     OcrUnavailableError,
     _check_cancelled,
     _load_ocr_dependencies,
+    _render_matrix,
     _tesseract_config,
     extract_pdf_texts,
     normalize_page_text,
 )
+
+logger = logging.getLogger(__name__)
 
 
 _TOC_LINE_PATTERN = re.compile(r".{2,}\d+\s*$")
@@ -136,10 +139,6 @@ def _merge_wrapped_toc_lines(text, max_fragments=4):
 
     flush_title_only_pending()
     return merged_lines
-
-
-def _normalize_latin_token(token):
-    return re.sub(r"[^A-Za-z0-9-]+", "", token).lower()
 
 
 def _has_cjk(text):
@@ -286,10 +285,6 @@ def _looks_like_toc_page(text):
     return "目录" in normalized or "contents" in normalized or toc_line_count >= 3
 
 
-def _extract_toc_lines_from_text(text):
-    return [entry[0] for entry in _extract_toc_entries_from_text(text)]
-
-
 def _extract_toc_entries_from_text(text):
     page_entries = []
     if not text:
@@ -393,6 +388,14 @@ def extract_toc_text_from_page_texts(page_texts):
         page_toc_entries.append(_extract_toc_entries_from_text(text))
 
     selected_lines = _select_toc_page_block(page_toc_entries)
+    if not selected_lines:
+        for text, page_entries in zip(page_texts, page_toc_entries):
+            if (
+                _looks_like_toc_page(text)
+                and _toc_entry_count(page_entries, require_page=True) >= 2
+            ):
+                selected_lines = [line for line, _ in page_entries]
+                break
     return "\n".join(selected_lines)
 
 
@@ -464,8 +467,12 @@ def _load_render_dependencies():
 
 
 def _load_paddleocr_dependencies(languages="ch"):
-    cache_root = os.path.join(sys.prefix, "paddle_cache")
-    os.environ.setdefault("XDG_CACHE_HOME", cache_root)
+    cache_root = os.path.join(
+        os.environ.get(
+            "XDG_CACHE_HOME", os.path.expanduser(os.path.join("~", ".cache"))
+        ),
+        "pdfdir",
+    )
     os.environ.setdefault("PADDLE_HOME", os.path.join(cache_root, "paddle"))
     os.environ.setdefault(
         "PADDLE_PDX_CACHE_HOME", os.path.join(cache_root, "paddlex")
@@ -483,20 +490,25 @@ def _load_paddleocr_dependencies(languages="ch"):
 
     lang = _paddleocr_lang(languages)
     try:
-        ocr = PaddleOCR(
-            lang=lang,
-            text_detection_model_name="PP-OCRv5_mobile_det",
-            text_recognition_model_name="PP-OCRv5_mobile_rec",
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_textline_orientation=False,
-            text_det_limit_side_len=1280,
-        )
-    except (TypeError, ValueError):
         try:
-            ocr = PaddleOCR(lang=lang, use_textline_orientation=False)
+            ocr = PaddleOCR(
+                lang=lang,
+                text_detection_model_name="PP-OCRv5_mobile_det",
+                text_recognition_model_name="PP-OCRv5_mobile_rec",
+                use_doc_orientation_classify=False,
+                use_doc_unwarping=False,
+                use_textline_orientation=False,
+                text_det_limit_side_len=1280,
+            )
         except (TypeError, ValueError):
-            ocr = PaddleOCR(lang=lang)
+            try:
+                ocr = PaddleOCR(lang=lang, use_textline_orientation=False)
+            except (TypeError, ValueError):
+                ocr = PaddleOCR(lang=lang)
+    except Exception as e:
+        raise OcrUnavailableError(
+            "Initialize PaddleOCR failed: {}".format(e)
+        ) from e
     return np, ocr
 
 
@@ -549,14 +561,13 @@ def _collect_paddleocr_texts(result):
 
 def _render_pdf_pages(pdf_path, max_pages, dpi):
     fitz, Image = _load_render_dependencies()
-    scale = dpi / 72.0
-    matrix = fitz.Matrix(scale, scale)
 
     document = fitz.open(pdf_path)
     try:
         page_count = min(len(document), max_pages)
         for page_index in range(page_count):
             page = document.load_page(page_index)
+            matrix = _render_matrix(fitz, page, dpi)
             pixmap = page.get_pixmap(matrix=matrix, alpha=False)
             image = Image.open(BytesIO(pixmap.tobytes("png"))).convert("RGB")
             yield page_index, page_count, image
@@ -588,7 +599,7 @@ def extract_toc_text_by_paddleocr(
     cancel_callback=None,
 ):
     np, ocr = _load_paddleocr_dependencies(languages)
-    page_toc_entries = []
+    page_texts = []
     seen_toc_page = False
     weak_pages_after_toc = 0
 
@@ -596,8 +607,8 @@ def extract_toc_text_by_paddleocr(
         for page_index, page_count, image in _render_pdf_pages(pdf_path, max_pages, dpi):
             _check_cancelled(cancel_callback)
             text = _paddleocr_image_to_text(ocr, np, image)
+            page_texts.append(text)
             page_entries = _extract_toc_entries_from_text(text)
-            page_toc_entries.append(page_entries)
             if progress_callback:
                 progress_callback(page_index + 1, page_count)
 
@@ -613,7 +624,7 @@ def extract_toc_text_by_paddleocr(
             raise
         raise OcrUnavailableError("PaddleOCR page text failed: {}".format(e)) from e
 
-    return "\n".join(_select_toc_page_block(page_toc_entries))
+    return extract_toc_text_from_page_texts(page_texts)
 
 
 def extract_toc_text_by_tesseract(
@@ -626,29 +637,41 @@ def extract_toc_text_by_tesseract(
     timeout=30,
 ):
     fitz, pytesseract, Image = _load_ocr_dependencies()
-    scale = dpi / 72.0
-    matrix = fitz.Matrix(scale, scale)
     config = "{} --psm 4 -c preserve_interword_spaces=1".format(_tesseract_config())
     page_texts = []
 
     document = fitz.open(pdf_path)
     try:
         page_count = min(len(document), max_pages)
+        first_ocr_error = None
+        successful_pages = 0
         for page_index in range(page_count):
             _check_cancelled(cancel_callback)
             page = document.load_page(page_index)
+            matrix = _render_matrix(fitz, page, dpi)
             pixmap = page.get_pixmap(matrix=matrix, alpha=False)
             image = Image.open(BytesIO(pixmap.tobytes("png")))
-            page_texts.append(
-                pytesseract.image_to_string(
+            try:
+                text = pytesseract.image_to_string(
                     image, lang=languages, config=config, timeout=timeout
                 )
-            )
+            except Exception as e:
+                logger.warning("OCR page %d failed: %s", page_index + 1, e)
+                if first_ocr_error is None:
+                    first_ocr_error = e
+                text = ""
+            else:
+                successful_pages += 1
+            page_texts.append(text or "")
             if progress_callback:
                 progress_callback(page_index + 1, page_count)
     finally:
         document.close()
 
+    if not successful_pages and first_ocr_error is not None:
+        raise OcrUnavailableError(
+            "OCR page text failed: {}".format(first_ocr_error)
+        ) from first_ocr_error
     return extract_toc_text_from_page_texts(page_texts)
 
 

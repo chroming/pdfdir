@@ -6,7 +6,10 @@ import src.pdf.page_offset as page_offset_module
 
 from src.pdf.page_offset import (
     OcrCancelledError,
+    _render_matrix,
+    _tesseract_config,
     extract_pdf_texts,
+    infer_page_offset_by_ocr,
     infer_page_offset_from_texts,
     normalize_page_text,
     page_contains_title,
@@ -99,6 +102,95 @@ def test_infer_page_offset_supports_negative_offsets():
     )
 
     assert offset == -9
+
+
+def test_infer_page_offset_rejects_equally_supported_offsets():
+    page_texts = [""] * 21
+    page_texts[9] = "Chapter One"
+    page_texts[10] = "Chapter Two"
+    page_texts[19] = "Chapter One"
+    page_texts[20] = "Chapter Two"
+
+    offset = infer_page_offset_from_texts(
+        "Chapter One 1\nChapter Two 2",
+        page_texts,
+    )
+
+    assert offset is None
+
+
+def test_tesseract_config_quotes_tessdata_path(monkeypatch):
+    monkeypatch.setattr(page_offset_module.sys, "prefix", "/tmp/Python Env")
+    monkeypatch.setattr(page_offset_module.os.path, "isdir", lambda path: True)
+
+    assert _tesseract_config() == '--tessdata-dir "/tmp/Python Env/tessdata"'
+
+
+def test_render_matrix_limits_oversized_pdf_pages():
+    class FakeRect(object):
+        width = 10_000
+        height = 10_000
+
+    class FakePage(object):
+        rect = FakeRect()
+
+    class FakeFitz(object):
+        Matrix = staticmethod(lambda x, y: (x, y))
+
+    matrix = _render_matrix(FakeFitz, FakePage(), dpi=240, max_pixels=1_000_000)
+
+    assert matrix[0] == pytest.approx(0.1)
+    assert matrix[1] == pytest.approx(0.1)
+
+
+def test_page_offset_ocr_skips_a_failed_page(monkeypatch):
+    texts = iter([RuntimeError("timeout"), "Chapter One", "Chapter Two"])
+
+    class FakePixmap(object):
+        def tobytes(self, image_format):
+            return b""
+
+    class FakePage(object):
+        def get_pixmap(self, matrix, alpha):
+            return FakePixmap()
+
+    class FakeDocument(object):
+        def __len__(self):
+            return 3
+
+        def load_page(self, page_index):
+            return FakePage()
+
+        def close(self):
+            pass
+
+    class FakeFitz(object):
+        Matrix = staticmethod(lambda x, y: object())
+        open = staticmethod(lambda pdf_path: FakeDocument())
+
+    class FakeTesseract(object):
+        def image_to_string(self, image, **kwargs):
+            result = next(texts)
+            if isinstance(result, Exception):
+                raise result
+            return result
+
+    class FakeImage(object):
+        open = staticmethod(lambda data: object())
+
+    monkeypatch.setattr(
+        page_offset_module,
+        "_load_ocr_dependencies",
+        lambda: (FakeFitz, FakeTesseract(), FakeImage),
+    )
+
+    offset = infer_page_offset_by_ocr(
+        "book.pdf",
+        "Chapter One 1\nChapter Two 2",
+        max_pages=3,
+    )
+
+    assert offset == 1
 
 
 def test_extract_pdf_texts_respects_page_limit(monkeypatch, tmp_path):

@@ -421,7 +421,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def fill_offset(self):
         if self._worker_thread and self._worker_thread.isRunning():
-            self.alert_msg("Page offset inference is already running", level="warn")
+            self.alert_msg("A background task is already running", level="warn")
             return
         if not self.pdf_path:
             self.alert_msg("Please select PDF first", level="warn")

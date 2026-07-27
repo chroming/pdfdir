@@ -3,15 +3,15 @@
 """Infer the page offset between printed page numbers and PDF pages."""
 
 import logging
+import math
 import os
 import re
 import sys
 from io import BytesIO
-from collections import Counter
 
 from pypdf import PdfReader
 
-from src.convert import COMPILED_PAGE_NUM_PATTERNS, split_page_num, text_to_list
+from src.convert import COMPILED_PAGE_NUM_PATTERNS, text_to_list
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,11 @@ def _infer_page_offset_from_candidates(candidates, page_texts, log_insufficient=
         _, match = item
         return (len(match["candidates"]), len(match["pages"]))
 
-    best_offset, best_match = max(offset_matches.items(), key=score)
+    ranked_offsets = sorted(offset_matches.items(), key=score, reverse=True)
+    best_offset, best_match = ranked_offsets[0]
+    if len(ranked_offsets) > 1 and score(ranked_offsets[1]) == score(ranked_offsets[0]):
+        logger.warning("Infer page offset is ambiguous")
+        return None
     if len(best_match["candidates"]) >= 2 and len(best_match["pages"]) >= 2:
         return best_offset
 
@@ -184,7 +188,7 @@ def _load_ocr_dependencies():
             "OCR fallback requires PyMuPDF, Pillow, pytesseract, and Tesseract OCR"
         ) from e
     tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-    if os.path.exists(tesseract_path):
+    if os.name == "nt" and os.path.exists(tesseract_path):
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
     return fitz, pytesseract, Image
 
@@ -192,56 +196,20 @@ def _load_ocr_dependencies():
 def _tesseract_config():
     tessdata_dir = os.path.join(sys.prefix, "tessdata")
     if os.path.isdir(tessdata_dir):
-        return "--tessdata-dir {}".format(tessdata_dir)
+        return '--tessdata-dir "{}"'.format(tessdata_dir)
     return ""
 
 
-def extract_pdf_texts_by_ocr(
-    pdf_path,
-    max_pages=120,
-    dpi=160,
-    languages="chi_sim+eng",
-    progress_callback=None,
-    cancel_callback=None,
-    timeout=30,
-):
-    """Extract page texts by rendering pages and running OCR.
-
-    This fallback is intentionally bounded because OCR on a full book can be
-    very slow. It is enough for page-offset inference, which usually only needs
-    the first few directory entries.
-    """
-    fitz, pytesseract, Image = _load_ocr_dependencies()
-    page_texts = []
+def _render_matrix(fitz, page, dpi, max_pixels=16_000_000):
     scale = dpi / 72.0
-    matrix = fitz.Matrix(scale, scale)
-    tesseract_config = _tesseract_config()
-
-    try:
-        document = fitz.open(pdf_path)
-    except Exception as e:
-        raise OcrUnavailableError("Open PDF for OCR failed: {}".format(e)) from e
-
-    try:
-        page_count = min(len(document), max_pages)
-        for page_index in range(page_count):
-            _check_cancelled(cancel_callback)
-            page = document.load_page(page_index)
-            pixmap = page.get_pixmap(matrix=matrix, alpha=False)
-            image = Image.open(BytesIO(pixmap.tobytes("png")))
-            try:
-                text = pytesseract.image_to_string(
-                    image, lang=languages, config=tesseract_config, timeout=timeout
-                )
-            except Exception as e:
-                raise OcrUnavailableError("OCR page text failed: {}".format(e)) from e
-            page_texts.append(text or "")
-            if progress_callback:
-                progress_callback(page_index + 1, page_count)
-    finally:
-        document.close()
-
-    return page_texts
+    rect = getattr(page, "rect", None)
+    if rect is not None:
+        pixel_count = (
+            max(float(rect.width), 1) * max(float(rect.height), 1) * scale**2
+        )
+        if pixel_count > max_pixels:
+            scale *= math.sqrt(max_pixels / pixel_count)
+    return fitz.Matrix(scale, scale)
 
 
 def infer_page_offset_by_ocr(
@@ -262,8 +230,6 @@ def infer_page_offset_by_ocr(
 
     fitz, pytesseract, Image = _load_ocr_dependencies()
     page_texts = []
-    scale = dpi / 72.0
-    matrix = fitz.Matrix(scale, scale)
     tesseract_config = _tesseract_config()
 
     try:
@@ -273,9 +239,12 @@ def infer_page_offset_by_ocr(
 
     try:
         page_count = min(len(document), max_pages)
+        first_ocr_error = None
+        successful_pages = 0
         for page_index in range(page_count):
             _check_cancelled(cancel_callback)
             page = document.load_page(page_index)
+            matrix = _render_matrix(fitz, page, dpi)
             pixmap = page.get_pixmap(matrix=matrix, alpha=False)
             image = Image.open(BytesIO(pixmap.tobytes("png")))
             try:
@@ -283,7 +252,12 @@ def infer_page_offset_by_ocr(
                     image, lang=languages, config=tesseract_config, timeout=timeout
                 )
             except Exception as e:
-                raise OcrUnavailableError("OCR page text failed: {}".format(e)) from e
+                logger.warning("OCR page %d failed: %s", page_index + 1, e)
+                if first_ocr_error is None:
+                    first_ocr_error = e
+                text = ""
+            else:
+                successful_pages += 1
             page_texts.append(text or "")
             if progress_callback:
                 progress_callback(page_index + 1, page_count)
@@ -296,6 +270,10 @@ def infer_page_offset_by_ocr(
     finally:
         document.close()
 
+    if not successful_pages and first_ocr_error is not None:
+        raise OcrUnavailableError(
+            "OCR page text failed: {}".format(first_ocr_error)
+        ) from first_ocr_error
     return _infer_page_offset_from_candidates(candidates, page_texts)
 
 

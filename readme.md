@@ -102,6 +102,7 @@ https://www.python.org/downloads/
 `pip install -r requirements_ocr.txt`
 
 自动读取目录会优先使用 PaddleOCR 识别中文目录页；如果 PaddleOCR 不可用，会回退到 Tesseract OCR。自动填充页差仍使用 Tesseract OCR。
+使用 Tesseract 回退前，还需单独安装 Tesseract 程序及 `chi_sim`、`eng` 语言数据。
 
 若提示`No matching distribution found for pyqt5` 可参照[PyQt官方文档](http://pyqt.sourceforge.net/Docs/PyQt5/installation.html)进行安装。
 
@@ -176,4 +177,3 @@ options:
 
 + \*, \+ 符号会匹配尽可能多的内容，比如如果用"第\w\*章" 来匹配，"第一节如何阅读此章"这段内容也会被匹配到，更好的写法是确定要匹配内容的长度，写成"第\w{1,2}章"。
 + 要匹配一个不是正则表达式中的正常字符直接写即可，如"第", "1", 甚至包括空格。但正则表达式中有定义用于匹配的一些特殊字符如果要作为普通字符匹配，则要在前面加一个"\\"，比如匹配"1.1"这种格式，可以写成"\d\\.\d"。"\\"符号本身也要如此。
-

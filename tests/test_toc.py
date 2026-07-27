@@ -39,6 +39,36 @@ def test_extract_toc_text_ignores_non_contiguous_body_matches():
     )
 
 
+def test_extract_toc_text_accepts_small_explicit_contents_page():
+    page_texts = ["目录\n第一章 开始 1\n第二章 结束 2"]
+
+    assert extract_toc_text_from_page_texts(page_texts) == (
+        "第一章 开始 1\n第二章 结束 2"
+    )
+
+
+def test_paddleocr_accepts_small_explicit_contents_page(monkeypatch):
+    monkeypatch.setattr(
+        toc_module,
+        "_load_paddleocr_dependencies",
+        lambda languages: (object(), object()),
+    )
+    monkeypatch.setattr(
+        toc_module,
+        "_render_pdf_pages",
+        lambda pdf_path, max_pages, dpi: iter([(0, 1, object())]),
+    )
+    monkeypatch.setattr(
+        toc_module,
+        "_paddleocr_image_to_text",
+        lambda ocr, np, image: "目录\n第一章 开始 1\n第二章 结束 2",
+    )
+
+    assert toc_module.extract_toc_text_by_paddleocr("book.pdf") == (
+        "第一章 开始 1\n第二章 结束 2"
+    )
+
+
 def test_extract_toc_text_limits_text_layer_pages(monkeypatch):
     call = {}
 
@@ -52,7 +82,7 @@ def test_extract_toc_text_limits_text_layer_pages(monkeypatch):
     assert call == {"pdf_path": "book.pdf", "max_pages": 7}
 
 
-def test_tesseract_page_ocr_uses_timeout(monkeypatch):
+def test_tesseract_page_ocr_uses_timeout_and_skips_failed_page(monkeypatch):
     calls = []
 
     class FakePixmap(object):
@@ -65,7 +95,7 @@ def test_tesseract_page_ocr_uses_timeout(monkeypatch):
 
     class FakeDocument(object):
         def __len__(self):
-            return 1
+            return 2
 
         def load_page(self, page_index):
             return FakePage()
@@ -80,7 +110,9 @@ def test_tesseract_page_ocr_uses_timeout(monkeypatch):
     class FakeTesseract(object):
         def image_to_string(self, image, **kwargs):
             calls.append(kwargs)
-            return ""
+            if len(calls) == 1:
+                raise RuntimeError("timeout")
+            return "目录\n第一章 开始 1\n第二章 结束 2"
 
     class FakeImage(object):
         open = staticmethod(lambda data: object())
@@ -91,6 +123,10 @@ def test_tesseract_page_ocr_uses_timeout(monkeypatch):
         lambda: (FakeFitz, FakeTesseract(), FakeImage),
     )
 
-    toc_module.extract_toc_text_by_tesseract("book.pdf", max_pages=1, timeout=7)
+    toc_text = toc_module.extract_toc_text_by_tesseract(
+        "book.pdf", max_pages=2, timeout=7
+    )
 
-    assert calls[0]["timeout"] == 7
+    assert len(calls) == 2
+    assert all(call["timeout"] == 7 for call in calls)
+    assert toc_text == "第一章 开始 1\n第二章 结束 2"

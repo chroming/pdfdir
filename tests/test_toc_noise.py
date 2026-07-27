@@ -1,6 +1,19 @@
 # -*- coding: utf-8 -*-
 
-from src.pdf.toc import _collect_paddleocr_texts, extract_toc_text_from_page_texts
+import os
+import sys
+import types
+
+import pytest
+
+import src.pdf.toc as toc_module
+
+from src.pdf.page_offset import OcrUnavailableError
+from src.pdf.toc import (
+    _collect_paddleocr_texts,
+    _load_paddleocr_dependencies,
+    extract_toc_text_from_page_texts,
+)
 
 
 def test_extract_toc_text_removes_generic_ocr_latin_noise():
@@ -57,6 +70,41 @@ def test_collect_paddleocr_texts_supports_paddleocr_3_result_shape():
         "第1章 古典密码学 1",
         "1.1 引言 2",
     ]
+
+
+def test_paddleocr_uses_user_cache_without_overriding_xdg_cache(
+    monkeypatch, tmp_path
+):
+    numpy_module = types.ModuleType("numpy")
+    paddleocr_module = types.ModuleType("paddleocr")
+    paddleocr_module.PaddleOCR = lambda **kwargs: object()
+    monkeypatch.setitem(sys.modules, "numpy", numpy_module)
+    monkeypatch.setitem(sys.modules, "paddleocr", paddleocr_module)
+    monkeypatch.setattr(toc_module.os, "environ", {"HOME": str(tmp_path)})
+
+    _load_paddleocr_dependencies()
+
+    assert "XDG_CACHE_HOME" not in os.environ
+    assert os.environ["PADDLE_HOME"] == str(tmp_path / ".cache/pdfdir/paddle")
+    assert os.environ["PADDLE_PDX_CACHE_HOME"] == str(
+        tmp_path / ".cache/pdfdir/paddlex"
+    )
+
+
+def test_paddleocr_initialization_failure_is_reported_as_unavailable(monkeypatch):
+    numpy_module = types.ModuleType("numpy")
+    paddleocr_module = types.ModuleType("paddleocr")
+
+    def fail_to_initialize(**kwargs):
+        raise RuntimeError("model download failed")
+
+    paddleocr_module.PaddleOCR = fail_to_initialize
+    monkeypatch.setitem(sys.modules, "numpy", numpy_module)
+    monkeypatch.setitem(sys.modules, "paddleocr", paddleocr_module)
+    monkeypatch.setattr(toc_module.os, "environ", {"HOME": "/tmp"})
+
+    with pytest.raises(OcrUnavailableError, match="Initialize PaddleOCR failed"):
+        _load_paddleocr_dependencies()
 
 
 def test_extract_toc_text_merges_paddleocr_wrapped_lines():
