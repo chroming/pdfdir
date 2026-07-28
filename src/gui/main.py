@@ -127,6 +127,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._set_unwritable()
         self._worker = None
         self._worker_thread = None
+        self._worker_busy = False
         self._close_pending = False
 
     def _fix_small_fonts(self):
@@ -420,7 +421,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             item.setExpanded(1)
 
     def fill_offset(self):
-        if self._worker_thread and self._worker_thread.isRunning():
+        if self._worker_busy:
             self.alert_msg("A background task is already running", level="warn")
             return
         if not self.pdf_path:
@@ -430,6 +431,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.alert_msg("Please input directory text first", level="warn")
             return
 
+        self._worker_busy = True
         self.auto_offset_button.setEnabled(False)
         self.show_status("Inferring page offset, OCR may take a while...")
 
@@ -451,13 +453,14 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._worker_thread.start()
 
     def fill_toc_text(self):
-        if self._worker_thread and self._worker_thread.isRunning():
+        if self._worker_busy:
             self.alert_msg("A background task is already running", level="warn")
             return
         if not self.pdf_path:
             self.alert_msg("Please select PDF first", level="warn")
             return
 
+        self._worker_busy = True
         self.auto_toc_button.setEnabled(False)
         self.show_status("Reading table of contents, OCR may take a while...")
 
@@ -504,6 +507,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.auto_offset_button.setEnabled(True)
         self._worker = None
         self._worker_thread = None
+        self._worker_busy = False
         self._close_after_worker()
 
     def _toc_text_inferred(self, toc_text):
@@ -529,6 +533,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.auto_toc_button.setEnabled(True)
         self._worker = None
         self._worker_thread = None
+        self._worker_busy = False
         self._close_after_worker()
 
     def _close_after_worker(self):

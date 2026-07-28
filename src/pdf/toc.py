@@ -521,6 +521,17 @@ def _paddleocr_lang(languages):
     return "ch"
 
 
+def _tesseract_languages(languages):
+    normalized = (languages or "").strip().lower()
+    language_map = {
+        "ch": "chi_sim+eng",
+        "zh": "chi_sim+eng",
+        "zh-cn": "chi_sim+eng",
+        "en": "eng",
+    }
+    return language_map.get(normalized, languages or "chi_sim+eng")
+
+
 def _collect_paddleocr_texts(result):
     texts = []
 
@@ -691,7 +702,7 @@ def extract_toc_text_by_ocr(
             pdf_path,
             max_pages=max_pages,
             dpi=240 if dpi == 220 else dpi,
-            languages="chi_sim+eng",
+            languages=_tesseract_languages(languages),
             progress_callback=progress_callback,
             cancel_callback=cancel_callback,
             timeout=timeout,
@@ -717,6 +728,7 @@ def extract_toc_text_by_ocr(
     return extract_toc_text_by_tesseract(
         pdf_path,
         max_pages=max_pages,
+        languages=_tesseract_languages(languages),
         progress_callback=progress_callback,
         cancel_callback=cancel_callback,
         timeout=timeout,

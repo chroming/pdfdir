@@ -130,3 +130,52 @@ def test_tesseract_page_ocr_uses_timeout_and_skips_failed_page(monkeypatch):
     assert len(calls) == 2
     assert all(call["timeout"] == 7 for call in calls)
     assert toc_text == "第一章 开始 1\n第二章 结束 2"
+
+
+def test_extract_toc_text_by_ocr_passes_languages_to_tesseract(monkeypatch):
+    calls = []
+
+    def fake_tesseract(pdf_path, **kwargs):
+        calls.append(kwargs["languages"])
+        return "toc"
+
+    monkeypatch.setattr(
+        toc_module, "extract_toc_text_by_tesseract", fake_tesseract
+    )
+
+    assert (
+        toc_module.extract_toc_text_by_ocr(
+            "book.pdf", backend="tesseract", languages="en"
+        )
+        == "toc"
+    )
+    assert (
+        toc_module.extract_toc_text_by_ocr(
+            "book.pdf", backend="tesseract", languages="deu+eng"
+        )
+        == "toc"
+    )
+    assert calls == ["eng", "deu+eng"]
+
+
+def test_extract_toc_text_by_ocr_passes_languages_to_tesseract_fallback(
+    monkeypatch,
+):
+    calls = []
+
+    monkeypatch.setattr(
+        toc_module,
+        "extract_toc_text_by_paddleocr",
+        lambda *args, **kwargs: "",
+    )
+
+    def fake_tesseract(pdf_path, **kwargs):
+        calls.append(kwargs["languages"])
+        return "toc"
+
+    monkeypatch.setattr(
+        toc_module, "extract_toc_text_by_tesseract", fake_tesseract
+    )
+
+    assert toc_module.extract_toc_text_by_ocr("book.pdf", languages="ch") == "toc"
+    assert calls == ["chi_sim+eng"]
