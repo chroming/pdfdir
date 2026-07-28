@@ -596,8 +596,6 @@ def _paddleocr_image_to_text(ocr, np, image):
         result = ocr.ocr(image_array, cls=True)
     except TypeError:
         result = ocr.ocr(image_array)
-    except AttributeError:
-        result = ocr.predict(image_array)
     return "\n".join(_collect_paddleocr_texts(result))
 
 

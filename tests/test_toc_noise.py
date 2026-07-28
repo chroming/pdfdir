@@ -12,6 +12,7 @@ from src.pdf.page_offset import OcrUnavailableError
 from src.pdf.toc import (
     _collect_paddleocr_texts,
     _load_paddleocr_dependencies,
+    _paddleocr_image_to_text,
     extract_toc_text_from_page_texts,
 )
 
@@ -70,6 +71,18 @@ def test_collect_paddleocr_texts_supports_paddleocr_3_result_shape():
         "第1章 古典密码学 1",
         "1.1 引言 2",
     ]
+
+
+def test_paddleocr_legacy_api_preserves_attribute_error():
+    class FakeNumpy(object):
+        array = staticmethod(lambda image: image)
+
+    class FakeOcr(object):
+        def ocr(self, image, cls=True):
+            raise AttributeError("model is not initialized")
+
+    with pytest.raises(AttributeError, match="model is not initialized"):
+        _paddleocr_image_to_text(FakeOcr(), FakeNumpy, object())
 
 
 def test_paddleocr_uses_user_cache_without_overriding_xdg_cache(
