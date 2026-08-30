@@ -1,0 +1,72 @@
+[project]
+name = "pdfdir"
+dynamic = ["version"]
+description = "Add table-of-contents bookmarks to PDF files"
+readme = "readme.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+dependencies = [
+    "packaging>=24,<27",
+    "pypdf[crypto]>=3.17,<7",
+    "PySide6>=6.5,<7",
+    "requests>=2.28,<3",
+]
+
+[project.urls]
+Homepage = "https://github.com/chroming/pdfdir"
+Issues = "https://github.com/chroming/pdfdir/issues"
+
+[project.scripts]
+pdfdir = "src.cli:main"
+
+[project.gui-scripts]
+pdfdir-gui = "src.gui.main:run"
+
+[dependency-groups]
+dev = [
+    "coverage[toml]>=7,<8",
+    "diff-cover>=9",
+    "hypothesis>=6,<7",
+    "pytest>=8,<10",
+    "pytest-qt>=4.4,<5",
+]
+build = [
+    "Pillow>=10",
+    "pyinstaller>=6,<7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/version.py"
+
+[tool.hatch.build]
+exclude = ["src/gui/en.qm"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"pdf.ico" = "src/pdf.ico"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+qt_api = "pyside6"
+markers = [
+    "e2e: exercises a complete desktop user journey through the real Qt window",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = [
+    "src/gui/main_ui.py",
+    "src/test.py",
+]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = true

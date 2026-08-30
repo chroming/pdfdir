@@ -1,0 +1,81 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.9"
+          - os: macos-latest
+            python: "3.12"
+          - os: windows-latest
+            python: "3.12"
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+
+      - uses: astral-sh/setup-uv@v8
+
+      - name: Install Linux Qt runtime
+        if: runner.os == 'Linux'
+        run: .github/scripts/install-linux-qt-deps.sh
+
+      - name: Install dependencies
+        run: uv pip install --system -r requirements.txt -r requirements_dev.txt
+
+      - name: Verify generated UI
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          pyuic5 src/gui/main_ui.ui -o "${RUNNER_TEMP}/main_ui.py"
+          diff -u src/gui/main_ui.py "${RUNNER_TEMP}/main_ui.py"
+
+      - name: Run tests
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: pytest -q -m "not e2e" --strict-markers
+
+      - name: Run desktop E2E
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: pytest -q -m e2e --strict-markers
+
+      - name: Measure coverage
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+          COVERAGE_FILE: ${{ runner.temp }}/.coverage
+        run: |
+          coverage run -m pytest -q -m "not e2e" --strict-markers
+          coverage report
+
+      - name: Build frozen desktop app
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed \
+            --name PDFdir \
+            --icon "${GITHUB_WORKSPACE}/pdf.ico" \
+            --add-data "${GITHUB_WORKSPACE}/pdf.ico:." \
+            "${GITHUB_WORKSPACE}/run_gui.py"
+
+      - name: Smoke-test frozen desktop app
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: dist/PDFdir --smoke-test
