@@ -109,6 +109,8 @@ class TreeWidget(MixinContextMenu):
             | QAbstractItemView.DoubleClicked
             | QAbstractItemView.EditKeyPressed
         )
+        self.setIndentation(18)
+        self.setUniformRowHeights(True)
         self.last_item = None
         self.last_column = None
         self._configure_all_items()
