@@ -546,8 +546,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         root = self.root_layout
         while root.count():
             root.takeAt(0)
-        root.setContentsMargins(24, 16, 24, 14)
-        root.setSpacing(12)
+        root.setContentsMargins(18, 12, 18, 12)
+        root.setSpacing(10)
 
         self.page_header = QtWidgets.QWidget(self.main_widget)
         self.page_header.setObjectName("page_header")
@@ -566,7 +566,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.document_frame.setObjectName("document_frame")
         document_layout = QtWidgets.QVBoxLayout(self.document_frame)
         document_layout.setContentsMargins(14, 10, 14, 10)
-        document_layout.setSpacing(7)
+        document_layout.setSpacing(6)
         self.document_name_label = QtWidgets.QLabel(self.document_frame)
         self.document_name_label.setObjectName("document_name_label")
         self.document_name_label.setSizePolicy(
@@ -581,7 +581,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.workspace_frame.setObjectName("workspace_frame")
         workspace_layout = QtWidgets.QVBoxLayout(self.workspace_frame)
         workspace_layout.setContentsMargins(14, 12, 14, 0)
-        workspace_layout.setSpacing(10)
+        workspace_layout.setSpacing(8)
         workspace_layout.addWidget(self.workspace_splitter, 1)
 
         self.tools_divider = QtWidgets.QFrame(self.workspace_frame)
