@@ -5,6 +5,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import pytest
 from pypdf import PdfWriter
 from PySide6 import QtCore
+from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 from src.gui.main import Main
@@ -181,3 +182,86 @@ def test_labels_shortcuts_and_accessible_names_support_keyboard_use(window):
     assert window.dir_tree_widget.accessibleName()
     assert window.open_button.shortcut().toString() == "Ctrl+O"
     assert window.export_button.shortcut().toString() == "Ctrl+Return"
+    assert window._save_shortcut.key().toString() in ("Ctrl+S", "Ctrl+S, ...")
+
+
+def test_drag_and_drop_loads_pdf_and_ignores_other_files(window, tmp_path):
+    pdf_file = tmp_path / "book.pdf"
+    _write_blank_pdf(pdf_file)
+    txt_file = tmp_path / "readme.txt"
+    txt_file.write_text("not a pdf", encoding="utf-8")
+
+    # Non-pdf drag should not accept
+    txt_mime = QtCore.QMimeData()
+    txt_mime.setUrls([QtCore.QUrl.fromLocalFile(str(txt_file))])
+    drag_enter_txt = QtGui.QDragEnterEvent(
+        QtCore.QPoint(10, 10),
+        QtCore.Qt.CopyAction,
+        txt_mime,
+        QtCore.Qt.LeftButton,
+        QtCore.Qt.NoModifier,
+    )
+    window.dragEnterEvent(drag_enter_txt)
+    assert not drag_enter_txt.isAccepted()
+
+    # PDF drag should accept and load on drop
+    pdf_mime = QtCore.QMimeData()
+    pdf_mime.setUrls([QtCore.QUrl.fromLocalFile(str(pdf_file))])
+    drag_enter_pdf = QtGui.QDragEnterEvent(
+        QtCore.QPoint(10, 10),
+        QtCore.Qt.CopyAction,
+        pdf_mime,
+        QtCore.Qt.LeftButton,
+        QtCore.Qt.NoModifier,
+    )
+    window.dragEnterEvent(drag_enter_pdf)
+    assert drag_enter_pdf.isAccepted()
+
+    drop_pdf = QtGui.QDropEvent(
+        QtCore.QPointF(10, 10),
+        QtCore.Qt.CopyAction,
+        pdf_mime,
+        QtCore.Qt.LeftButton,
+        QtCore.Qt.NoModifier,
+    )
+    window.dropEvent(drop_pdf)
+    assert window.pdf_path_edit.text() == str(pdf_file)
+
+
+def test_bookmark_count_in_preview_title_updates_dynamically(window, qapp):
+    assert window.preview_label.text() == "书签预览"
+
+    window.dir_text_edit.setPlainText("Chapter 1 1\nChapter 2 5")
+    qapp.processEvents()
+
+    assert "共 2 条" in window.preview_label.text()
+
+    window.to_english()
+    assert "(2)" in window.preview_label.text()
+
+    window.dir_text_edit.clear()
+    qapp.processEvents()
+    assert window.preview_label.text() == "Bookmark preview"
+
+
+def test_save_shortcut_triggers_generation(window, tmp_path, monkeypatch):
+    source_path = tmp_path / "book.pdf"
+    _write_blank_pdf(source_path)
+    window.pdf_path_edit.setText(str(source_path))
+    window.dir_text_edit.setPlainText("Chapter 1 1")
+
+    clicked = []
+    monkeypatch.setattr(window.export_button, "click", lambda: clicked.append(True))
+
+    window._save_shortcut.activated.emit()
+    assert clicked == [True]
+
+
+def test_ocr_unavailable_message_provides_actionable_install_command(window):
+    msg_zh = window._friendly_recognition_error("OCR fallback requires paddleocr")
+    assert "pip install -r requirements_ocr.txt" in msg_zh
+
+    window.to_english()
+    msg_en = window._friendly_recognition_error("OCR fallback requires paddleocr")
+    assert "pip install -r requirements_ocr.txt" in msg_en
+

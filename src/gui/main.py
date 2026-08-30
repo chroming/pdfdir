@@ -227,7 +227,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             "offset_empty": "无法识别页差",
             "offset_done": "已识别页差：{value}",
             "offset_error": "页差识别失败：{message}",
-            "ocr_unavailable": "当前安装不含扫描版 OCR 运行时。文字版 PDF 仍可直接识别；如需识别扫描版，请按使用说明从源码安装 OCR 可选依赖。",
+            "ocr_unavailable": "当前环境未安装扫描版 OCR 可选依赖。文字版 PDF 仍可直接识别；如需识别扫描版，请在终端执行：pip install -r requirements_ocr.txt",
             "offset_progress": "正在 OCR 识别页差：{current}/{total} 页",
             "toc_discarded": "文档已更改，已丢弃旧的目录结果",
             "toc_failed": "目录识别失败",
@@ -241,6 +241,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             "ready_enter_toc": "输入目录文本，或从当前 PDF 识别目录。",
             "ready_generate": "已准备好，可生成 {count} 条书签。",
             "dirty": "有未生成的更改。",
+            "preview_title": "书签预览",
+            "preview_title_with_count": "书签预览 (共 {count} 条)",
             "preview_empty": "输入或识别目录后，在这里校对书签标题、层级和页码。",
             "preview_edit_hint": "双击或按 F2 编辑；拖动调整顺序与层级；Delete 删除。",
             "preview_compact_hint": "编辑：F2 · 双击 · 拖动 · Delete",
@@ -312,7 +314,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             "offset_empty": "Could not detect a page offset",
             "offset_done": "Page offset detected: {value}",
             "offset_error": "Page offset detection failed: {message}",
-            "ocr_unavailable": "This installation does not include the scanned-PDF OCR runtime. Text PDFs still work; for scans, run from source with the optional OCR dependencies in the user guide.",
+            "ocr_unavailable": "This environment does not have the optional OCR dependencies installed. Text PDFs still work; for scans, install them via: pip install -r requirements_ocr.txt",
             "offset_progress": "Detecting page offset with OCR: {current}/{total} pages",
             "toc_discarded": "The document changed; the old TOC result was discarded",
             "toc_failed": "TOC recognition failed",
@@ -326,6 +328,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             "ready_enter_toc": "Enter TOC text or recognize it from the current PDF.",
             "ready_generate": "Ready to generate {count} bookmarks.",
             "dirty": "There are ungenerated changes.",
+            "preview_title": "Bookmark preview",
+            "preview_title_with_count": "Bookmark preview ({count})",
             "preview_empty": "Enter or recognize a TOC, then verify bookmark titles, hierarchy, and pages here.",
             "preview_edit_hint": "Double-click or press F2 to edit; drag to reorder or nest; Delete removes.",
             "preview_compact_hint": "Edit: F2 · double-click · drag · Delete",
@@ -426,12 +430,21 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._update_action_availability()
 
     def _configure_workspace(self):
+        self.setAcceptDrops(True)
         self.workspace_splitter.setStretchFactor(0, 1)
         self.workspace_splitter.setStretchFactor(1, 1)
         self.workspace_splitter.setSizes([500, 500])
         self.offset_edit.setValidator(QtGui.QIntValidator(-99999, 99999, self))
         self.open_button.setShortcut(QtGui.QKeySequence.Open)
         self.export_button.setShortcut(QtGui.QKeySequence("Ctrl+Return"))
+        self._save_shortcut = QtGui.QShortcut(
+            QtGui.QKeySequence.Save,
+            self,
+        )
+        self._save_shortcut.setContext(
+            QtCore.Qt.WidgetWithChildrenShortcut
+        )
+        self._save_shortcut.activated.connect(self._on_save_shortcut)
         self._escape_shortcut = QtGui.QShortcut(
             QtGui.QKeySequence.Cancel,
             self,
@@ -523,6 +536,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._update_accessible_layout_constraints()
         self._update_level_mode(self.level_mode_box.currentIndex())
         self._update_output_path()
+
+    def _on_save_shortcut(self):
+        if self.export_button.isVisible() and self.export_button.isEnabled():
+            self.export_button.click()
 
     def _build_product_shell(self):
         """Compose the single-task desktop shell around Designer-owned controls."""
@@ -1720,6 +1737,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._refresh_preview_hint()
         self._validate_regex_settings()
         self._update_action_availability()
+        self._update_preview_empty_state()
         QtCore.QTimer.singleShot(0, self._reflow_controls)
 
     def _update_tree_headers(self, compact=False):
@@ -2159,7 +2177,14 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.preview_hint_label.setText(self._t(key))
 
     def _update_preview_empty_state(self):
-        is_empty = self.dir_tree_widget.topLevelItemCount() == 0
+        item_count = sum(1 for _ in getattr(self.dir_tree_widget, "all_items", []))
+        if item_count > 0:
+            self.preview_label.setText(
+                self._t("preview_title_with_count", count=item_count)
+            )
+        else:
+            self.preview_label.setText(self._t("preview_title"))
+        is_empty = item_count == 0
         self.preview_empty_label.setText(self._t("preview_empty"))
         self.preview_empty_label.setGeometry(
             self.dir_tree_widget.viewport().rect()
@@ -2647,6 +2672,32 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 self._worker_thread.requestInterruption()
             self.show_status(self._t("cancelling"))
 
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                if url.toLocalFile().lower().endswith(".pdf"):
+                    event.acceptProposedAction()
+                    return
+        super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                if url.toLocalFile().lower().endswith(".pdf"):
+                    event.acceptProposedAction()
+                    return
+        super().dragMoveEvent(event)
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                file_path = url.toLocalFile()
+                if file_path.lower().endswith(".pdf"):
+                    self._activate_document(file_path)
+                    event.acceptProposedAction()
+                    return
+        super().dropEvent(event)
+
     def closeEvent(self, event):
         task_running = self._has_active_task()
         update_running = self._has_active_update()
@@ -2842,6 +2893,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self._mark_clean()
         self._sync_action_surface()
         self._refresh_action_status()
+        if self.export_button.isVisible() and self.export_button.isEnabled():
+            QtCore.QTimer.singleShot(0, self.export_button.setFocus)
 
     def _pdf_write_failed(self, message):
         if self._close_requested:
