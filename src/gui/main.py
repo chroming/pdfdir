@@ -456,6 +456,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._status_timer = QtCore.QTimer(self)
         self._status_timer.setSingleShot(True)
         self._status_timer.timeout.connect(self._status_timeout)
+        self._result_timer = QtCore.QTimer(self)
+        self._result_timer.setInterval(1000)
+        self._result_timer.timeout.connect(self._refresh_external_result)
+        self._result_timer.start()
         self.dir_text_edit.installEventFilter(self)
         self.dir_tree_widget.viewport().installEventFilter(self)
         for editor in (self.dir_text_edit, self.dir_tree_widget):
@@ -1029,14 +1033,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 color: #004085;
                 font-weight: 500;
             }
-            QTreeWidget#dir_tree_widget::branch:has-children:!has-siblings:closed,
-            QTreeWidget#dir_tree_widget::branch:closed:has-children:has-siblings {
-                image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'><path d='M2.5 1.5l3 2.5-3 2.5' fill='none' stroke='%238e8e93' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-            }
-            QTreeWidget#dir_tree_widget::branch:open:has-children:!has-siblings,
-            QTreeWidget#dir_tree_widget::branch:open:has-children:has-siblings {
-                image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'><path d='M1.5 2.5l2.5 3 2.5-3' fill='none' stroke='%238e8e93' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-            }
             QHeaderView::section {
                 background-color: #f2f2f7;
                 color: #55555c;
@@ -1065,18 +1061,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 color: #8e8e93;
                 background-color: #f2f2f7;
                 border-color: #e1e1e6;
-            }
-            QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: top right;
-                width: 24px;
-                border: none;
-                background: transparent;
-            }
-            QComboBox::down-arrow {
-                image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-                width: 10px;
-                height: 6px;
             }
             QComboBox QAbstractItemView {
                 color: #1d1d1f;
@@ -1390,12 +1374,12 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         )
         if not source:
             return None
-        if index_dict is None:
-            index_dict = self.tree_to_dict()
-        if not index_dict:
-            return None
         records = []
         try:
+            if index_dict is None:
+                index_dict = self.tree_to_dict()
+            if not index_dict:
+                return None
             for key in sorted(index_dict):
                 record = index_dict[key]
                 records.append(
@@ -1409,7 +1393,40 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             return None
         if keep_existing is None:
             keep_existing = self.keep_exist_dir
-        return (source, bool(keep_existing), tuple(records))
+        return (source, bool(keep_existing), tuple(records), self._source_fingerprint(source))
+
+    @staticmethod
+    def _source_fingerprint(path):
+        try:
+            stat = os.stat(path)
+            return (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+        except OSError:
+            return None
+
+    def _generated_source_changed(self):
+        signature = self._last_generated_signature
+        return bool(
+            signature
+            and signature[0] == self._canonical_source_path(self.pdf_path)
+            and signature[-1] != self._source_fingerprint(self.pdf_path)
+        )
+
+    def _refresh_external_result(self):
+        if (
+            not self.isVisible()
+            or not self._last_generated_path
+            or self._has_active_task()
+            or self._rebuilding_tree
+        ):
+            return
+        exists = os.path.isfile(self._last_generated_path)
+        self.open_result_action.setEnabled(exists)
+        if self._primary_action_mode == "open" and not exists:
+            self._clear_generated_result()
+            self._update_action_availability()
+            self.show_status(self._t("generated_missing"), 5000)
+        elif self._primary_action_mode == "open" and self._generated_source_changed():
+            self._update_action_availability()
 
     def _current_generation_signature(self):
         return self._generation_signature()
@@ -1467,6 +1484,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             )
 
     def _run_primary_action(self):
+        if self._primary_action_mode == "open" and self._generated_source_changed():
+            self._update_action_availability()
+            return
         if self._primary_action_mode == "open":
             self._open_generated_pdf()
         else:
@@ -1549,6 +1569,11 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.keep_exist_dir_action.setVisible(keep_visible)
         self.keep_exist_dir_box.setEnabled(keep_visible and not write_running)
         self._sync_action_surface()
+        if hasattr(self, "open_result_action"):
+            self.open_result_action.setEnabled(
+                bool(self._last_generated_path and os.path.isfile(self._last_generated_path))
+                and not task_running
+            )
 
         if not has_pdf:
             export_tip = self._t("export_needs_pdf")
@@ -1618,6 +1643,11 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         return sum(1 for _item in self.dir_tree_widget.all_items)
 
     def _set_action(self):
+        self.file_menu = QtWidgets.QMenu(self)
+        self.menuBar.insertMenu(self.help_menu.menuAction(), self.file_menu)
+        self.open_result_action = self.file_menu.addAction("")
+        self.open_result_action.triggered.connect(self._open_generated_pdf)
+        self.open_result_action.setEnabled(False)
         self.home_page_action.triggered.connect(self._open_home_page)
         self.help_action.triggered.connect(self._open_help_page)
         self.update_action.triggered.connect(self._open_update_page)
@@ -1630,6 +1660,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def _apply_language(self):
         english = self._language == "en"
+        self.file_menu.setTitle("File" if english else "文件")
+        self.open_result_action.setText(
+            "Open last generated PDF" if english else "打开上次生成的 PDF"
+        )
         static_text = {
             self.page_title_label: (
                 "PDF Bookmark Editor",
@@ -2037,6 +2071,13 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         )
         if validation_error:
             self._set_action_status(validation_error, "error")
+        elif self._generated_source_changed():
+            self._set_action_status(
+                "Source PDF changed. Generate again.\nOpen the previous result from the File menu."
+                if self._language == "en"
+                else "源 PDF 已更改，请重新生成；旧结果可从文件菜单打开。",
+                "error",
+            )
         elif self._has_current_generated_result():
             self._set_action_status(
                 self._t("generated_ready"),
@@ -2394,6 +2435,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.keep_exist_dir_box.setChecked(False)
 
     def _activate_document(self, filename):
+        if self._has_active_task():
+            return False
         candidate = os.path.abspath(os.path.expanduser(filename))
         source_path = Path(candidate)
         try:
@@ -2583,6 +2626,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             "kind": "offset",
             "pdf_path": self.pdf_path,
             "dir_text": self.dir_text,
+            "draft_signature": self._current_draft_signature(),
         }
         self._worker_busy = True
 
@@ -2622,6 +2666,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             "kind": "toc",
             "pdf_path": self.pdf_path,
             "dir_text": self.dir_text,
+            "draft_signature": self._current_draft_signature(),
         }
         self._worker_busy = True
 
@@ -2653,6 +2698,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             context.get("kind") != "offset"
             or context.get("pdf_path") != self.pdf_path
             or context.get("dir_text") != self.dir_text
+            or context.get("draft_signature")
+            != self._current_draft_signature()
         ):
             self.show_status(
                 self._t("offset_discarded"),
@@ -2696,6 +2743,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             context.get("kind") != "toc"
             or context.get("pdf_path") != self.pdf_path
             or context.get("dir_text") != self.dir_text
+            or context.get("draft_signature")
+            != self._current_draft_signature()
         ):
             self.show_status(
                 self._t("toc_discarded"),
@@ -2773,6 +2822,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.show_status(self._t("cancelling"))
 
     def dragEnterEvent(self, event):
+        if self._has_active_task():
+            event.ignore()
+            return
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
                 if url.toLocalFile().lower().endswith(".pdf"):
@@ -2781,6 +2833,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         super().dragEnterEvent(event)
 
     def dragMoveEvent(self, event):
+        if self._has_active_task():
+            event.ignore()
+            return
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
                 if url.toLocalFile().lower().endswith(".pdf"):
@@ -2789,12 +2844,17 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         super().dragMoveEvent(event)
 
     def dropEvent(self, event):
+        if self._has_active_task():
+            event.ignore()
+            return
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
                 file_path = url.toLocalFile()
                 if file_path.lower().endswith(".pdf"):
-                    self._activate_document(file_path)
-                    event.acceptProposedAction()
+                    if self._activate_document(file_path):
+                        event.acceptProposedAction()
+                    else:
+                        event.ignore()
                     return
         super().dropEvent(event)
 

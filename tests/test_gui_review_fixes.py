@@ -1,4 +1,5 @@
 import os
+import threading
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -7,6 +8,7 @@ from pypdf import PdfWriter
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from src.gui.main import Main
+from src.gui import main as main_module
 from tests.gui_test_utils import track_main_window
 
 
@@ -108,7 +110,7 @@ def test_advanced_dialog_has_local_mode_switch_and_initial_focus(
 
 def _complete_generation(window, source, output):
     _write_pdf(source)
-    window.pdf_path_edit.setText(str(source))
+    window._activate_document(str(source))
     window.dir_text_edit.setPlainText("Chapter 1")
     output.write_bytes(source.read_bytes())
     window._task_context = {
@@ -232,6 +234,16 @@ def test_open_failure_keeps_result_available_for_retry(
     assert "无法打开" in window.action_status_label.text()
 
 
+def test_result_removed_while_idle_explains_recovery(window, tmp_path, qtbot):
+    output = tmp_path / "source_new.pdf"
+    _complete_generation(window, tmp_path / "source.pdf", output)
+    output.unlink()
+    qtbot.waitUntil(lambda: window._primary_action_mode == "generate", timeout=3000)
+    assert "移动或删除" in window.action_status_label.toolTip()
+    assert not window.open_result_action.isEnabled()
+    assert not output.exists()
+
+
 def test_result_action_translates_without_losing_ownership(window, tmp_path):
     source = tmp_path / "source.pdf"
     output = tmp_path / "source_new.pdf"
@@ -242,6 +254,105 @@ def test_result_action_translates_without_losing_ownership(window, tmp_path):
     assert window.output_path_edit.text() == str(output)
     assert window.export_button.text() == "Open generated PDF"
     assert "Generated" in window.action_status_label.text()
+
+
+@pytest.mark.parametrize("column", [1, 2])
+@pytest.mark.parametrize("value", ["", "not a page"])
+def test_invalid_page_after_result_is_recoverable(window, tmp_path, column, value):
+    _complete_generation(window, tmp_path / "source.pdf", tmp_path / "source_new.pdf")
+    item = window.dir_tree_widget.topLevelItem(0)
+    item.setText(column, value)
+    assert not window.export_button.isEnabled()
+    assert window.action_status_label.property("statusKind") == "error"
+    item.setText(column, "1")
+    assert window.export_button.isEnabled()
+    assert window.export_button.text() == "打开生成的 PDF"
+
+
+@pytest.mark.parametrize("kind", ["toc", "offset"])
+@pytest.mark.parametrize("edit", ["title", "delete", "offset", "rules"])
+def test_recognition_preserves_newer_complete_draft(
+    window, tmp_path, qtbot, monkeypatch, kind, edit
+):
+    source = tmp_path / "source.pdf"
+    _write_pdf(source)
+    window.pdf_path_edit.setText(str(source))
+    window.dir_text_edit.setPlainText("Original 1\n  Child 1")
+    release = threading.Event()
+
+    def recognize(*_args, **_kwargs):
+        assert release.wait(5)
+        return "Replacement 1" if kind == "toc" else 2
+
+    monkeypatch.setattr(
+        main_module, "extract_toc_text" if kind == "toc" else "infer_page_offset", recognize
+    )
+    try:
+        (window.fill_toc_text if kind == "toc" else window.fill_offset)()
+        item = window.dir_tree_widget.topLevelItem(0)
+        if edit == "title":
+            item.setText(0, "Manual correction")
+        elif edit == "delete":
+            window.dir_tree_widget.remove_item(item.child(0))
+        elif edit == "offset":
+            window.offset_edit.setText("3")
+        else:
+            window.level_mode_box.setCurrentIndex(1)
+        draft = window._current_draft_signature()
+    finally:
+        release.set()
+    qtbot.waitUntil(lambda: window._worker_thread is None, timeout=5000)
+    assert window._current_draft_signature() == draft
+    assert "丢弃" in window.action_status_label.toolTip()
+
+
+def test_busy_document_guard_covers_drop_and_activation(window, tmp_path, monkeypatch):
+    source, other = tmp_path / "source.pdf", tmp_path / "other.pdf"
+    _write_pdf(source)
+    _write_pdf(other)
+    window._activate_document(str(source))
+    window._worker_busy = True
+    window._task_context = {"kind": "toc"}
+    window._update_action_availability()
+    mime = QtCore.QMimeData()
+    mime.setUrls([QtCore.QUrl.fromLocalFile(str(other))])
+    event = QtGui.QDropEvent(
+        QtCore.QPointF(10, 10), QtCore.Qt.CopyAction, mime,
+        QtCore.Qt.LeftButton, QtCore.Qt.NoModifier,
+    )
+    try:
+        assert not window._activate_document(str(other))
+        window.dropEvent(event)
+        assert not event.isAccepted()
+        assert window.pdf_path == str(source)
+    finally:
+        window._worker_busy = False
+        window._task_context = None
+        window._update_action_availability()
+
+
+def test_changed_source_reenables_generation_and_keeps_old_result(
+    window, tmp_path, qtbot, monkeypatch
+):
+    from pypdf import PdfReader
+
+    source, output = tmp_path / "source.pdf", tmp_path / "source_new.pdf"
+    _complete_generation(window, source, output)
+    writer = PdfWriter()
+    for _ in range(2):
+        writer.add_blank_page(width=72, height=72)
+    writer.write(str(source))
+    qtbot.waitUntil(lambda: window._primary_action_mode == "generate", timeout=3000)
+    assert "源 PDF 已更改" in window.action_status_label.toolTip()
+    opened = []
+    monkeypatch.setattr(QtGui.QDesktopServices, "openUrl", lambda url: opened.append(url.toLocalFile()) or True)
+    window.open_result_action.trigger()
+    assert opened == [str(output)]
+    window.export_button.click()
+    qtbot.waitUntil(lambda: window._worker_thread is None, timeout=5000)
+    assert len(PdfReader(tmp_path / "source_new_2.pdf").pages) == 2
+    assert len(PdfReader(output).pages) == 1
+    assert window._primary_action_mode == "open"
 
 
 def test_existing_bookmark_option_only_appears_when_relevant(
