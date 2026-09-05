@@ -1,9 +1,16 @@
-# -*- coding:utf-8 -*-
+# -*- coding: utf-8 -*-
 
 from functools import partial
 
-from PyQt5.QtCore import QPoint, Qt
-from PyQt5.QtWidgets import QHeaderView, QMenu, QTreeWidgetItemIterator
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QHeaderView,
+    QMenu,
+    QTreeWidget,
+    QTreeWidgetItemIterator,
+)
 
 
 class MixinContextMenu(object):
@@ -15,7 +22,7 @@ class MixinContextMenu(object):
         self.parents = parents
 
     def _init_context_menu(self):
-        self.context_menu = QMenu()
+        self.context_menu = QMenu(self)
 
     @property
     def base_pos(self):
@@ -34,41 +41,163 @@ class MixinContextMenu(object):
         self._base_pos = value
 
     def _show_context_menu(self, pos):
-        if self.currentItem():
-            self.context_menu.exec_(self.viewport().mapToGlobal(pos))
+        item = self.currentItem()
+        if not item:
+            return
+        if pos is None or pos.x() < 0 or pos.y() < 0:
+            item_rect = self.visualItemRect(item)
+            pos = (
+                item_rect.bottomLeft()
+                if item_rect.isValid()
+                else self.viewport().rect().center()
+            )
+        self.context_menu.popup(self.viewport().mapToGlobal(pos))
 
     def add_action(self, name, handler, menu=None):
         menu = menu or self.context_menu
         action = menu.addAction(name)
         action.triggered.connect(handler)
+        return action
 
     def add_menu(self, name, menu=None):
         menu = menu or self.context_menu
         child_menu = menu.addMenu(name)
-        child_menu.add_action = partial(self.add_action, menu=menu)
-        child_menu.add_menu = partial(self.add_menu, menu=menu)
+        child_menu.add_action = partial(self.add_action, menu=child_menu)
+        child_menu.add_menu = partial(self.add_menu, menu=child_menu)
         return child_menu
 
 
 class TreeWidget(MixinContextMenu):
+    _TOOLTIP_COLUMNS = (0, 1, 2)
+
     def fix_column(self):
         header = self.header()
         # Only resize first column
         header.setSectionResizeMode(0, QHeaderView.Stretch)
 
-    def init_connect(self, parents=None):
+    def init_connect(
+        self,
+        parents=None,
+        preview_changed=None,
+        delete_label="删除",
+    ):
+        self._preview_changed_callback = preview_changed
+        self._suppress_preview_changed = False
         super(TreeWidget, self).__init__(parents)
         self.itemPressed.connect(self.close_editor)
         self.itemDoubleClicked.connect(self.item_double_clicked)
-        self.add_action("删除", self.item_remove_current)
+        self.itemChanged.connect(self._item_changed)
+        self.model().rowsInserted.connect(self._rows_inserted)
+        self.delete_action = self.add_action(
+            delete_label,
+            self.item_remove_current,
+        )
+        self.remove_action = self.delete_action
+        self.delete_action.setShortcuts(
+            [
+                QKeySequence(Qt.Key_Delete),
+                QKeySequence(Qt.Key_Backspace),
+            ]
+        )
+        self.setDragDropMode(QAbstractItemView.InternalMove)
+        self.setDefaultDropAction(Qt.MoveAction)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDragDropOverwriteMode(False)
+        self.setEditTriggers(
+            self.editTriggers()
+            | QAbstractItemView.DoubleClicked
+            | QAbstractItemView.EditKeyPressed
+        )
+        self.setIndentation(18)
+        self.setUniformRowHeights(True)
         self.last_item = None
         self.last_column = None
+        self._configure_all_items()
 
-    # TODO: Fix page num when drop item
     def dropEvent(self, event):
-        """"""
-        # self.current_item.setText('')
+        self._perform_drop_event(event)
+        if event.isAccepted():
+            self._configure_all_items()
+            self._notify_preview_changed()
+
+    def _perform_drop_event(self, event):
         super(TreeWidget, self).dropEvent(event)
+
+    def keyPressEvent(self, event):
+        key = event.key()
+        modifiers = event.modifiers()
+        if key == Qt.Key_F2 and self.currentItem():
+            item = self.currentItem()
+            self._configure_item(item)
+            self.editItem(item, self.currentColumn())
+            event.accept()
+            return
+        if key in (Qt.Key_Delete, Qt.Key_Backspace):
+            self.item_remove_current()
+            event.accept()
+            return
+        if key == Qt.Key_Menu or (
+            key == Qt.Key_F10 and modifiers & Qt.ShiftModifier
+        ):
+            self._show_context_menu(None)
+            event.accept()
+            return
+        super(TreeWidget, self).keyPressEvent(event)
+
+    def set_preview_changed_callback(self, callback):
+        self._preview_changed_callback = callback
+
+    def set_delete_action_label(self, label):
+        self.delete_action.setText(label)
+
+    def _notify_preview_changed(self):
+        callback = self._preview_changed_callback
+        if callback and not self._suppress_preview_changed:
+            callback()
+
+    def _rows_inserted(self, parent_index, first, last):
+        for row in range(first, last + 1):
+            index = self.model().index(row, 0, parent_index)
+            item = self.itemFromIndex(index)
+            if item:
+                self._configure_item_tree(item)
+
+    def _configure_all_items(self):
+        for item in self.all_items:
+            self._configure_item(item)
+
+    def _configure_item_tree(self, item):
+        self._configure_item(item)
+        for index in range(item.childCount()):
+            self._configure_item_tree(item.child(index))
+
+    def _configure_item(self, item):
+        previous = self._suppress_preview_changed
+        self._suppress_preview_changed = True
+        try:
+            item.setFlags(item.flags() | Qt.ItemIsEditable)
+            self._refresh_item_tooltips(item)
+        finally:
+            self._suppress_preview_changed = previous
+
+    def _refresh_item_tooltips(self, item):
+        for column in self._TOOLTIP_COLUMNS:
+            if column < self.columnCount():
+                item.setToolTip(column, item.text(column))
+
+    def _item_changed(self, item, column):
+        if self._suppress_preview_changed:
+            return
+        previous = self._suppress_preview_changed
+        self._suppress_preview_changed = True
+        try:
+            if column in self._TOOLTIP_COLUMNS:
+                item.setToolTip(column, item.text(column))
+        finally:
+            self._suppress_preview_changed = previous
+        self._notify_preview_changed()
 
     @property
     def current_item(self):
@@ -95,11 +224,14 @@ class TreeWidget(MixinContextMenu):
     def item_clicked(self, item):
         self.closePersistentEditor(item, self.currentColumn())
 
-    def item_double_clicked(self, item):
-        current_column = self.currentColumn()
+    def item_double_clicked(self, item, column=None):
+        current_column = self.currentColumn() if column is None else column
+        self._configure_item(item)
         if self.last_item == item:
             if self.last_column == current_column:
                 self.closePersistentEditor(item, current_column)
+                self.last_item = None
+                self.last_column = None
                 return
             else:
                 self.closePersistentEditor(item, self.last_column)
@@ -108,17 +240,40 @@ class TreeWidget(MixinContextMenu):
         self.last_item = item
         self.last_column = current_column
 
-    def remove_item(self, item):
+    def remove_item(self, item, notify=True):
+        removed = False
         parent = item.parent()
         if parent:
-            parent.removeChild(item)
+            child_index = parent.indexOfChild(item)
+            if child_index >= 0:
+                parent.takeChild(child_index)
+                removed = True
         else:
-            self.takeTopLevelItem(self.indexOfTopLevelItem(item))
+            item_index = self.indexOfTopLevelItem(item)
+            if item_index >= 0:
+                self.takeTopLevelItem(item_index)
+                removed = True
+        if removed and notify:
+            self._notify_preview_changed()
+        return removed
 
     def item_remove_current(self):
-        selecteds = self.selectedItems()
+        selecteds = list(self.selectedItems())
+        if not selecteds and self.currentItem():
+            selecteds = [self.currentItem()]
+        selected_ids = {id(item) for item in selecteds}
+        roots = []
         for item in selecteds:
-            self.remove_item(item)
+            parent = item.parent()
+            while parent and id(parent) not in selected_ids:
+                parent = parent.parent()
+            if parent is None:
+                roots.append(item)
+        removed = False
+        for item in roots:
+            removed = self.remove_item(item, notify=False) or removed
+        if removed:
+            self._notify_preview_changed()
 
     def children(self, item):
         child_items = []
@@ -173,11 +328,40 @@ class TreeWidget(MixinContextMenu):
 
     @staticmethod
     def set_pagenum(item, num, real_num):
-        item.setText(1, str(num), str(real_num))
+        num_text = str(num)
+        real_num_text = str(real_num)
+        changed = (
+            item.text(1) != num_text
+            or item.text(2) != real_num_text
+        )
+        if not changed:
+            return
+        tree = item.treeWidget()
+        if tree and hasattr(tree, "_suppress_preview_changed"):
+            previous = tree._suppress_preview_changed
+            tree._suppress_preview_changed = True
+            try:
+                item.setText(1, num_text)
+                item.setText(2, real_num_text)
+                tree._refresh_item_tooltips(item)
+            finally:
+                tree._suppress_preview_changed = previous
+            tree._notify_preview_changed()
+            return
+        item.setText(1, num_text)
+        item.setText(2, real_num_text)
 
     def from_dict(self, dir_dict):
         pass
 
     def clear(self):
         self.last_item = None
+        self.last_column = None
         return super(TreeWidget, self).clear()
+
+
+class BookmarkTreeWidget(TreeWidget, QTreeWidget):
+    """Use a stable Qt subclass instead of reassigning a Shiboken wrapper type."""
+
+    def __init__(self, parent=None):
+        QTreeWidget.__init__(self, parent)

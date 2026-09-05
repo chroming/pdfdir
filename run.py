@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-
 import sys
-
-from six.moves import input
 
 from src.pdfdirectory import add_directory
 

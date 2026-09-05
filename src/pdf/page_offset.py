@@ -2,6 +2,7 @@
 
 """Infer the page offset between printed page numbers and PDF pages."""
 
+import inspect
 import logging
 import math
 import os
@@ -12,6 +13,7 @@ from io import BytesIO
 from pypdf import PdfReader
 
 from src.convert import COMPILED_PAGE_NUM_PATTERNS, text_to_list
+from src.pdf.cancellation import OperationCancelled
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +22,52 @@ class OcrUnavailableError(RuntimeError):
     """Raised when OCR fallback cannot run in the current environment."""
 
 
-class OcrCancelledError(RuntimeError):
+class OcrCancelledError(OperationCancelled):
     """Raised when an OCR operation is cancelled."""
 
 
-def _check_cancelled(cancel_callback):
-    if cancel_callback and cancel_callback():
+def _check_cancelled(cancel_callback=None, cancel_check=None):
+    """Normalize the legacy OCR and product-wide cancellation callbacks."""
+    if (
+        (cancel_callback and cancel_callback())
+        or (cancel_check and cancel_check())
+    ):
         raise OcrCancelledError("OCR operation cancelled")
+
+
+def _resolve_extract_callback(callback):
+    """Disambiguate the two historical third-position callback contracts."""
+    if callback is None:
+        return None, None
+
+    try:
+        signature = inspect.signature(callback)
+    except (TypeError, ValueError):
+        try:
+            cancelled = callback()
+        except TypeError:
+            return callback, None
+        if cancelled:
+            raise OcrCancelledError("OCR operation cancelled")
+        return None, callback
+
+    def accepts(arg_count):
+        try:
+            signature.bind(*([None] * arg_count))
+        except TypeError:
+            return False
+        return True
+
+    accepts_zero = accepts(0)
+    accepts_progress = accepts(2)
+    if accepts_zero == accepts_progress:
+        raise TypeError(
+            "Ambiguous positional callback; use progress_callback= or "
+            "cancel_callback="
+        )
+    if accepts_progress:
+        return callback, None
+    return None, callback
 
 
 def normalize_page_text(text):
@@ -161,20 +202,38 @@ def infer_page_offset_from_texts(dir_text, page_texts, max_entries=20):
     return _infer_page_offset_from_candidates(candidates, page_texts)
 
 
-def extract_pdf_texts(pdf_path, max_pages=None, cancel_callback=None):
-    """Extract page texts from a PDF text layer."""
+def extract_pdf_texts(
+    pdf_path,
+    max_pages=None,
+    callback=None,
+    cancel_check=None,
+    progress_callback=None,
+    cancel_callback=None,
+):
+    """Extract bounded text while preserving both historical callback APIs."""
+    if callback is not None:
+        if progress_callback is not None or cancel_callback is not None:
+            raise TypeError(
+                "Pass the third-position callback or an explicit callback "
+                "keyword, not both"
+            )
+        progress_callback, cancel_callback = _resolve_extract_callback(callback)
     page_texts = []
     with open(pdf_path, "rb") as handle:
         reader = PdfReader(handle, strict=False)
-        for page_index, page in enumerate(reader.pages):
-            if max_pages is not None and page_index >= max_pages:
-                break
-            _check_cancelled(cancel_callback)
+        page_count = len(reader.pages)
+        if max_pages is not None:
+            page_count = min(page_count, max_pages)
+        for page_index in range(page_count):
+            _check_cancelled(cancel_callback, cancel_check)
+            page = reader.pages[page_index]
             try:
                 page_texts.append(page.extract_text() or "")
             except Exception as e:
                 logger.warning("Extract page text failed: %s", e)
                 page_texts.append("")
+            if progress_callback:
+                progress_callback(page_index + 1, page_count)
     return page_texts
 
 
@@ -212,6 +271,95 @@ def _render_matrix(fitz, page, dpi, max_pixels=16_000_000):
     return fitz.Matrix(scale, scale)
 
 
+def _iter_pdf_texts_by_ocr(
+    pdf_path,
+    max_pages,
+    dpi,
+    languages,
+    progress_callback,
+    cancel_callback,
+    timeout,
+    cancel_check,
+):
+    """Yield bounded OCR text while owning the rendered document lifecycle."""
+    _check_cancelled(cancel_callback, cancel_check)
+    fitz, pytesseract, Image = _load_ocr_dependencies()
+    tesseract_config = _tesseract_config()
+
+    try:
+        document = fitz.open(pdf_path)
+    except OperationCancelled:
+        raise
+    except Exception as e:
+        raise OcrUnavailableError("Open PDF for OCR failed: {}".format(e)) from e
+
+    first_page_error = None
+    successful_pages = 0
+    try:
+        page_count = min(len(document), max_pages)
+        for page_index in range(page_count):
+            try:
+                _check_cancelled(cancel_callback, cancel_check)
+                page = document.load_page(page_index)
+                matrix = _render_matrix(fitz, page, dpi)
+                pixmap = page.get_pixmap(matrix=matrix, alpha=False)
+                image = Image.open(BytesIO(pixmap.tobytes("png")))
+                text = pytesseract.image_to_string(
+                    image,
+                    lang=languages,
+                    config=tesseract_config,
+                    timeout=timeout,
+                )
+            except OperationCancelled:
+                raise
+            except Exception as e:
+                logger.warning(
+                    "Render or OCR page %d failed: %s",
+                    page_index + 1,
+                    e,
+                )
+                if first_page_error is None:
+                    first_page_error = e
+                text = ""
+            else:
+                successful_pages += 1
+            if progress_callback:
+                progress_callback(page_index + 1, page_count)
+            yield text or ""
+    finally:
+        document.close()
+
+    if not successful_pages and first_page_error is not None:
+        raise OcrUnavailableError(
+            "OCR page text failed: {}".format(first_page_error)
+        ) from first_page_error
+
+
+def extract_pdf_texts_by_ocr(
+    pdf_path,
+    max_pages=120,
+    dpi=160,
+    languages="chi_sim+eng",
+    progress_callback=None,
+    cancel_check=None,
+    cancel_callback=None,
+    timeout=30,
+):
+    """Compatibility wrapper returning bounded OCR text for each attempted page."""
+    return list(
+        _iter_pdf_texts_by_ocr(
+            pdf_path,
+            max_pages,
+            dpi,
+            languages,
+            progress_callback,
+            cancel_callback,
+            timeout,
+            cancel_check,
+        )
+    )
+
+
 def infer_page_offset_by_ocr(
     pdf_path,
     dir_text,
@@ -222,58 +370,36 @@ def infer_page_offset_by_ocr(
     progress_callback=None,
     cancel_callback=None,
     timeout=30,
+    cancel_check=None,
 ):
     """Infer page offset by OCR, stopping as soon as enough evidence exists."""
+    _check_cancelled(cancel_callback, cancel_check)
     candidates = list(iter_toc_candidates(dir_text, max_entries=max_entries))
     if len(candidates) < 2:
         return None
 
-    fitz, pytesseract, Image = _load_ocr_dependencies()
     page_texts = []
-    tesseract_config = _tesseract_config()
-
+    page_text_iterator = _iter_pdf_texts_by_ocr(
+        pdf_path,
+        max_pages,
+        dpi,
+        languages,
+        progress_callback,
+        cancel_callback,
+        timeout,
+        cancel_check,
+    )
     try:
-        document = fitz.open(pdf_path)
-    except Exception as e:
-        raise OcrUnavailableError("Open PDF for OCR failed: {}".format(e)) from e
-
-    try:
-        page_count = min(len(document), max_pages)
-        first_ocr_error = None
-        successful_pages = 0
-        for page_index in range(page_count):
-            _check_cancelled(cancel_callback)
-            page = document.load_page(page_index)
-            matrix = _render_matrix(fitz, page, dpi)
-            pixmap = page.get_pixmap(matrix=matrix, alpha=False)
-            image = Image.open(BytesIO(pixmap.tobytes("png")))
-            try:
-                text = pytesseract.image_to_string(
-                    image, lang=languages, config=tesseract_config, timeout=timeout
-                )
-            except Exception as e:
-                logger.warning("OCR page %d failed: %s", page_index + 1, e)
-                if first_ocr_error is None:
-                    first_ocr_error = e
-                text = ""
-            else:
-                successful_pages += 1
-            page_texts.append(text or "")
-            if progress_callback:
-                progress_callback(page_index + 1, page_count)
-
+        for text in page_text_iterator:
+            page_texts.append(text)
             offset = _infer_page_offset_from_candidates(
                 candidates, page_texts, log_insufficient=False
             )
             if offset is not None:
                 return offset
     finally:
-        document.close()
+        page_text_iterator.close()
 
-    if not successful_pages and first_ocr_error is not None:
-        raise OcrUnavailableError(
-            "OCR page text failed: {}".format(first_ocr_error)
-        ) from first_ocr_error
     return _infer_page_offset_from_candidates(candidates, page_texts)
 
 
@@ -287,9 +413,15 @@ def infer_page_offset(
     progress_callback=None,
     cancel_callback=None,
     ocr_timeout=30,
+    cancel_check=None,
 ):
     """Infer page offset from a PDF and directory text."""
-    page_texts = extract_pdf_texts(pdf_path, cancel_callback=cancel_callback)
+    _check_cancelled(cancel_callback, cancel_check)
+    page_texts = extract_pdf_texts(
+        pdf_path,
+        cancel_callback=cancel_callback,
+        cancel_check=cancel_check,
+    )
     offset = infer_page_offset_from_texts(
         dir_text, page_texts, max_entries=max_entries
     )
@@ -305,4 +437,5 @@ def infer_page_offset(
         progress_callback=progress_callback,
         cancel_callback=cancel_callback,
         timeout=ocr_timeout,
+        cancel_check=cancel_check,
     )

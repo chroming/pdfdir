@@ -1,2 +1,8 @@
-pyinstaller
-Pillow
+-r requirements.txt
+coverage[toml]>=7,<8
+diff-cover>=9
+hypothesis>=6,<7
+Pillow>=10
+pyinstaller>=6,<7
+pytest>=8,<10
+pytest-qt>=4.4,<5
