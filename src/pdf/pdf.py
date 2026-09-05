@@ -127,9 +127,8 @@ class Pdf(object):
         for o in outlines:
             if isinstance(o, Destination):
                 try:
-                    idnum = o.page if isinstance(o.page, int) else o.page.idnum
                     title = " " * current_level + o.title.strip()
-                    page_num = self.pages_num[idnum] + 1
+                    page_num = self.reader.get_destination_page_number(o) + 1
                     index_list.append(
                         "{title}  {page_num}".format(title=title, page_num=page_num)
                     )

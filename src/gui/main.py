@@ -39,11 +39,6 @@ from src.pdf.toc import extract_toc_text
 # import qdarkstyle
 
 
-def dynamic_base_class(instance, cls_name, new_class, **kwargs):
-    instance.__class__ = type(cls_name, (new_class, instance.__class__), kwargs)
-    return instance
-
-
 class ControlButtonMixin(object):
     def set_control_button(self, min_button, exit_button):
         min_button.clicked.connect(self.showMinimized)
@@ -412,9 +407,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             )
         )
         self.setWindowIcon(QtGui.QIcon("{icon}".format(icon=CONFIG.WINDOW_ICON)))
-        self.dir_tree_widget = dynamic_base_class(
-            self.dir_tree_widget, "TreeWidget", TreeWidget
-        )
         self.dir_tree_widget.init_connect(parents=[self, self.dir_tree_widget])
         self.dir_tree_widget.set_preview_changed_callback(
             self._on_preview_changed
@@ -671,7 +663,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         advanced_dialog_layout.addWidget(self.regex_error_label)
         self.advanced_button_box = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Close,
-            parent=self.advanced_dialog,
+            self.advanced_dialog,
         )
         self.advanced_button_box.rejected.connect(self.advanced_dialog.reject)
         advanced_dialog_layout.addWidget(self.advanced_button_box)
@@ -2131,9 +2123,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     @property
     def offset_num(self):
         offset = self.offset_edit.text()
-        if isinstance(offset, str) and offset.lstrip("-").isdigit():
+        try:
             return int(offset)
-        return 0
+        except (TypeError, ValueError):
+            return 0
 
     @property
     def level0_text(self):
@@ -3084,6 +3077,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
 
 def run():
+    sys.excepthook = exception_hook
     # High DPI must be set before QApplication creation
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
@@ -3163,19 +3157,14 @@ def _start_packaged_smoke_test(app, window):
     QtCore.QTimer.singleShot(50, poll_result)
 
 
-sys._excepthook = sys.excepthook
+_original_excepthook = sys.excepthook
 
 
 def exception_hook(exctype, value, exc_traceback):
-    sys._excepthook(exctype, value, exc_traceback)
+    _original_excepthook(exctype, value, exc_traceback)
     error_message = "".join(traceback.format_exception(exctype, value, exc_traceback))
-    QMessageBox.critical(None, "Unhandled Exception", error_message)
-    # Optionally, call the original excepthook
-    if hasattr(sys, "_excepthook"):
-        sys._excepthook(exctype, value, exc_traceback)
-
-
-sys.excepthook = exception_hook
+    if QtWidgets.QApplication.instance() is not None:
+        QMessageBox.critical(None, "Unhandled Exception", error_message)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
     QMenu,
+    QTreeWidget,
     QTreeWidgetItemIterator,
 )
 
@@ -229,6 +230,8 @@ class TreeWidget(MixinContextMenu):
         if self.last_item == item:
             if self.last_column == current_column:
                 self.closePersistentEditor(item, current_column)
+                self.last_item = None
+                self.last_column = None
                 return
             else:
                 self.closePersistentEditor(item, self.last_column)
@@ -355,3 +358,10 @@ class TreeWidget(MixinContextMenu):
         self.last_item = None
         self.last_column = None
         return super(TreeWidget, self).clear()
+
+
+class BookmarkTreeWidget(TreeWidget, QTreeWidget):
+    """Use a stable Qt subclass instead of reassigning a Shiboken wrapper type."""
+
+    def __init__(self, parent=None):
+        QTreeWidget.__init__(self, parent)

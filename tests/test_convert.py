@@ -21,7 +21,7 @@ from src.convert import *
 def test_split_page_num(lbracket, rbracket):
     assert split_page_num("ABC%s1%s" % (lbracket, rbracket)) == ("ABC", 1)
     assert split_page_num("ABC %s1%s" % (lbracket, rbracket)) == ("ABC", 1)
-    assert split_page_num("ABC") == ("ABC", 1)
+    assert split_page_num("ABC") == ("ABC", None)
     assert split_page_num("%s12%s" % (lbracket, rbracket)) == ("", 12)
 
 
@@ -81,4 +81,4 @@ def test_non_sequential_page_repair_can_be_disabled():
     )
 
     assert [item["num"] for item in repaired.values()] == [23, 23, 23, 24]
-    assert [item["num"] for item in raw.values()] == [23, 1, 21, 24]
+    assert [item["num"] for item in raw.values()] == [23, 23, 21, 24]

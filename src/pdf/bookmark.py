@@ -37,6 +37,7 @@ class BookmarkPageError(ValueError):
 
 
 def _add_bookmark(pdf, index_dict, cancel_check=None):
+    _validate_bookmark_structure(index_dict)
     if not index_dict:
         return None
     m = max(index_dict.keys())
@@ -133,7 +134,23 @@ def get_bookmarks_strict(path):
     return Pdf(path).exist_bookmarks()
 
 
+def _validate_bookmark_structure(index_dict):
+    if set(index_dict) != set(range(len(index_dict))):
+        raise ValueError("Bookmark indexes must be consecutive and start at 0!")
+    for index, value in index_dict.items():
+        parent = value.get("parent")
+        if parent is not None and (
+            not isinstance(parent, int) or isinstance(parent, bool)
+            or parent not in index_dict or parent >= index
+        ):
+            raise ValueError(f"Invalid parent index '{parent}' for bookmark '{index}'!")
+        page = value.get("real_num", 1)
+        if not isinstance(page, int) or isinstance(page, bool):
+            raise ValueError("Page numbers must be integers!")
+
+
 def check_bookmarks(path, index_dict, keep_exist_dir=False):
+    _validate_bookmark_structure(index_dict)
     if not index_dict:
         return
     pdf = Pdf(path, keep_outline=keep_exist_dir)

@@ -37,6 +37,7 @@ def main():
 
     assert Main
     assert CONFIG.VERSION
+    assert Path(CONFIG.WINDOW_ICON).is_file()
     assert sys.excepthook is original_hook
 
 

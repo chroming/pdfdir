@@ -20,8 +20,10 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QGridLayout,
     QGroupBox, QHBoxLayout, QHeaderView, QLabel,
     QLineEdit, QMainWindow, QMenu, QMenuBar,
     QPushButton, QSizePolicy, QSpacerItem, QSplitter,
-    QStatusBar, QTextEdit, QTreeWidget, QTreeWidgetItem,
-    QVBoxLayout, QWidget)
+    QStatusBar, QTextEdit, QTreeWidgetItem, QVBoxLayout,
+    QWidget)
+
+from src.gui.base import BookmarkTreeWidget
 
 class Ui_PDFdir(object):
     def setupUi(self, PDFdir):
@@ -138,7 +140,7 @@ class Ui_PDFdir(object):
 
         self.preview_layout.addWidget(self.preview_hint_label)
 
-        self.dir_tree_widget = QTreeWidget(self.preview_pane)
+        self.dir_tree_widget = BookmarkTreeWidget(self.preview_pane)
         self.dir_tree_widget.setObjectName(u"dir_tree_widget")
         self.dir_tree_widget.setAlternatingRowColors(False)
         self.dir_tree_widget.setRootIsDecorated(True)

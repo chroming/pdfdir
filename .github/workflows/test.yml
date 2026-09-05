@@ -32,26 +32,26 @@ jobs:
         run: .github/scripts/install-linux-qt-deps.sh
 
       - name: Install dependencies
-        run: uv pip install --system -r requirements.txt -r requirements_dev.txt
+        run: uv sync --locked --group build
 
       - name: Verify generated UI
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          pyuic5 src/gui/main_ui.ui -o "${RUNNER_TEMP}/main_ui.py"
+          uv run python src/gui/ui_to_py.py src/gui/main_ui.ui "${RUNNER_TEMP}/main_ui.py"
           diff -u src/gui/main_ui.py "${RUNNER_TEMP}/main_ui.py"
 
       - name: Run tests
         shell: bash
         env:
           QT_QPA_PLATFORM: offscreen
-        run: pytest -q -m "not e2e" --strict-markers
+        run: uv run pytest -q -m "not e2e" --strict-markers
 
       - name: Run desktop E2E
         shell: bash
         env:
           QT_QPA_PLATFORM: offscreen
-        run: pytest -q -m e2e --strict-markers
+        run: uv run pytest -q -m e2e --strict-markers
 
       - name: Measure coverage
         if: runner.os == 'Linux'
@@ -60,14 +60,24 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           COVERAGE_FILE: ${{ runner.temp }}/.coverage
         run: |
-          coverage run -m pytest -q -m "not e2e" --strict-markers
-          coverage report
+          uv run coverage run -m pytest -q -m "not e2e" --strict-markers
+          uv run coverage report
+
+      - name: Build and test installed wheel
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          uv build
+          uvx twine check dist/*
+          uv venv "${RUNNER_TEMP}/package-venv"
+          uv pip install --python "${RUNNER_TEMP}/package-venv/bin/python" dist/*.whl
+          "${RUNNER_TEMP}/package-venv/bin/python" tests/package_smoke.py "${RUNNER_TEMP}/package-smoke" "${RUNNER_TEMP}/package-venv/bin/pdfdir"
 
       - name: Build frozen desktop app
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          pyinstaller --noconfirm --clean --onefile --windowed \
+          uv run pyinstaller --noconfirm --clean --onefile --windowed \
             --name PDFdir \
             --icon "${GITHUB_WORKSPACE}/pdf.ico" \
             --add-data "${GITHUB_WORKSPACE}/pdf.ico:." \
@@ -79,3 +89,17 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: dist/PDFdir --smoke-test
+
+  minimum-dependencies:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+      - uses: astral-sh/setup-uv@v8
+      - run: bash .github/scripts/install-linux-qt-deps.sh
+      - name: Run minimum dependency tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run --python 3.9 --with "pypdf[crypto]==3.17.4" --with "PySide6==6.5.3" pytest -q

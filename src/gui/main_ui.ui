@@ -197,7 +197,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QTreeWidget" name="dir_tree_widget">
+         <widget class="BookmarkTreeWidget" name="dir_tree_widget">
           <property name="alternatingRowColors">
            <bool>false</bool>
           </property>
@@ -615,6 +615,13 @@
   <tabstop>cancel_button</tabstop>
   <tabstop>export_button</tabstop>
  </tabstops>
+ <customwidgets>
+  <customwidget>
+   <class>BookmarkTreeWidget</class>
+   <extends>QTreeWidget</extends>
+   <header>src.gui.base</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

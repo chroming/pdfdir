@@ -4,6 +4,11 @@ import sys
 from pathlib import Path
 
 from src import config
+from src.version import __version__
+
+
+def test_config_version_matches_release_version():
+    assert config.CONFIG.VERSION == __version__
 
 
 def test_resource_path_uses_pyinstaller_bundle_directory(monkeypatch):

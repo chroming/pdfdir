@@ -14,7 +14,11 @@ def resource_path(relative_path):
         "_MEIPASS",
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     )
-    return os.path.join(base_path, relative_path)
+    candidate = os.path.join(base_path, relative_path)
+    packaged = os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+    if not hasattr(sys, "_MEIPASS") and not os.path.exists(candidate) and os.path.exists(packaged):
+        return packaged
+    return candidate
 
 
 RE_DICT = {
@@ -33,7 +37,7 @@ RE_DICT = {
 
 class Config(object):
     APP_NAME = "PDFDir"
-    VERSION = __version__ if __version__.startswith("v") else "v0.3.0-beta"
+    VERSION = __version__
     WINDOW_ICON = resource_path("pdf.ico")
     HOME_PAGE_URL = "https://github.com/chroming/pdfdir"
     HELP_PAGE_URL = "https://github.com/chroming/pdfdir/blob/master/readme.md"

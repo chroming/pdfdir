@@ -4,17 +4,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6 import QtCore, QtWidgets
 
-from src.gui.base import TreeWidget
+from src.gui.base import BookmarkTreeWidget, TreeWidget
 
 
 def _make_tree(qtbot, preview_changed=None):
-    tree = QtWidgets.QTreeWidget()
+    tree = BookmarkTreeWidget()
     tree.setColumnCount(3)
-    tree.__class__ = type(
-        "TestTreeWidget",
-        (TreeWidget, tree.__class__),
-        {},
-    )
     tree.init_connect(preview_changed=preview_changed)
     qtbot.addWidget(tree)
     tree.resize(640, 320)
