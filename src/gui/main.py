@@ -267,8 +267,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             "generated_ready": "PDF 已生成，可立即打开。",
             "open_generated": "打开生成的 PDF",
             "open_generated_description": "使用系统默认应用打开刚生成的 PDF",
-            "generated_missing": "生成的 PDF 已被移动或删除，请重新生成。",
-            "generated_open_failed": "无法打开生成的 PDF，请检查系统默认 PDF 应用后重试。",
+            "generated_missing": "生成的 PDF 已移动或删除，请重新生成。",
+            "generated_changed": "生成的 PDF 已被外部修改，请重新生成。",
+            "generated_open_failed": "无法打开 PDF。\n请检查默认应用后重试。",
             "generation_failed": "PDF 生成失败",
             "generation_error": "生成带书签的 PDF 失败：{message}",
         },
@@ -354,8 +355,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             "generated_ready": "Generated PDF is ready to open.",
             "open_generated": "Open generated PDF",
             "open_generated_description": "Open the generated PDF with the system default application",
-            "generated_missing": "The generated PDF was moved or removed. Generate it again.",
-            "generated_open_failed": "Could not open the generated PDF. Check the system default PDF application and retry.",
+            "generated_missing": "Generated PDF moved or removed. Generate again.",
+            "generated_changed": "Generated PDF changed externally. Generate again.",
+            "generated_open_failed": "Could not open PDF.\nCheck the default app and retry.",
             "generation_failed": "PDF generation failed",
             "generation_error": "Could not generate bookmarked PDF: {message}",
         },
@@ -390,6 +392,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._action_status_message = ""
         self._last_generated_path = ""
         self._last_generated_signature = None
+        self._last_generated_fingerprint = None
         self._primary_action_mode = "generate"
         self._allow_close_once = False
         self._dirty_close_box = None
@@ -545,6 +548,54 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._update_accessible_layout_constraints()
         self._update_level_mode(self.level_mode_box.currentIndex())
         self._update_output_path()
+        self._configure_main_focus_order()
+
+    def _configure_main_focus_order(self):
+        """Follow the document, editor, preview, and output workflow."""
+        controls = (
+            self.open_button,
+            self.auto_toc_button,
+            self.paste_button,
+            self.dir_text_edit,
+            self.level_mode_box,
+            self.advanced_button,
+            self.dir_tree_widget,
+            self.undo_button,
+            self.redo_button,
+            self.offset_edit,
+            self.auto_offset_button,
+            self.keep_exist_dir_box,
+            self.output_name_edit,
+            self.output_folder_button,
+            self.output_location_button,
+            self.export_button,
+            self.cancel_button,
+            self.document_info_button,
+            self.help_button,
+        )
+        for current, following in zip(controls, controls[1:]):
+            self.setTabOrder(current, following)
+        self._main_focus_chain = controls
+
+    def focusNextPrevChild(self, forward):
+        controls = getattr(self, "_main_focus_chain", ())
+        current = self.focusWidget()
+        if current in controls:
+            step = 1 if forward else -1
+            start = controls.index(current)
+            for distance in range(1, len(controls) + 1):
+                candidate = controls[(start + step * distance) % len(controls)]
+                if (
+                    candidate.isVisible()
+                    and candidate.isEnabled()
+                    and candidate.focusPolicy() & QtCore.Qt.TabFocus
+                ):
+                    candidate.setFocus(
+                        QtCore.Qt.TabFocusReason if forward
+                        else QtCore.Qt.BacktabFocusReason
+                    )
+                    return True
+        return super(Main, self).focusNextPrevChild(forward)
 
     def _on_save_shortcut(self):
         if self.export_button.isVisible() and self.export_button.isEnabled():
@@ -585,6 +636,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             QtWidgets.QSizePolicy.Ignored,
             QtWidgets.QSizePolicy.Preferred,
         )
+        self.document_name_label.installEventFilter(self)
         document_layout.addWidget(self.document_name_label, 1)
         self.document_info_button = QtWidgets.QToolButton(self.document_frame)
         self.document_info_button.setObjectName("document_info_button")
@@ -695,8 +747,22 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.output_location_button = QtWidgets.QToolButton(self.action_frame)
         self.output_location_button.setObjectName("output_location_button")
         self.output_location_button.clicked.connect(self._show_output_details)
+        self.output_error_label = QtWidgets.QLabel(self.action_frame)
+        self.output_error_label.setObjectName("output_error_label")
+        self.output_error_label.setWordWrap(True)
+        self.output_error_label.setTextInteractionFlags(
+            QtCore.Qt.TextSelectableByMouse
+        )
+        self.output_feedback_stack = QtWidgets.QStackedWidget(self.action_frame)
+        self.output_feedback_stack.addWidget(self.output_location_button)
+        self.output_feedback_stack.addWidget(self.output_error_label)
+        self.output_feedback_stack.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Preferred,
+        )
         self.output_path_edit.setVisible(False)
         self._actions_compact = None
+        self._action_status_full_width = False
         self._layout_action_controls(False)
         action_layout.addLayout(self.action_controls_layout)
         root.addWidget(self.action_frame)
@@ -801,7 +867,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.output_label,
             self.output_name_edit,
             self.output_folder_button,
-            self.output_location_button,
+            self.output_feedback_stack,
             self.action_status_label,
             self.cancel_button,
             self.export_button,
@@ -816,7 +882,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             layout.addWidget(self.output_name_edit, 0, 2)
             layout.addWidget(self.output_folder_button, 0, 3)
             layout.setColumnStretch(2, 1)
-            layout.addWidget(self.output_location_button, 1, 0, 1, 3, QtCore.Qt.AlignLeft)
+            layout.addWidget(self.output_feedback_stack, 1, 0, 1, 3)
             layout.addWidget(self.action_status_label, 2, 0, 1, 3)
             layout.addWidget(self.cancel_button, 1, 3)
             layout.addWidget(self.export_button, 2, 3)
@@ -827,9 +893,36 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             layout.setColumnStretch(3, 1)
             layout.addWidget(self.cancel_button, 0, 4)
             layout.addWidget(self.export_button, 0, 5)
-            layout.addWidget(self.output_location_button, 1, 1, 1, 2, QtCore.Qt.AlignLeft)
+            layout.addWidget(self.output_feedback_stack, 1, 1, 1, 2)
             layout.addWidget(self.keep_exist_dir_box, 1, 3, QtCore.Qt.AlignRight)
             layout.addWidget(self.action_status_label, 1, 4, 1, 2, QtCore.Qt.AlignRight)
+        self._action_status_full_width = False
+        self._position_action_status()
+        layout.invalidate()
+
+    def _position_action_status(self):
+        full_width = bool(self._action_status_message) and (
+            self.action_status_label.property("statusKind") == "error"
+        )
+        if self._action_status_full_width == full_width:
+            return
+        layout = self.action_controls_layout
+        layout.removeWidget(self.action_status_label)
+        if full_width:
+            layout.addWidget(
+                self.action_status_label,
+                3 if self._actions_compact else 2,
+                0,
+                1,
+                6,
+            )
+        elif self._actions_compact:
+            layout.addWidget(self.action_status_label, 2, 0, 1, 3)
+        else:
+            layout.addWidget(
+                self.action_status_label, 1, 4, 1, 2, QtCore.Qt.AlignRight
+            )
+        self._action_status_full_width = full_width
         layout.invalidate()
 
     def _layout_regex_controls(self, single_column):
@@ -956,7 +1049,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 font-weight: 600;
             }
             QLabel#action_status_label[statusKind="error"],
-            QLabel#regex_error_label {
+            QLabel#regex_error_label, QLabel#output_error_label {
                 color: #b3261e;
                 font-weight: 500;
             }
@@ -1330,6 +1423,13 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 background-color: #ffffff;
                 border-color: #cdd7e4;
             }
+            QPushButton#auto_toc_button:disabled,
+            QPushButton#paste_button:disabled,
+            QPushButton#output_folder_button:disabled {
+                color: #a1a1a6;
+                background-color: #f7f7f9;
+                border-color: #e5e5ea;
+            }
             QPushButton#export_button {
                 background-color: #1765cf;
                 border-color: #1765cf;
@@ -1557,7 +1657,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             return os.path.join(folder, self._output_name_override)
         return self._next_available_output_path(source, folder)
 
-    def _output_target_error(self, target):
+    def _output_target_problem(self, target):
         name = self.output_name_edit.text().strip()
         if (
             not name or name in (".", "..")
@@ -1565,33 +1665,41 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             or name != os.path.basename(name) or "\\" in name
         ):
             return (
+                "name",
                 "Enter a PDF filename."
-                if self._language == "en" else "请输入有效的 PDF 文件名。"
+                if self._language == "en" else "请输入有效的 PDF 文件名。",
             )
         if not name.lower().endswith(".pdf"):
             return (
+                "name",
                 "The output filename must end in .pdf."
-                if self._language == "en" else "输出文件名必须以 .pdf 结尾。"
+                if self._language == "en" else "输出文件名必须以 .pdf 结尾。",
             )
         if not os.path.isdir(os.path.dirname(target)):
             return (
+                "folder",
                 "The output folder is unavailable."
-                if self._language == "en" else "输出文件夹不可用。"
+                if self._language == "en" else "输出文件夹不可用。",
             )
         if self._canonical_source_path(target) == self._canonical_source_path(self.pdf_path):
             return (
+                "name",
                 "The source PDF cannot be overwritten."
-                if self._language == "en" else "不能覆盖原 PDF。"
+                if self._language == "en" else "不能覆盖原 PDF。",
             )
         if os.path.lexists(target) and not (
             self._has_current_generated_result()
             and self._canonical_source_path(target) == self._last_generated_path
         ):
             return (
+                "name",
                 "This filename already exists. Choose another name."
-                if self._language == "en" else "该文件名已存在，请换一个名称。"
+                if self._language == "en" else "该文件名已存在，请换一个名称。",
             )
-        return ""
+        return "", ""
+
+    def _output_target_error(self, target):
+        return self._output_target_problem(target)[1]
 
     def _open_advanced_dialog(self):
         self._update_accessible_layout_constraints()
@@ -1712,6 +1820,17 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             and signature[-1] != self._source_fingerprint(self.pdf_path)
         )
 
+    def _generated_result_state(self):
+        path = self._last_generated_path
+        if not path or not os.path.isfile(path):
+            return "missing"
+        if (
+            self._last_generated_fingerprint is None
+            or self._source_fingerprint(path) != self._last_generated_fingerprint
+        ):
+            return "changed"
+        return "current"
+
     def _refresh_external_result(self):
         if (
             not self.isVisible()
@@ -1720,12 +1839,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             or self._rebuilding_tree
         ):
             return
-        exists = os.path.isfile(self._last_generated_path)
-        self.open_result_action.setEnabled(exists)
-        if self._primary_action_mode == "open" and not exists:
-            self._clear_generated_result()
-            self._update_action_availability()
-            self.show_status(self._t("generated_missing"), 5000)
+        result_state = self._generated_result_state()
+        self.open_result_action.setEnabled(result_state == "current")
+        if result_state != "current":
+            self._invalidate_generated_result(result_state)
         elif self._primary_action_mode == "open" and self._generated_source_changed():
             self._update_action_availability()
 
@@ -1736,7 +1853,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         return bool(
             self._last_generated_path
             and self._last_generated_signature is not None
-            and os.path.isfile(self._last_generated_path)
+            and self._generated_result_state() == "current"
             and self._current_generation_signature()
             == self._last_generated_signature
         )
@@ -1744,9 +1861,18 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def _clear_generated_result(self, clear_feedback=False):
         self._last_generated_path = ""
         self._last_generated_signature = None
+        self._last_generated_fingerprint = None
         if clear_feedback:
             self._status_timer.stop()
             self._status_override_active = False
+
+    def _invalidate_generated_result(self, state):
+        self._clear_generated_result()
+        self._update_action_availability()
+        self.show_status(
+            self._t("generated_changed" if state == "changed" else "generated_missing"),
+            5000,
+        )
 
     def _sync_action_surface(self):
         task_kind = (self._task_context or {}).get("kind")
@@ -1821,10 +1947,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
 
     def _open_generated_pdf(self):
         path = self._last_generated_path
-        if not path or not os.path.isfile(path):
-            self._clear_generated_result()
-            self._sync_action_surface()
-            self.show_status(self._t("generated_missing"), 5000)
+        result_state = self._generated_result_state()
+        if result_state != "current":
+            self._invalidate_generated_result(result_state)
             return False
         url = QtCore.QUrl.fromLocalFile(path)
         if not QtGui.QDesktopServices.openUrl(url):
@@ -1844,12 +1969,15 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         return candidate
 
     def _refresh_document_name(self):
-        available_width = max(self.document_name_label.width(), 240)
+        available_width = max(self.document_name_label.contentsRect().width() - 2, 0)
         name = self._document_display_name
         if self._document_page_count is not None:
-            name += (
-                " · {} pages" if self._language == "en" else " · {} 页"
-            ).format(self._document_page_count)
+            if self._language == "en":
+                unit = "page" if self._document_page_count == 1 else "pages"
+                name += " · {} {}".format(self._document_page_count, unit)
+            else:
+                name += " · {} 页".format(self._document_page_count)
+        self.document_name_label.setAccessibleDescription(name)
         self.document_name_label.setText(
             self.document_name_label.fontMetrics().elidedText(
                 name,
@@ -1906,15 +2034,36 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.keep_exist_dir_action.setVisible(keep_visible)
         self.keep_exist_dir_box.setEnabled(keep_visible and not write_running)
         self._sync_action_surface()
-        output_error = self._output_target_error(self.output_path_edit.text()) if has_pdf else ""
+        output_kind, output_error = (
+            self._output_target_problem(self.output_path_edit.text())
+            if has_pdf else ("", "")
+        )
         if output_error and self._primary_action_mode != "open":
             self.export_button.setEnabled(False)
-        self.output_name_edit.setProperty("invalid", bool(output_error))
+        self.output_name_edit.setProperty("invalid", output_kind == "name")
         self.output_name_edit.style().unpolish(self.output_name_edit)
         self.output_name_edit.style().polish(self.output_name_edit)
+        self.output_name_edit.setAccessibleDescription(
+            output_error if output_kind == "name" else ""
+        )
+        self.output_folder_button.setAccessibleDescription(
+            output_error if output_kind == "folder" else ""
+        )
+        self.output_error_label.setText(output_error)
+        self.output_error_label.setAccessibleName(
+            "Output error" if self._language == "en" else "输出错误"
+        )
+        self.output_error_label.setBuddy(
+            self.output_folder_button if output_kind == "folder"
+            else self.output_name_edit
+        )
+        self.output_feedback_stack.setCurrentWidget(
+            self.output_error_label if output_error
+            else self.output_location_button
+        )
         if hasattr(self, "open_result_action"):
             self.open_result_action.setEnabled(
-                bool(self._last_generated_path and os.path.isfile(self._last_generated_path))
+                self._generated_result_state() == "current"
                 and not task_running
             )
 
@@ -2360,11 +2509,13 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 "失败",
                 "无效",
                 "移动或删除",
+                "外部修改",
                 "无法打开",
                 "could not",
                 "failed",
                 "error",
                 "moved or removed",
+                "changed externally",
             )
         ):
             return "error"
@@ -2385,6 +2536,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.action_status_label.setProperty("statusKind", kind)
         self.action_status_label.style().unpolish(self.action_status_label)
         self.action_status_label.style().polish(self.action_status_label)
+        self._position_action_status()
         self._render_action_status()
         QtCore.QTimer.singleShot(0, self._render_action_status)
 
@@ -2445,7 +2597,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         if validation_error:
             self._set_action_status(validation_error, "error")
         elif has_pdf and self._primary_action_mode != "open" and self._output_target_error(self.output_path_edit.text()):
-            self._set_action_status(self._output_target_error(self.output_path_edit.text()), "error")
+            self._set_action_status("", "normal")
         elif self._generated_source_changed():
             self._set_action_status(
                 "Source PDF changed. Generate again.\nOpen the previous result from the File menu."
@@ -2556,6 +2708,12 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         return self.read_exist_dir_box.isChecked()
 
     def eventFilter(self, watched, event):
+        if (
+            watched is getattr(self, "document_name_label", None)
+            and event.type() in (QtCore.QEvent.Resize, QtCore.QEvent.FontChange)
+            and hasattr(self, "_document_display_name")
+        ):
+            self._refresh_document_name()
         if (
             watched in getattr(self, "_advanced_focus_chain", ())
             and event.type() == QtCore.QEvent.KeyPress
@@ -3431,6 +3589,12 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             )
         self._last_generated_path = self._canonical_source_path(new_path)
         self._last_generated_signature = generated_signature
+        self._last_generated_fingerprint = self._source_fingerprint(
+            self._last_generated_path
+        )
+        if self._last_generated_fingerprint is None:
+            self._invalidate_generated_result("missing")
+            return
         self._status_timer.stop()
         self._status_override_active = False
         if (

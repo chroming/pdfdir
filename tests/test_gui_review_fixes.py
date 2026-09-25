@@ -283,6 +283,22 @@ def test_missing_result_recovers_to_generation_without_duplicate(
     assert "移动或删除" in window.action_status_label.accessibleDescription()
 
 
+def test_result_removed_before_completion_is_not_reported_as_generated(
+    window, tmp_path
+):
+    source = tmp_path / "source.pdf"
+    output = tmp_path / "source_new.pdf"
+    _write_pdf(source)
+    window._activate_document(str(source))
+    window.dir_text_edit.setPlainText("Chapter 1")
+
+    window._pdf_write_finished(str(output))
+
+    assert window._last_generated_path == ""
+    assert window.export_button.text() == "生成 PDF"
+    assert "移动或删除" in window.action_status_label.accessibleDescription()
+
+
 def test_open_failure_keeps_result_available_for_retry(
     window, tmp_path, monkeypatch
 ):
@@ -306,6 +322,62 @@ def test_result_removed_while_idle_explains_recovery(window, tmp_path, qtbot):
     assert "移动或删除" in window.action_status_label.toolTip()
     assert not window.open_result_action.isEnabled()
     assert not output.exists()
+
+
+def test_replaced_result_is_not_opened_and_recovers_to_new_output(
+    window, tmp_path, monkeypatch
+):
+    source = tmp_path / "source.pdf"
+    output = tmp_path / "source_new.pdf"
+    _complete_generation(window, source, output)
+    opened = []
+    monkeypatch.setattr(
+        QtGui.QDesktopServices,
+        "openUrl",
+        lambda url: opened.append(url.toLocalFile()) or True,
+    )
+    replacement = PdfWriter()
+    replacement.add_blank_page(width=72, height=72)
+    replacement.add_blank_page(width=72, height=72)
+    replacement.write(str(output))
+
+    window.export_button.click()
+
+    assert not opened
+    assert window._last_generated_path == ""
+    assert not window.open_result_action.isEnabled()
+    assert window.export_button.text() == "生成 PDF"
+    assert window.output_path_edit.text() == str(tmp_path / "source_new_2.pdf")
+    assert "外部修改" in window.action_status_label.accessibleDescription()
+    assert window.action_status_label.property("statusKind") == "error"
+
+
+def test_replaced_result_disables_file_menu_open_while_draft_changed(
+    window, tmp_path
+):
+    source = tmp_path / "source.pdf"
+    output = tmp_path / "source_new.pdf"
+    _complete_generation(window, source, output)
+    window.dir_text_edit.setPlainText("Different chapter 1")
+    _write_pdf(output, bookmarks=("Externally replaced",))
+
+    window._refresh_external_result()
+
+    assert not window.open_result_action.isEnabled()
+    assert window._last_generated_path == ""
+    assert "外部修改" in window.action_status_label.accessibleDescription()
+
+
+def test_result_recovery_messages_are_readable_at_english_minimum(window):
+    window.to_english()
+    window.resize(window.minimumSize())
+    window.app.processEvents()
+    for key in ("generated_missing", "generated_changed", "generated_open_failed"):
+        message = window._t(key)
+        window._set_action_status(message, window._status_kind_for_message(message))
+        window.app.processEvents()
+        assert window.action_status_label.text() == message
+        assert window.action_status_label.property("statusKind") == "error"
 
 
 def test_result_action_translates_without_losing_ownership(window, tmp_path):
@@ -696,7 +768,9 @@ def test_successful_generation_baseline_then_new_edit_is_dirty(
 
     assert window.isWindowModified()
 
-    window._pdf_write_finished(str(tmp_path / "source_new.pdf"))
+    output = tmp_path / "source_new.pdf"
+    output.write_bytes(source.read_bytes())
+    window._pdf_write_finished(str(output))
     assert not window.isWindowModified()
 
     window.dir_text_edit.append("Chapter 2  1")

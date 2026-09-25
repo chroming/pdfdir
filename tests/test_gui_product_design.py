@@ -145,6 +145,30 @@ def test_core_actions_use_specific_user_facing_verbs(window):
     assert window.level_mode_box.currentText() == "按缩进识别层级"
 
 
+def test_recognize_button_disabled_state_does_not_look_available(
+    window, tmp_path
+):
+    def blue_pixel_count():
+        image = window.auto_toc_button.grab().toImage()
+        return sum(
+            image.pixelColor(x, y).blue()
+            > image.pixelColor(x, y).red() + 30
+            for y in range(image.height())
+            for x in range(image.width())
+        )
+
+    assert not window.auto_toc_button.isEnabled()
+    disabled_blue = blue_pixel_count()
+
+    source = tmp_path / "source.pdf"
+    _write_blank_pdf(source)
+    window.pdf_path_edit.setText(str(source))
+    window.app.processEvents()
+
+    assert window.auto_toc_button.isEnabled()
+    assert blue_pixel_count() > disabled_blue + 20
+
+
 def test_output_path_is_visible_before_generation(window, tmp_path):
     source_path = tmp_path / "source.pdf"
     _write_blank_pdf(source_path)
@@ -158,6 +182,37 @@ def test_output_path_is_visible_before_generation(window, tmp_path):
     assert window.output_name_edit.text() == "source_new.pdf"
     assert "source.pdf" in window.document_name_label.toolTip()
     assert "1 页" in window.document_name_label.text()
+
+
+def test_large_font_document_identity_elides_without_clipping_page_count(
+    window, qapp, tmp_path
+):
+    original_font = qapp.font()
+    large_font = QtGui.QFont(original_font)
+    large_font.setPointSize(24)
+    source = tmp_path / ("long-document-title-" + "section-" * 12 + ".pdf")
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    writer.add_blank_page(width=72, height=72)
+    writer.write(str(source))
+    try:
+        qapp.setFont(large_font)
+        window.to_english()
+        window.resize(window.minimumSize())
+        window.pdf_path_edit.setText(str(source))
+        for _ in range(3):
+            qapp.processEvents()
+
+        label = window.document_name_label
+        assert label.accessibleDescription().endswith("2 pages")
+        assert label.text().endswith("2 pages")
+        assert "…" in label.text()
+        assert (
+            label.fontMetrics().horizontalAdvance(label.text())
+            <= label.contentsRect().width()
+        )
+    finally:
+        qapp.setFont(original_font)
 
 
 def test_output_name_and_folder_are_editable_without_overwriting(window, tmp_path, qtbot, monkeypatch):
@@ -184,7 +239,9 @@ def test_output_name_and_folder_are_editable_without_overwriting(window, tmp_pat
     (folder / "reviewed.pdf").write_bytes(b"occupied")
     window._update_action_availability()
     assert not window.export_button.isEnabled()
-    assert "已存在" in window.action_status_label.accessibleDescription()
+    assert window.output_feedback_stack.currentWidget() is window.output_error_label
+    assert "已存在" in window.output_error_label.text()
+    assert "已存在" in window.output_name_edit.accessibleDescription()
 
     window.output_name_edit.selectAll()
     qtbot.keyClicks(window.output_name_edit, "source.pdf")
@@ -192,7 +249,55 @@ def test_output_name_and_folder_are_editable_without_overwriting(window, tmp_pat
     window._output_directory_override = ""
     window._update_action_availability()
     assert not window.export_button.isEnabled()
-    assert "不能覆盖" in window.action_status_label.accessibleDescription()
+    assert "不能覆盖" in window.output_error_label.text()
+    assert "不能覆盖" in window.output_name_edit.accessibleDescription()
+
+
+def test_output_error_is_complete_beside_field_at_english_minimum(
+    window, tmp_path, qtbot
+):
+    source = tmp_path / "source.pdf"
+    _write_blank_pdf(source)
+    window.pdf_path_edit.setText(str(source))
+    window.to_english()
+    window.resize(window.minimumSize())
+    window.output_name_edit.setFocus()
+    window.output_name_edit.selectAll()
+    qtbot.keyClicks(window.output_name_edit, "bad.txt")
+    window.app.processEvents()
+
+    assert window.output_error_label.isVisible()
+    assert window.output_error_label.text() == "The output filename must end in .pdf."
+    assert window.output_error_label.buddy() is window.output_name_edit
+    assert ".pdf" in window.output_name_edit.accessibleDescription()
+    assert not window.export_button.isEnabled()
+    assert not window.action_status_label.text()
+
+    window.output_name_edit.selectAll()
+    qtbot.keyClicks(window.output_name_edit, "good.pdf")
+    assert window.output_feedback_stack.currentWidget() is window.output_location_button
+    assert window.output_name_edit.accessibleDescription() == ""
+
+
+def test_missing_output_folder_error_belongs_to_folder_control(
+    window, tmp_path
+):
+    source = tmp_path / "source.pdf"
+    folder = tmp_path / "results"
+    _write_blank_pdf(source)
+    folder.mkdir()
+    window.pdf_path_edit.setText(str(source))
+    window._output_directory_override = str(folder)
+    window._update_action_availability()
+    folder.rmdir()
+
+    window._update_action_availability()
+
+    assert window.output_error_label.buddy() is window.output_folder_button
+    assert "文件夹不可用" in window.output_error_label.text()
+    assert "文件夹不可用" in window.output_folder_button.accessibleDescription()
+    assert not window.output_name_edit.property("invalid")
+    assert not window.export_button.isEnabled()
 
 
 def test_changing_pdf_resets_output_name_even_while_field_has_focus(window, tmp_path):
@@ -254,6 +359,74 @@ def test_labels_shortcuts_and_accessible_names_support_keyboard_use(window):
     assert window.open_button.shortcut().toString() == "Ctrl+O"
     assert window.export_button.shortcut().toString() == "Ctrl+Return"
     assert window._save_shortcut.key().toString() in ("Ctrl+S", "Ctrl+S, ...")
+
+
+@pytest.mark.parametrize("english,minimum", [(False, False), (True, True)])
+def test_tab_order_follows_visible_bookmark_workflow(
+    window, tmp_path, english, minimum
+):
+    source = tmp_path / "source.pdf"
+    _write_blank_pdf(source)
+    window.pdf_path_edit.setText(str(source))
+    window.dir_text_edit.setPlainText("Chapter 1")
+    if english:
+        window.to_english()
+    if minimum:
+        window.resize(window.minimumSize())
+        window.app.processEvents()
+    clipboard = window.app.clipboard()
+    previous = clipboard.text()
+    try:
+        clipboard.setText("Next chapter 2")
+        window.open_button.setFocus()
+        visited = []
+        for _ in range(20):
+            window.focusNextChild()
+            visited.append(window.focusWidget())
+            if window.focusWidget() is window.help_button:
+                break
+        expected = (
+            window.auto_toc_button,
+            window.paste_button,
+            window.dir_text_edit,
+            window.level_mode_box,
+            window.advanced_button,
+            window.dir_tree_widget,
+            window.offset_edit,
+            window.auto_offset_button,
+            window.output_name_edit,
+            window.output_folder_button,
+            window.output_location_button,
+            window.export_button,
+            window.document_info_button,
+            window.help_button,
+        )
+        assert [control for control in visited if control in expected] == list(expected)
+    finally:
+        clipboard.setText(previous)
+
+
+def test_tab_and_shift_tab_reach_recognition_actions(window, tmp_path, qtbot):
+    source = tmp_path / "source.pdf"
+    _write_blank_pdf(source)
+    window.pdf_path_edit.setText(str(source))
+    clipboard = window.app.clipboard()
+    previous = clipboard.text()
+    try:
+        clipboard.setText("Chapter 1")
+        window.open_button.setFocus()
+        qtbot.keyClick(window.open_button, QtCore.Qt.Key_Tab)
+        assert window.auto_toc_button.hasFocus()
+        qtbot.keyClick(window.auto_toc_button, QtCore.Qt.Key_Tab)
+        assert window.paste_button.hasFocus()
+        qtbot.keyClick(
+            window.paste_button,
+            QtCore.Qt.Key_Tab,
+            QtCore.Qt.ShiftModifier,
+        )
+        assert window.auto_toc_button.hasFocus()
+    finally:
+        clipboard.setText(previous)
 
 
 def test_drag_and_drop_loads_pdf_and_ignores_other_files(window, tmp_path):

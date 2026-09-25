@@ -107,3 +107,38 @@ def test_user_can_choose_output_folder_and_filename(qtbot, qapp, tmp_path, monke
     assert PdfReader(output).outline[0].title == "Chapter"
     assert not (tmp_path / "source_new.pdf").exists()
     assert window.export_button.text() == "打开生成的 PDF"
+
+
+@pytest.mark.e2e
+def test_external_result_replacement_never_opens_or_overwrites_it(
+    qtbot, qapp, tmp_path
+):
+    source = tmp_path / "source.pdf"
+    output = tmp_path / "source_new.pdf"
+    next_output = tmp_path / "source_new_2.pdf"
+    _write_blank_pdf(source, page_count=2)
+    window = Main(qapp, QtCore.QTranslator())
+    track_main_window(qtbot, qapp, window)
+    window.show()
+    assert window._activate_document(str(source))
+    window.dir_text_edit.setPlainText("Chapter 1")
+    window.export_button.click()
+    qtbot.waitUntil(
+        lambda: output.exists() and window._worker_thread is None,
+        timeout=15_000,
+    )
+
+    _write_blank_pdf(output, page_count=3)
+    qtbot.waitUntil(lambda: not window._last_generated_path, timeout=3_000)
+
+    assert not window.open_result_action.isEnabled()
+    assert window.export_button.text() == "生成 PDF"
+    assert window.output_path_edit.text() == str(next_output)
+    assert "外部修改" in window.action_status_label.accessibleDescription()
+    window.export_button.click()
+    qtbot.waitUntil(
+        lambda: next_output.exists() and window._worker_thread is None,
+        timeout=15_000,
+    )
+    assert len(PdfReader(output).pages) == 3
+    assert PdfReader(next_output).outline[0].title == "Chapter"

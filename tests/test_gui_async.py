@@ -326,7 +326,9 @@ def test_export_runs_in_background_and_keeps_event_loop_responsive(
 
     def slow_write(_path, _bookmarks, _keep_existing=False, **_kwargs):
         time.sleep(0.08)
-        return str(tmp_path / "source_new.pdf")
+        output = tmp_path / "source_new.pdf"
+        output.write_bytes(source_path.read_bytes())
+        return str(output)
 
     monkeypatch.setattr(main_module, "add_bookmark", slow_write)
     event_loop_ticks = []
