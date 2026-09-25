@@ -8,6 +8,7 @@ import pytest
 from pypdf import PdfReader, PdfWriter
 from pypdf.constants import PageLabelStyle
 
+from src.pdf import pdf as pdf_module
 from src.pdf.bookmark import add_bookmark, check_bookmarks
 from src.pdf.page_labels import PageLabelPlan
 
@@ -93,6 +94,27 @@ def test_export_retains_file_permissions(tmp_path):
     output.chmod(0o600)
     add_bookmark(str(source), {})
     assert stat.S_IMODE(output.stat().st_mode) == 0o600
+
+
+def test_export_closes_validation_handle_before_replace(tmp_path, monkeypatch):
+    source = make_source(tmp_path)
+    original_reader = pdf_module.PdfReader
+    original_replace = os.replace
+    validation_streams = []
+
+    def tracked_reader(stream, *args, **kwargs):
+        if hasattr(stream, "name") and Path(stream.name).name.startswith(".pdfdir-"):
+            validation_streams.append(stream)
+        return original_reader(stream, *args, **kwargs)
+
+    def checked_replace(src, dst):
+        assert validation_streams and validation_streams[-1].closed
+        return original_replace(src, dst)
+
+    monkeypatch.setattr(pdf_module, "PdfReader", tracked_reader)
+    monkeypatch.setattr(pdf_module.os, "replace", checked_replace)
+    output = add_bookmark(str(source), {})
+    assert PdfReader(output).pages
 
 
 def test_failed_write_keeps_previous_export_and_removes_temp_file(tmp_path, monkeypatch):

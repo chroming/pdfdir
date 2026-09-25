@@ -218,15 +218,18 @@ class Pdf(object):
         try:
             with os.fdopen(fd, "wb") as out:
                 writer.write(out)
-            output = PdfReader(temp_path)
-            if len(output.pages) != len(self.reader.pages):
-                raise ValueError("Exported PDF has a different page count")
-            if self.page_label_plan.mode == "preserve":
-                if self.reader.trailer["/Root"].get("/PageLabels") is not None:
-                    if output.page_labels != self.reader.page_labels:
-                        raise ValueError("Exported PDF lost its existing page labels")
-            elif output.page_labels[self.page_label_plan.body_start_page - 1] != "1":
-                raise ValueError("Exported PDF has incorrect body page labels")
+            # Finish all checks while the read handle is open, then close it
+            # before replacing the destination (including on Windows).
+            with open(temp_path, "rb") as temp_input:
+                output = PdfReader(temp_input)
+                if len(output.pages) != len(self.reader.pages):
+                    raise ValueError("Exported PDF has a different page count")
+                if self.page_label_plan.mode == "preserve":
+                    if self.reader.trailer["/Root"].get("/PageLabels") is not None:
+                        if output.page_labels != self.reader.page_labels:
+                            raise ValueError("Exported PDF lost its existing page labels")
+                elif output.page_labels[self.page_label_plan.body_start_page - 1] != "1":
+                    raise ValueError("Exported PDF has incorrect body page labels")
             current_stat = os.stat(self.path)
             if (
                 current_stat.st_ino,
