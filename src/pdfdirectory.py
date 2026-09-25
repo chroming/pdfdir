@@ -15,8 +15,9 @@ def add_directory(
     level4=None,
     level5=None,
     other=0,
+    page_label_plan=None,
 ):
     index_dict = convert_dir_text(
         dir_text, offset, level0, level1, level2, level3, level4, level5, other=other
     )
-    return add_bookmark(pdf_path, index_dict)
+    return add_bookmark(pdf_path, index_dict, page_label_plan=page_label_plan)

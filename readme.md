@@ -35,7 +35,8 @@ Windows/macOS/Ubuntu:
 + 目录文本：将目录文本粘贴到“目录文本”框中。[如何获取目录文本](#获取目录文本)。对于已有目录页的文字版或扫描版 PDF，也可以点击“自动读取目录”从 PDF 前部目录页中识别并填充目录文本。
 + 编辑写入目录（可选项）：根据目录文本自动生成的实际写入目录，可双击任一目录或页数进行编辑。同时支持拖动改变顺序/目录上下级关系。
 + 编辑页差（可选项）：当目录中的标注页码与 PDF 实际页数不一致时，可在“页差”中填写差值，程序会在预览中换算出实际页数。也可以点击“自动填充页差”根据目录标题在 PDF 中的位置自动推断页差；文字版 PDF 可直接使用，扫描版 PDF 需要安装 OCR 可选依赖。
-+ 写入：点击右下角的“写入”按钮，稍等片刻，待状态栏提示"******* Finished!"表示写入成功，此时可在pdf目录下找到包含书签的 *原文件名\_new.pdf* 文件。
++ 阅读器页码（可选项）：默认保留原 PDF 已有的页码标签。若正文第 1 页对应 PDF 第 31 页，可选择“前置页罗马数字，正文从 1 开始”，程序会给前 30 页设置 `i…xxx`，第 31 页起设置 `1、2、3…`。起始页默认依据“页差 + 1”填写，也可关闭“根据页差”手动指定；手动指定不会改变书签跳转页。此选项会替换原 PDF 的已有页码标签。
++ 写入：点击右下角的“写入”按钮，待提示成功后，可在 PDF 目录下找到同时包含书签和所选页码标签的 *原文件名\_new.pdf* 文件。已有同名输出文件时会询问是否替换。
 
 ###  获取目录文本
 
@@ -72,7 +73,7 @@ Windows/macOS/Ubuntu:
 
 运行源码所需环境：
 
-+ Python2/3 均可，推荐Python3
++ Python 3.7 或更新版本
 + PyQt5
 + PyPDF
 + six
@@ -120,25 +121,12 @@ https://www.python.org/downloads/
 通过cli运行接口支持最多6级目录, 目录文本通过文件输入更加容易编辑.
 
 ```
-python run_cli.py --help                                                                                                                                                                                                                            myrepo/pdfdir
-usage: run_cli.py [-h] [--offset OFFSET] [--l0 L0] [--l1 L1] [--l2 L2] [--l3 L3] [--l4 L4] [--l5 L5] pdfPath tocPath
-
-Add content to PDF.
-
-positional arguments:
-  pdfPath          path of PDF
-  tocPath          path of contents file
-
-options:
-  -h, --help       show this help message and exit
-  --offset OFFSET  Page offset of contents
-  --l0 L0          Regular expression of level 0 of content
-  --l1 L1          Regular expression of level 1 of content
-  --l2 L2          Regular expression of level 2 of content
-  --l3 L3          Regular expression of level 3 of content
-  --l4 L4          Regular expression of level 4 of content
-  --l5 L5          Regular expression of level 5 of content
+python run_cli.py book.pdf toc.txt --offset 30 --page-labels roman-body
+# 正文起始页与页差不同，也可明确指定：
+python run_cli.py book.pdf toc.txt --offset 30 --page-labels roman-body --body-start-page 31
 ```
+
+默认 `--page-labels preserve` 会保留原文件页码标签；`roman-body` 会写入罗马数字前置页和从 1 开始的正文页码。运行 `python run_cli.py --help` 可查看其余目录层级参数。CLI 若已有同名输出文件会替换它。
 
 ### 打包源码
 

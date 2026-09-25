@@ -151,4 +151,31 @@
             <translation>Write directory</translation>
         </message>
     </context>
+    <context>
+        <name>Main</name>
+        <message><source>阅读器页码</source><translation>Reader page numbers</translation></message>
+        <message><source>保留原文件页码</source><translation>Preserve source labels</translation></message>
+        <message><source>前置页罗马，正文从 1 开始</source><translation>Roman front, body from 1</translation></message>
+        <message><source>根据页差</source><translation>Use page offset</translation></message>
+        <message><source>PDF 第 </source><translation>PDF page </translation></message>
+        <message><source> 页</source><translation> (physical)</translation></message>
+        <message><source>导出时保留原 PDF 的页码规则</source><translation>Keep the source PDF page labels</translation></message>
+        <message><source>页差不能推导正文起始页；取消勾选「根据页差」后手动指定</source><translation>Uncheck Use page offset, then set body start manually</translation></message>
+        <message><source>正文起始页超过 PDF 总页数</source><translation>Body start exceeds the PDF page count</translation></message>
+        <message><source>PDF 第 1–{} 页：i…；第 {} 页起：1…</source><translation>PDF pages 1–{}: i…; page {} onward: 1…</translation></message>
+        <message><source>PDF 第 1 页起：1…</source><translation>PDF page 1 onward: 1…</translation></message>
+        <message><source>；将替换原有页码规则</source><translation>; replaces source labels</translation></message>
+        <message><source>无法读取 PDF 页数</source><translation>Could not read PDF page count</translation></message>
+        <message><source>未导出的目录修改</source><translation>Unsaved directory edits</translation></message>
+        <message><source>打开其他文件前，如何处理当前修改？</source><translation>What should happen to the current edits?</translation></message>
+        <message><source>导出当前 PDF</source><translation>Export current PDF</translation></message>
+        <message><source>放弃修改</source><translation>Discard edits</translation></message>
+        <message><source>取消</source><translation>Cancel</translation></message>
+        <message><source>替换导出的 PDF</source><translation>Replace exported PDF</translation></message>
+        <message><source>替换已有文件？&#10;{}</source><translation>Replace the existing file?&#10;{}</translation></message>
+        <message><source>替换</source><translation>Replace</translation></message>
+        <message><source>正在写入 PDF…</source><translation>Writing PDF...</translation></message>
+        <message><source>已导出：</source><translation>Exported: </translation></message>
+        <message><source>导出失败：</source><translation>Export failed: </translation></message>
+    </context>
 </TS>
