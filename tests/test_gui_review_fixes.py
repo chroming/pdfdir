@@ -208,6 +208,21 @@ def test_success_keeps_actual_result_and_persistent_open_action(
     assert "已生成" in window.action_status_label.text()
 
 
+def test_success_status_is_complete_at_minimum_in_both_languages(
+    window, tmp_path
+):
+    source = tmp_path / "source.pdf"
+    output = tmp_path / "source_new.pdf"
+    _complete_generation(window, source, output)
+    window.resize(window.minimumSize())
+    window.app.processEvents()
+    assert window.action_status_label.text() == window._t("generated_ready")
+
+    window.to_english()
+    window.app.processEvents()
+    assert window.action_status_label.text() == window._t("generated_ready")
+
+
 def test_success_primary_action_opens_result_without_writing_duplicate(
     window, tmp_path, monkeypatch
 ):
