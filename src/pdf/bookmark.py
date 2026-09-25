@@ -65,7 +65,7 @@ def add_bookmark(path, index_dict, keep_exist_dir=False, page_label_plan=None):
     pdf = Pdf(
         path, keep_outline=keep_exist_dir, page_label_plan=page_label_plan
     )
-    check_bookmarks(path, index_dict, keep_exist_dir)
+    check_bookmarks(path, index_dict, page_count=len(pdf.reader.pages))
     _add_bookmark(pdf, index_dict)
     return pdf.save_pdf()
 
@@ -80,15 +80,20 @@ def get_bookmarks(path):
         return []
 
 
-def check_bookmarks(path, index_dict, keep_exist_dir=False):
+def check_bookmarks(path, index_dict, page_count=None):
     if not index_dict:
         return
-    from pypdf import PdfReader
+    if page_count is None:
+        from pypdf import PdfReader
 
-    max_page_num = len(PdfReader(path).pages)
+        page_count = len(PdfReader(path).pages)
     for value in index_dict.values():
         page = value.get("real_num", 1)
-        if not isinstance(page, int) or not 1 <= page <= max_page_num:
+        if (
+            not isinstance(page, int)
+            or isinstance(page, bool)
+            or not 1 <= page <= page_count
+        ):
             raise ValueError(
-                "Bookmark page '{}' must be between 1 and {}".format(page, max_page_num)
+                "Bookmark page '{}' must be between 1 and {}".format(page, page_count)
             )

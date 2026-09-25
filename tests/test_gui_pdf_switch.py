@@ -98,3 +98,72 @@ window.close()
         text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_invalid_page_edit_still_guards_draft_and_translates_controls(tmp_path):
+    first = tmp_path / "first.pdf"
+    second = tmp_path / "second.pdf"
+    for path in (first, second):
+        writer = PdfWriter()
+        for _ in range(3):
+            writer.add_blank_page(width=72, height=72)
+        with path.open("wb") as output:
+            writer.write(output)
+
+    script = """
+import sys
+from PyQt5 import QtCore, QtWidgets
+from src.gui.main import Main
+sys.excepthook = sys.__excepthook__
+
+app = QtWidgets.QApplication([])
+window = Main(app, QtCore.QTranslator())
+first, second = sys.argv[1:]
+window.pdf_path_edit.setText(first)
+window.pdf_path_edit.editingFinished.emit()
+window.dir_text_edit.setPlainText('Chapter 1')
+item = window.dir_tree_widget.topLevelItem(0)
+assert item is not None
+item.setText(2, 'invalid')
+assert window._has_unsaved_draft()
+
+def cancel_switch(box):
+    for button in box.buttons():
+        if button.text() == '取消':
+            button.click()
+            return 0
+    raise AssertionError('Missing cancel button')
+
+QtWidgets.QMessageBox.exec_ = cancel_switch
+window.pdf_path_edit.setText(second)
+window.pdf_path_edit.editingFinished.emit()
+assert window.pdf_path == first
+assert item.text(2) == 'invalid'
+
+window.page_label_mode.setCurrentIndex(1)
+window.offset_edit.setText('-2')
+assert '取消勾选' in window.page_label_summary.text()
+window.page_label_auto.setChecked(False)
+window.body_start_page.setValue(2)
+assert window.page_label_plan.body_start_page == 2
+window.dir_tree_widget.topLevelItem(0).setText(2, 'invalid')
+
+window.to_english()
+assert window.page_label_group.title() == 'Reader page numbers'
+assert window.page_label_auto.text() == 'Use page offset'
+assert window.tr('替换已有文件？\\n{}') == 'Replace the existing file?\\n{}'
+assert window.body_start_page.value() == 2
+assert window.dir_tree_widget.topLevelItem(0).text(2) == 'invalid'
+window.to_chinese()
+assert window.page_label_group.title() == '阅读器页码'
+window.close()
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(first), str(second)],
+        cwd=str(Path(__file__).resolve().parents[1]),
+        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

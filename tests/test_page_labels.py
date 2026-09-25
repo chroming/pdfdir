@@ -1,12 +1,14 @@
 """An export writes bookmarks and reader page labels to the same PDF."""
 
+import os
+import stat
 from pathlib import Path
 
 import pytest
 from pypdf import PdfReader, PdfWriter
 from pypdf.constants import PageLabelStyle
 
-from src.pdf.bookmark import add_bookmark
+from src.pdf.bookmark import add_bookmark, check_bookmarks
 from src.pdf.page_labels import PageLabelPlan
 
 
@@ -61,6 +63,36 @@ def test_bookmark_page_validation_rejects_zero(tmp_path):
     source = make_source(tmp_path)
     with pytest.raises(ValueError, match="Bookmark page"):
         add_bookmark(str(source), {0: {"title": "Bad", "real_num": 0}})
+
+
+def test_bookmark_page_validation_rejects_bool(tmp_path):
+    source = make_source(tmp_path)
+    with pytest.raises(ValueError, match="Bookmark page"):
+        add_bookmark(str(source), {0: {"title": "Bad", "real_num": True}})
+
+
+def test_bookmark_validation_can_reuse_known_page_count(tmp_path):
+    check_bookmarks(
+        str(tmp_path / "not-opened.pdf"),
+        {0: {"title": "Chapter", "real_num": 4}},
+        page_count=6,
+    )
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_export_retains_file_permissions(tmp_path):
+    source = make_source(tmp_path)
+    source.chmod(0o666)
+    previous_umask = os.umask(0o027)
+    try:
+        output = Path(add_bookmark(str(source), {}))
+    finally:
+        os.umask(previous_umask)
+    assert stat.S_IMODE(output.stat().st_mode) == 0o640
+
+    output.chmod(0o600)
+    add_bookmark(str(source), {})
+    assert stat.S_IMODE(output.stat().st_mode) == 0o600
 
 
 def test_failed_write_keeps_previous_export_and_removes_temp_file(tmp_path, monkeypatch):

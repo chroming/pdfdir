@@ -5,6 +5,7 @@ The main GUI model of project.
 
 """
 
+import logging
 import os
 import sys
 import traceback
@@ -27,6 +28,8 @@ from src.pdf.toc import extract_toc_text
 from pypdf import PdfReader
 
 # import qdarkstyle
+
+logger = logging.getLogger(__name__)
 
 
 def dynamic_base_class(instance, cls_name, new_class, **kwargs):
@@ -113,7 +116,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._active_pdf_path = self.pdf_path_edit.text()
         self.setMinimumSize(760, 580)
         self._pdf_page_count = 0
-        self._page_label_language = "zh"
         self._init_auto_offset_button()
         self._init_auto_toc_button()
         self._init_page_label_controls()
@@ -140,10 +142,20 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._update_page_label_summary()
 
     def _draft_snapshot(self):
+        # Keep the editable cells as text: an incomplete page number must still
+        # count as a draft, not raise while the user switches documents.
+        tree = []
+        for item in self.dir_tree_widget.all_items:
+            depth = 0
+            parent = item.parent()
+            while parent is not None:
+                depth += 1
+                parent = parent.parent()
+            tree.append((depth, item.text(0), item.text(1), item.text(2)))
         return (
             self.dir_text,
             self.offset_edit.text(),
-            self.tree_to_dict(),
+            tuple(tree),
             self.page_label_mode.currentIndex(),
             self.page_label_auto.isChecked(),
             self.body_start_page.value(),
@@ -180,20 +192,18 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._translate_page_label_controls()
 
     def _translate_page_label_controls(self):
-        zh = self._page_label_language == "zh"
-        self.page_label_group.setTitle("阅读器页码" if zh else "Reader page numbers")
+        self.page_label_group.setTitle(self.tr("阅读器页码"))
         self.page_label_mode.blockSignals(True)
         selected = self.page_label_mode.currentIndex()
         self.page_label_mode.clear()
         self.page_label_mode.addItems(
-            ["保留原文件页码", "前置页罗马，正文从 1 开始"]
-            if zh else ["Preserve source labels", "Roman front, body from 1"]
+            [self.tr("保留原文件页码"), self.tr("前置页罗马，正文从 1 开始")]
         )
         self.page_label_mode.setCurrentIndex(max(selected, 0))
         self.page_label_mode.blockSignals(False)
-        self.page_label_auto.setText("根据页差" if zh else "Use page offset")
-        self.body_start_page.setPrefix("PDF 第 " if zh else "PDF page ")
-        self.body_start_page.setSuffix(" 页" if zh else "")
+        self.page_label_auto.setText(self.tr("根据页差"))
+        self.body_start_page.setPrefix(self.tr("PDF 第 "))
+        self.body_start_page.setSuffix(self.tr(" 页"))
         self._update_page_label_summary()
 
     def _update_page_label_summary(self):
@@ -209,24 +219,23 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 self.body_start_page.blockSignals(True)
                 self.body_start_page.setValue(suggested)
                 self.body_start_page.blockSignals(False)
-        zh = getattr(self, "_page_label_language", "zh") == "zh"
         if not generated:
-            msg = "导出时保留原 PDF 的页码规则" if zh else "Keep the source PDF page labels"
+            msg = self.tr("导出时保留原 PDF 的页码规则")
         elif self.page_label_auto.isChecked() and self.offset_num < 0:
-            msg = "页差不能推导正文起始页，请手动指定" if zh else "Set body start manually for a negative offset"
+            msg = self.tr("页差不能推导正文起始页；取消勾选「根据页差」后手动指定")
         elif self._pdf_page_count and (
             (self.page_label_auto.isChecked() and self.offset_num + 1 > self._pdf_page_count)
             or self.body_start_page.value() > self._pdf_page_count
         ):
-            msg = "正文起始页超过 PDF 总页数" if zh else "Body start exceeds the PDF page count"
+            msg = self.tr("正文起始页超过 PDF 总页数")
         else:
             start = self.body_start_page.value()
-            if zh:
-                msg = "PDF 第 1–{} 页：i…；第 {} 页起：1…".format(start - 1, start) if start > 1 else "PDF 第 1 页起：1…"
-                msg += "；将替换原有页码规则"
-            else:
-                msg = "PDF pages 1–{}: i…; page {} onward: 1…".format(start - 1, start) if start > 1 else "PDF page 1 onward: 1…"
-                msg += "; replaces source labels"
+            msg = (
+                self.tr("PDF 第 1–{} 页：i…；第 {} 页起：1…").format(start - 1, start)
+                if start > 1
+                else self.tr("PDF 第 1 页起：1…")
+            )
+            msg += self.tr("；将替换原有页码规则")
         self.page_label_summary.setText(msg)
 
     def _refresh_pdf_page_count(self):
@@ -235,7 +244,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             try:
                 self._pdf_page_count = len(PdfReader(self.pdf_path).pages)
             except Exception:
-                pass
+                logger.exception("Could not read PDF page count: %s", self.pdf_path)
+                self.show_status(self.tr("无法读取 PDF 页数"), 5000)
         self._update_page_label_summary()
 
     @property
@@ -408,13 +418,11 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.trans.load(os.path.join(os.path.dirname(__file__), "..", "language", "en.qm"))
         self.app.installTranslator(self.trans)
         self._retranslate_preserving_draft()
-        self._page_label_language = "en"
         self._translate_page_label_controls()
 
     def to_chinese(self):
         self.app.removeTranslator(self.trans)
         self._retranslate_preserving_draft()
-        self._page_label_language = "zh"
         self._translate_page_label_controls()
 
     def _retranslate_preserving_draft(self):
@@ -527,16 +535,12 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             return True
         previous_path = self._active_pdf_path
         if previous_path and self._has_unsaved_draft():
-            zh = self._page_label_language == "zh"
             box = QMessageBox(self)
-            box.setWindowTitle("未导出的目录修改" if zh else "Unsaved directory edits")
-            box.setText(
-                "打开其他文件前，如何处理当前修改？"
-                if zh else "What should happen to the current edits?"
-            )
-            export = box.addButton("导出当前 PDF" if zh else "Export current PDF", QMessageBox.AcceptRole)
-            discard = box.addButton("放弃修改" if zh else "Discard edits", QMessageBox.DestructiveRole)
-            cancel = box.addButton("取消" if zh else "Cancel", QMessageBox.RejectRole)
+            box.setWindowTitle(self.tr("未导出的目录修改"))
+            box.setText(self.tr("打开其他文件前，如何处理当前修改？"))
+            export = box.addButton(self.tr("导出当前 PDF"), QMessageBox.AcceptRole)
+            discard = box.addButton(self.tr("放弃修改"), QMessageBox.DestructiveRole)
+            cancel = box.addButton(self.tr("取消"), QMessageBox.RejectRole)
             box.setDefaultButton(cancel)
             box.exec_()
             if box.clickedButton() == cancel:
@@ -752,8 +756,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         super(Main, self).closeEvent(event)
 
     def pre_check(self, path, index_dict):
-        check_bookmarks(path, index_dict, self.keep_exist_dir)
-        self.page_label_plan.validate(len(PdfReader(path).pages))
+        page_count = len(PdfReader(path).pages)
+        check_bookmarks(path, index_dict, page_count=page_count)
+        self.page_label_plan.validate(page_count)
 
     def write_tree_to_pdf(self):
         if self.pdf_path != self._active_pdf_path:
@@ -765,40 +770,32 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             name, ext = os.path.splitext(self.pdf_path)
             output_path = name + "_new" + ext
             if os.path.exists(output_path):
-                zh = self._page_label_language == "zh"
                 box = QMessageBox(self)
-                box.setWindowTitle("替换导出的 PDF" if zh else "Replace exported PDF")
-                box.setText(
-                    ("替换已有文件？\n{}" if zh else "Replace the existing file?\n{}").format(
-                        output_path
-                    )
-                )
-                replace = box.addButton("替换" if zh else "Replace", QMessageBox.DestructiveRole)
-                cancel = box.addButton("取消" if zh else "Cancel", QMessageBox.RejectRole)
+                box.setWindowTitle(self.tr("替换导出的 PDF"))
+                box.setText(self.tr("替换已有文件？\n{}").format(output_path))
+                replace = box.addButton(self.tr("替换"), QMessageBox.DestructiveRole)
+                cancel = box.addButton(self.tr("取消"), QMessageBox.RejectRole)
                 box.setDefaultButton(cancel)
                 box.exec_()
                 if box.clickedButton() != replace:
                     return False
             self.export_button.setEnabled(False)
-            self.show_status("Writing PDF..." if self._page_label_language == "en" else "正在写入 PDF…")
+            self.show_status(self.tr("正在写入 PDF…"))
             QtWidgets.QApplication.processEvents()
             new_path = self.dict_to_pdf(
                 self.pdf_path, index_dict, self.keep_exist_dir, self.page_label_plan
             )
-            self.show_status(
-                ("Exported: " if self._page_label_language == "en" else "已导出：")
-                + new_path,
-                5000,
-            )
+            self.show_status(self.tr("已导出：") + new_path, 5000)
             self.alert_msg("%s Finished！" % new_path)
             self._loaded_draft = self._draft_snapshot()
             return True
+        except (PermissionError, ValueError) as exc:
+            self.show_status(self.tr("导出失败：") + str(exc), 5000)
+            self.alert_msg(str(exc), level="warn")
+            return False
         except Exception as exc:
-            self.show_status(
-                ("Export failed: " if self._page_label_language == "en" else "导出失败：")
-                + str(exc),
-                5000,
-            )
+            logger.exception("PDF export failed")
+            self.show_status(self.tr("导出失败：") + str(exc), 5000)
             self.alert_msg(str(exc), level="warn")
             return False
         finally:

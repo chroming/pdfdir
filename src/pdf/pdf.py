@@ -11,7 +11,8 @@ public:
 
 import logging
 import os
-import tempfile
+import secrets
+import stat
 
 from pypdf import PageObject, PdfReader, PdfWriter
 from pypdf.generic import Destination, Fit
@@ -205,8 +206,14 @@ class Pdf(object):
     def save_pdf(self):
         """save the writer to a pdf file with name 'name_new.pdf'"""
         writer = self.writer
-        fd, temp_path = tempfile.mkstemp(
-            prefix=".pdfdir-", suffix=".pdf", dir=os.path.dirname(self._new_path) or "."
+        temp_path = os.path.join(
+            os.path.dirname(self._new_path) or ".",
+            ".pdfdir-{}.pdf".format(secrets.token_hex(16)),
+        )
+        fd = os.open(
+            temp_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+            0o666,
         )
         try:
             with os.fdopen(fd, "wb") as out:
@@ -231,6 +238,13 @@ class Pdf(object):
                 self._source_stat.st_mtime_ns,
             ):
                 raise ValueError("Source PDF changed during export; please retry")
+            if os.name != "nt" and os.path.exists(self._new_path):
+                # New exports already have the user's umask; replacements keep
+                # the previous output's mode instead of the temporary mode.
+                os.chmod(
+                    temp_path,
+                    stat.S_IMODE(os.stat(self._new_path).st_mode),
+                )
             os.replace(temp_path, self._new_path)
         finally:
             if os.path.exists(temp_path):

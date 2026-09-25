@@ -71,7 +71,10 @@ if __name__ == "__main__":
     f = open(tocPath)
     toc = f.read()
     f.close()
-    add_directory(
-        toc, offset, pdfPath, args.l0, args.l1, args.l2, args.l3, args.l4, args.l5,
-        page_label_plan=label_plan,
-    )
+    try:
+        add_directory(
+            toc, offset, pdfPath, args.l0, args.l1, args.l2, args.l3, args.l4, args.l5,
+            page_label_plan=label_plan,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
