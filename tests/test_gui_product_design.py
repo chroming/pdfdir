@@ -44,6 +44,21 @@ def test_primary_workspace_has_readable_default_geometry(window):
     assert window.offset_edit.parentWidget() is window.right_tools
 
 
+def test_workspace_does_not_frame_sparse_editors_as_full_height_cards(window):
+    """The two task surfaces share one canvas, including while editing."""
+    style = window.styleSheet()
+    assert style.count("QTreeWidget#dir_tree_widget {") == 1
+    assert style.count("QHeaderView::section {") == 1
+    assert "QTextEdit#dir_text_edit" not in style
+
+    window.dir_text_edit.setFocus()
+    window.app.processEvents()
+    for editor in (window.dir_text_edit, window.dir_tree_widget):
+        image = editor.grab().toImage()
+        right_edge = image.pixelColor(image.width() - 2, image.height() // 2)
+        assert min(right_edge.red(), right_edge.green(), right_edge.blue()) > 235
+
+
 def test_primary_action_and_status_remain_visible_at_minimum_window(window):
     window.resize(window.minimumSize())
     window.app.processEvents()

@@ -51,8 +51,8 @@ class NumberedTextEdit(QtWidgets.QPlainTextEdit):
 
     def paint_line_numbers(self, event):
         painter = QtGui.QPainter(self.line_number_area)
-        painter.fillRect(event.rect(), QtGui.QColor("#f7f9fc"))
-        painter.setPen(QtGui.QColor("#8b95a5"))
+        painter.fillRect(event.rect(), QtGui.QColor("#f8f9fb"))
+        painter.setPen(QtGui.QColor("#8f9aaa"))
         block = self.firstVisibleBlock()
         number = block.blockNumber()
         top = int(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())

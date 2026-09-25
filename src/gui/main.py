@@ -619,17 +619,15 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.document_frame = QtWidgets.QFrame(self.main_widget)
         self.document_frame.setObjectName("document_frame")
         document_layout = QtWidgets.QHBoxLayout(self.document_frame)
-        document_layout.setContentsMargins(18, 9, 18, 9)
-        document_layout.setSpacing(10)
+        document_layout.setContentsMargins(18, 8, 18, 8)
+        document_layout.setSpacing(12)
         self.brand_label = QtWidgets.QLabel("PDFdir", self.document_frame)
         self.brand_label.setObjectName("brand_label")
         document_layout.addWidget(self.brand_label)
         self.document_separator = QtWidgets.QFrame(self.document_frame)
-        self.document_separator.setFrameShape(QtWidgets.QFrame.VLine)
+        self.document_separator.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.document_separator.setFixedSize(1, 20)
         document_layout.addWidget(self.document_separator)
-        self.document_icon_label = QtWidgets.QLabel("PDF", self.document_frame)
-        self.document_icon_label.setObjectName("document_icon_label")
-        document_layout.addWidget(self.document_icon_label)
         self.document_name_label = QtWidgets.QLabel(self.document_frame)
         self.document_name_label.setObjectName("document_name_label")
         self.document_name_label.setSizePolicy(
@@ -656,12 +654,13 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.workspace_frame = QtWidgets.QFrame(self.main_widget)
         self.workspace_frame.setObjectName("workspace_frame")
         workspace_layout = QtWidgets.QVBoxLayout(self.workspace_frame)
-        workspace_layout.setContentsMargins(12, 10, 12, 8)
+        workspace_layout.setContentsMargins(0, 0, 0, 0)
         workspace_layout.setSpacing(0)
         workspace_layout.addWidget(self.workspace_splitter, 1)
         self.editor_hint_label.setVisible(False)
         self.preview_hint_label.setVisible(False)
-        self.editor_layout.setContentsMargins(6, 0, 6, 0)
+        self.editor_layout.setContentsMargins(18, 10, 14, 8)
+        self.preview_layout.setContentsMargins(14, 10, 18, 8)
         self.paste_button = QtWidgets.QPushButton(self.editor_pane)
         self.paste_button.setObjectName("paste_button")
         self.paste_button.clicked.connect(self._paste_toc_text)
@@ -1022,345 +1021,82 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._render_action_status()
 
     def _apply_product_style(self):
+        """One restrained visual grammar for chrome, panes, and controls."""
         self.setStyleSheet(
             """
             QMainWindow, QWidget#main_widget {
-                background-color: #f5f5f7;
-                color: #1d1d1f;
-            }
-            QLabel#page_title_label {
-                font-weight: 600;
-                color: #1d1d1f;
-            }
-            QLabel#page_subtitle_label, QLabel#editor_hint_label,
-            QLabel#preview_hint_label, QLabel#pdf_path_label,
-            QLabel#output_label, QLabel#level_mode_label, QLabel#offset_label {
-                color: #6e6e73;
-            }
-            QLabel#preview_empty_label {
-                color: #8e8e93;
-                background: transparent;
-            }
-            QLabel#action_status_label {
-                color: #6e6e73;
-            }
-            QLabel#action_status_label[statusKind="working"] {
-                color: #0066cc;
-                font-weight: 600;
-            }
-            QLabel#action_status_label[statusKind="error"],
-            QLabel#regex_error_label, QLabel#output_error_label {
-                color: #b3261e;
-                font-weight: 500;
-            }
-            QLabel#action_status_label[statusKind="success"] {
-                color: #137333;
-                font-weight: 600;
-            }
-            QLabel#document_name_label, QLabel#dir_text_label,
-            QLabel#preview_label {
-                font-weight: 600;
-                color: #1d1d1f;
+                background-color: #ffffff;
+                color: #202b3a;
             }
             QFrame#document_frame, QFrame#action_frame {
-                background-color: #ffffff;
-                border: 1px solid #e1e1e6;
-                border-radius: 8px;
-            }
-            QFrame#workspace_frame {
-                background-color: #ffffff;
-                border: 1px solid #dcdce2;
-                border-radius: 10px;
-            }
-            QFrame#workspace_frame QWidget,
-            QFrame#workspace_frame QSplitter {
-                background-color: #ffffff;
-            }
-            QFrame#tools_divider {
-                color: #e5e5ea;
-                max-height: 1px;
-            }
-            QFrame#action_divider {
-                color: #e1e1e6;
-                max-width: 1px;
-            }
-            QSplitter::handle {
-                background-color: #e5e5ea;
-                width: 1px;
-                margin: 0 6px;
-            }
-            QLineEdit {
-                color: #1d1d1f;
-                background-color: #ffffff;
-                border: 1px solid #d1d1d6;
-                border-radius: 6px;
-                padding: 4px 8px;
-                min-height: 22px;
-                selection-background-color: #dbeafe;
-                selection-color: #1d1d1f;
-            }
-            QLineEdit:focus {
-                border: 2px solid #0066cc;
-                padding: 3px 7px;
-            }
-            QLineEdit:read-only {
-                color: #6e6e73;
-                background-color: #f7f7f9;
-                border-color: #e5e5ea;
-            }
-            QLineEdit:disabled {
-                color: #8e8e93;
-                background-color: #f2f2f7;
-                border-color: #e1e1e6;
-            }
-            QLineEdit[invalid="true"] {
-                border: 2px solid #b3261e;
-                background-color: #fff8f7;
-            }
-            QTextEdit#dir_text_edit {
-                color: #1d1d1f;
-                background-color: #ffffff;
-                border: 1px solid #dcdce2;
-                border-radius: 6px;
-                padding: 8px 10px;
-                selection-background-color: #dbeafe;
-                selection-color: #1d1d1f;
-            }
-            QTextEdit#dir_text_edit:focus {
-                border: 2px solid #0066cc;
-                padding: 7px 9px;
-            }
-            QTextEdit#dir_text_edit:disabled {
-                color: #8e8e93;
-                background-color: #f2f2f7;
-                border-color: #e1e1e6;
-            }
-            QTreeWidget#dir_tree_widget {
-                color: #1d1d1f;
-                background-color: #fafafc;
-                border: 1px solid #dcdce2;
-                border-radius: 6px;
-                show-decoration-selected: 1;
-            }
-            QTreeWidget#dir_tree_widget:focus {
-                border: 2px solid #0066cc;
-            }
-            QTreeWidget#dir_tree_widget:disabled {
-                color: #8e8e93;
-                background-color: #f2f2f7;
-            }
-            QTreeWidget#dir_tree_widget::item {
-                min-height: 28px;
-                padding: 2px 4px;
-                border: none;
-                border-radius: 4px;
-            }
-            QTreeWidget#dir_tree_widget::item:hover {
-                background-color: #f0f4f9;
-            }
-            QTreeWidget#dir_tree_widget::item:selected {
-                background-color: #e0edff;
-                color: #004085;
-                font-weight: 500;
-            }
-            QHeaderView::section {
-                background-color: #f2f2f7;
-                color: #55555c;
-                border: none;
-                border-bottom: 1px solid #dcdce2;
-                padding: 6px 10px;
-                font-weight: 600;
-            }
-            QComboBox {
-                color: #1d1d1f;
-                background-color: #ffffff;
-                border: 1px solid #d1d1d6;
-                border-radius: 6px;
-                padding: 4px 28px 4px 10px;
-                min-height: 22px;
-            }
-            QComboBox:hover {
-                background-color: #fbfbfd;
-                border-color: #b0b0b8;
-            }
-            QComboBox:focus {
-                border: 2px solid #0066cc;
-                padding: 3px 27px 3px 9px;
-            }
-            QComboBox:disabled {
-                color: #8e8e93;
-                background-color: #f2f2f7;
-                border-color: #e1e1e6;
-            }
-            QComboBox QAbstractItemView {
-                color: #1d1d1f;
-                background-color: #ffffff;
-                border: 1px solid #d1d1d6;
-                border-radius: 6px;
-                padding: 4px;
-                selection-background-color: #e0edff;
-                selection-color: #004085;
-            }
-            QPushButton {
-                min-height: 30px;
-                padding: 0 14px;
-                color: #1d1d1f;
-                background-color: #f2f2f7;
-                border: 1px solid #d1d1d6;
-                border-radius: 6px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #e5e5ea;
-                border-color: #c7c7cc;
-            }
-            QPushButton:pressed {
-                background-color: #dcdce2;
-                border-color: #b0b0b8;
-            }
-            QPushButton:focus {
-                border: 2px solid #0066cc;
-            }
-            QPushButton:disabled {
-                color: #a1a1a6;
-                background-color: #f7f7f9;
-                border-color: #e5e5ea;
-            }
-            QPushButton#export_button {
-                min-height: 32px;
-                padding: 0 18px;
-                color: #ffffff;
-                background-color: #0066cc;
-                border: 1px solid #005bb5;
-                border-radius: 6px;
-                font-weight: 600;
-            }
-            QPushButton#export_button:hover {
-                background-color: #0055b3;
-                border-color: #004999;
-            }
-            QPushButton#export_button:pressed {
-                background-color: #004085;
-                border-color: #003366;
-            }
-            QPushButton#export_button:focus {
-                border: 2px solid #003f80;
-            }
-            QPushButton#export_button:disabled {
-                color: #ffffff;
-                background-color: #b0c4de;
-                border-color: #b0c4de;
-            }
-            QPushButton#cancel_button {
-                min-height: 32px;
-                padding: 0 14px;
-                color: #b3261e;
-                background-color: #fdf2f2;
-                border: 1px solid #f5c2c0;
-                border-radius: 6px;
-                font-weight: 500;
-            }
-            QPushButton#cancel_button:hover {
-                background-color: #fae5e5;
-                border-color: #eb9f9d;
-            }
-            QPushButton#cancel_button:pressed {
-                background-color: #f7d5d4;
-                border-color: #de7e7b;
-            }
-            QPushButton#cancel_button:focus {
-                border: 2px solid #b3261e;
-            }
-            QPushButton#advanced_button {
-                color: #0066cc;
-                background-color: transparent;
-                border: 1px solid transparent;
-                padding: 0 8px;
-            }
-            QPushButton#advanced_button:hover {
-                color: #0055b3;
-                background-color: #eef4ff;
-                border-radius: 6px;
-            }
-            QPushButton#advanced_button:focus {
-                color: #004085;
-                background-color: #e0edff;
-                border: 2px solid #0066cc;
-                border-radius: 6px;
-            }
-            QPushButton#advanced_button:disabled {
-                color: #9a9aa1;
-                background-color: transparent;
-            }
-            QCheckBox:focus {
-                color: #003f80;
-                background-color: #e8f2ff;
-                border-radius: 4px;
-            }
-            QStatusBar {
-                color: #6e6e73;
-                background-color: #f5f5f7;
-                border-top: 0;
-            }
-            QDialog#advanced_dialog {
-                background-color: #f5f5f7;
-            }
-            QDialog#advanced_dialog QGroupBox {
-                font-weight: 600;
-                background-color: #ffffff;
-                border: 1px solid #dedee3;
-                border-radius: 8px;
-                margin-top: 10px;
-                padding: 12px 10px 10px;
-            }
-            QDialog#advanced_dialog QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 4px;
-            }
-            QMainWindow, QWidget#main_widget {
-                background-color: #f8fafc;
-                color: #172033;
-            }
-            QFrame#document_frame, QFrame#action_frame {
-                background-color: #f8fafc;
+                background-color: #f8f9fb;
                 border: 0;
                 border-radius: 0;
             }
             QFrame#document_frame {
-                border-bottom: 1px solid #dce3ed;
+                border-bottom: 1px solid #e1e5eb;
             }
             QFrame#action_frame {
-                border-top: 1px solid #dce3ed;
+                border-top: 1px solid #e1e5eb;
             }
-            QFrame#workspace_frame {
+            QFrame#workspace_frame, QWidget#editor_pane,
+            QWidget#preview_pane, QWidget#pane_tools {
                 background-color: #ffffff;
                 border: 0;
-                border-radius: 0;
+            }
+            QFrame#document_separator {
+                background-color: #d8dee7;
+                border: 0;
+                max-width: 1px;
+            }
+            QSplitter::handle {
+                background-color: #ffffff;
+                border-left: 1px solid #e1e5eb;
+                margin: 0 5px;
             }
             QLabel#brand_label {
-                font-size: 18px;
-                font-weight: 700;
-                color: #172033;
-            }
-            QLabel#document_icon_label {
-                background-color: #dc3f47;
-                color: #ffffff;
-                font-size: 10px;
-                font-weight: 700;
-                border-radius: 3px;
-                padding: 3px 4px;
+                font-size: 13px;
+                font-weight: 600;
+                color: #697689;
             }
             QLabel#document_name_label {
-                font-weight: 500;
-                color: #273247;
+                font-weight: 600;
+                color: #202b3a;
             }
-            QLabel#preview_count_label, QLabel#offset_formula_label {
-                color: #728096;
+            QLabel#dir_text_label, QLabel#preview_label {
+                font-weight: 600;
+                color: #263448;
+            }
+            QLabel#preview_count_label, QLabel#offset_formula_label,
+            QLabel#page_subtitle_label, QLabel#editor_hint_label,
+            QLabel#preview_hint_label, QLabel#pdf_path_label,
+            QLabel#output_label, QLabel#level_mode_label,
+            QLabel#offset_label {
+                color: #6e7b8c;
+            }
+            QLabel#preview_empty_label {
+                color: #798596;
+                background: transparent;
+            }
+            QLabel#action_status_label {
+                color: #6e7b8c;
+            }
+            QLabel#action_status_label[statusKind="working"] {
+                color: #245fa8;
+                font-weight: 600;
+            }
+            QLabel#action_status_label[statusKind="error"],
+            QLabel#regex_error_label, QLabel#output_error_label {
+                color: #b13b36;
+                font-weight: 500;
+            }
+            QLabel#action_status_label[statusKind="success"] {
+                color: #22714a;
+                font-weight: 600;
             }
             QToolButton#document_info_button, QToolButton#help_button,
             QToolButton#history_button, QToolButton#output_location_button {
-                color: #526075;
+                color: #667487;
                 background: transparent;
                 border: 0;
                 border-radius: 5px;
@@ -1370,79 +1106,209 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 font-size: 19px;
                 min-width: 27px;
             }
-            QToolButton#document_info_button:hover, QToolButton#help_button:hover,
-            QToolButton#history_button:hover, QToolButton#output_location_button:hover {
-                background-color: #eaf1fb;
-                color: #1758b4;
+            QToolButton#document_info_button:hover,
+            QToolButton#help_button:hover,
+            QToolButton#history_button:hover,
+            QToolButton#output_location_button:hover {
+                color: #245fa8;
+                background-color: #edf2f8;
             }
             QToolButton#history_button:disabled {
-                color: #abb5c4;
+                color: #aab3bf;
             }
             QPlainTextEdit#dir_text_edit {
-                color: #1c2739;
+                color: #202b3a;
                 background-color: #ffffff;
-                border: 1px solid #dbe3ef;
-                border-radius: 4px;
+                border: 0;
                 padding: 6px 0;
-                selection-background-color: #dcecff;
-                selection-color: #172033;
+                selection-background-color: #dceaff;
+                selection-color: #202b3a;
             }
-            QPlainTextEdit#dir_text_edit:focus, QTreeWidget#dir_tree_widget:focus {
-                border: 1px solid #5b93e8;
+            QPlainTextEdit#dir_text_edit:focus {
+                border-left: 2px solid #5b8fd4;
+            }
+            QPlainTextEdit#dir_text_edit:disabled {
+                color: #8994a3;
+                background-color: #f8f9fb;
             }
             QTreeWidget#dir_tree_widget {
+                color: #202b3a;
                 background-color: #ffffff;
-                border: 1px solid #dbe3ef;
-                border-radius: 4px;
+                border: 0;
+                show-decoration-selected: 1;
+            }
+            QTreeWidget#dir_tree_widget:focus {
+                border-left: 2px solid #5b8fd4;
+            }
+            QTreeWidget#dir_tree_widget:disabled {
+                color: #8994a3;
+                background-color: #f8f9fb;
             }
             QTreeWidget#dir_tree_widget::item {
-                min-height: 27px;
+                min-height: 22px;
                 padding: 2px 4px;
                 border: 0;
-                border-bottom: 1px solid #edf1f6;
-                border-radius: 0;
+                border-bottom: 1px solid #eef1f5;
+            }
+            QTreeWidget#dir_tree_widget::item:hover {
+                background-color: #f3f6fa;
             }
             QTreeWidget#dir_tree_widget::item:selected {
-                background-color: #dbeaff;
-                color: #172033;
+                background-color: #e5f0ff;
+                color: #203b5b;
                 font-weight: 500;
             }
             QHeaderView::section {
-                background-color: #f8fafc;
-                color: #37445a;
-                border-bottom: 1px solid #dbe3ef;
-                border-right: 1px solid #e8edf4;
+                color: #536174;
+                background-color: #f8f9fb;
+                border: 0;
+                border-bottom: 1px solid #e1e5eb;
+                border-right: 1px solid #edf0f4;
                 padding: 6px 10px;
-            }
-            QPushButton#auto_toc_button {
-                color: #185dbb;
-                background-color: #ffffff;
-                border-color: #8ab6ef;
-            }
-            QPushButton#paste_button, QPushButton#output_folder_button {
-                background-color: #ffffff;
-                border-color: #cdd7e4;
-            }
-            QPushButton#auto_toc_button:disabled,
-            QPushButton#paste_button:disabled,
-            QPushButton#output_folder_button:disabled {
-                color: #a1a1a6;
-                background-color: #f7f7f9;
-                border-color: #e5e5ea;
-            }
-            QPushButton#export_button {
-                background-color: #1765cf;
-                border-color: #1765cf;
-                min-width: 116px;
+                font-weight: 600;
             }
             QWidget#pane_tools {
-                background-color: #ffffff;
-                border-top: 1px solid #e5ebf3;
+                border-top: 1px solid #e7ebf0;
             }
-            QSplitter::handle {
-                background-color: #e0e6ef;
-                width: 1px;
-                margin: 0 4px;
+            QLineEdit, QComboBox {
+                color: #202b3a;
+                background-color: #ffffff;
+                border: 1px solid #cbd3de;
+                border-radius: 5px;
+                min-height: 22px;
+                selection-background-color: #dceaff;
+                selection-color: #202b3a;
+            }
+            QLineEdit {
+                padding: 4px 8px;
+            }
+            QLineEdit:focus {
+                border-color: #4f86cf;
+            }
+            QLineEdit:read-only {
+                color: #6e7b8c;
+                background-color: #f8f9fb;
+            }
+            QLineEdit:disabled, QComboBox:disabled {
+                color: #97a1af;
+                background-color: #f3f5f8;
+                border-color: #dfe4ea;
+            }
+            QLineEdit[invalid="true"] {
+                border-color: #b13b36;
+                background-color: #fff8f7;
+            }
+            QComboBox {
+                padding: 4px 28px 4px 10px;
+            }
+            QComboBox:hover {
+                background-color: #f9fafc;
+                border-color: #aebac9;
+            }
+            QComboBox:focus {
+                border-color: #4f86cf;
+            }
+            QComboBox QAbstractItemView {
+                color: #202b3a;
+                background-color: #ffffff;
+                border: 1px solid #cbd3de;
+                padding: 4px;
+                selection-background-color: #e5f0ff;
+                selection-color: #203b5b;
+            }
+            QPushButton {
+                min-height: 30px;
+                padding: 0 13px;
+                color: #263448;
+                background-color: #ffffff;
+                border: 1px solid #cbd3de;
+                border-radius: 5px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: #f1f4f8;
+                border-color: #aebac9;
+            }
+            QPushButton:pressed {
+                background-color: #e6ebf2;
+            }
+            QPushButton:focus {
+                border-color: #4f86cf;
+            }
+            QPushButton:disabled {
+                color: #99a3b0;
+                background-color: #f7f8fa;
+                border-color: #e2e6ec;
+            }
+            QPushButton#auto_toc_button, QPushButton#advanced_button {
+                color: #245fa8;
+                background-color: transparent;
+                border-color: transparent;
+            }
+            QPushButton#auto_toc_button:hover,
+            QPushButton#advanced_button:hover {
+                background-color: #edf2f8;
+            }
+            QPushButton#auto_toc_button:disabled,
+            QPushButton#advanced_button:disabled {
+                color: #a0a9b5;
+                background-color: transparent;
+                border-color: transparent;
+            }
+            QPushButton#paste_button {
+                background-color: transparent;
+                border-color: transparent;
+            }
+            QPushButton#export_button {
+                min-height: 32px;
+                min-width: 116px;
+                padding: 0 18px;
+                color: #ffffff;
+                background-color: #1765c1;
+                border-color: #1765c1;
+                font-weight: 600;
+            }
+            QPushButton#export_button:hover {
+                background-color: #1258ae;
+                border-color: #1258ae;
+            }
+            QPushButton#export_button:pressed {
+                background-color: #104a91;
+                border-color: #104a91;
+            }
+            QPushButton#export_button:focus {
+                border-color: #0f4485;
+            }
+            QPushButton#export_button:disabled {
+                color: #8692a2;
+                background-color: #e7ebf0;
+                border-color: #e7ebf0;
+            }
+            QCheckBox:focus {
+                color: #245fa8;
+                background-color: #edf2f8;
+                border-radius: 4px;
+            }
+            QStatusBar {
+                color: #6e7b8c;
+                background-color: #f8f9fb;
+                border: 0;
+            }
+            QDialog#advanced_dialog {
+                background-color: #f8f9fb;
+            }
+            QDialog#advanced_dialog QGroupBox {
+                font-weight: 600;
+                background-color: #ffffff;
+                border: 1px solid #e1e5eb;
+                border-radius: 6px;
+                margin-top: 10px;
+                padding: 12px 10px 10px;
+            }
+            QDialog#advanced_dialog QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 4px;
             }
             """
         )
@@ -1755,7 +1621,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self._refresh_document_name()
             self.document_name_label.setToolTip("")
         self.document_info_button.setEnabled(bool(source))
-        self.document_icon_label.setVisible(bool(source))
         self._refresh_document_name()
         self._refresh_dirty_state()
         self._update_action_availability()
