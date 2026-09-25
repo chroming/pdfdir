@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QMenu,
     QTreeWidget,
+    QTreeWidgetItem,
     QTreeWidgetItemIterator,
 )
 
@@ -42,10 +43,10 @@ class MixinContextMenu(object):
 
     def _show_context_menu(self, pos):
         item = self.currentItem()
-        if not item:
+        if not item and len(getattr(self, '_history', ())) < 2:
             return
         if pos is None or pos.x() < 0 or pos.y() < 0:
-            item_rect = self.visualItemRect(item)
+            item_rect = self.visualItemRect(item) if item else self.viewport().rect()
             pos = (
                 item_rect.bottomLeft()
                 if item_rect.isValid()
@@ -74,6 +75,9 @@ class TreeWidget(MixinContextMenu):
         header = self.header()
         # Only resize first column
         header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setStretchLastSection(False)
+        for column in (1, 2):
+            header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
 
     def init_connect(
         self,
@@ -84,6 +88,11 @@ class TreeWidget(MixinContextMenu):
         self._preview_changed_callback = preview_changed
         self._suppress_preview_changed = False
         super(TreeWidget, self).__init__(parents)
+        self.undo_action = self.add_action("撤销", self.undo)
+        self.redo_action = self.add_action("重做", self.redo)
+        self.undo_action.setShortcut(QKeySequence.Undo)
+        self.redo_action.setShortcut(QKeySequence.Redo)
+        self.context_menu.addSeparator()
         self.itemPressed.connect(self.close_editor)
         self.itemDoubleClicked.connect(self.item_double_clicked)
         self.itemChanged.connect(self._item_changed)
@@ -115,9 +124,103 @@ class TreeWidget(MixinContextMenu):
         self.last_item = None
         self.last_column = None
         self._configure_all_items()
+        self._history = []
+        self._history_index = -1
+        self._history_paused = False
+        self.reset_history()
+
+    def _snapshot(self):
+        def record(item):
+            return (tuple(item.text(i) for i in range(self.columnCount())),
+                    tuple(record(item.child(i)) for i in range(item.childCount())))
+        return tuple(record(self.topLevelItem(i)) for i in range(self.topLevelItemCount()))
+
+    def reset_history(self):
+        self._history = [self._snapshot()]
+        self._history_index = 0
+        self._update_history_actions()
+
+    def _update_history_actions(self):
+        self.undo_action.setEnabled(self._history_index > 0)
+        self.redo_action.setEnabled(self._history_index < len(self._history) - 1)
+
+    def record_history(self):
+        if not hasattr(self, '_history') or self._history_paused:
+            return
+        state = self._snapshot()
+        if state == self._history[self._history_index]:
+            return
+        del self._history[self._history_index + 1:]
+        self._history.append(state)
+        self._history = self._history[-100:]
+        self._history_index = len(self._history) - 1
+        self._update_history_actions()
+
+    def _restore_history(self, direction):
+        target = self._history_index + direction
+        if not 0 <= target < len(self._history):
+            return
+        self._history_paused = True
+        self._suppress_preview_changed = True
+        try:
+            self.clear()
+            def restore(record, parent):
+                texts, children = record
+                item = QTreeWidgetItem(list(texts))
+                if parent is None:
+                    self.addTopLevelItem(item)
+                else:
+                    parent.addChild(item)
+                for child in children:
+                    restore(child, item)
+                item.setExpanded(True)
+            for record in self._history[target]:
+                restore(record, None)
+            self._history_index = target
+            self._configure_all_items()
+        finally:
+            self._suppress_preview_changed = False
+            self._history_paused = False
+        self._notify_preview_changed()
+        self._update_history_actions()
+
+    def undo(self):
+        self._restore_history(-1)
+
+    def redo(self):
+        self._restore_history(1)
+
+    def shift_page_offset(self, delta):
+        """Shift current and undo states together, preserving manual corrections."""
+        if not delta:
+            return
+        def shifted(text):
+            try:
+                return str(int(text) + delta)
+            except ValueError:
+                return text
+        def shift_record(record):
+            texts, children = record
+            texts = list(texts)
+            texts[2] = shifted(texts[2])
+            return tuple(texts), tuple(shift_record(child) for child in children)
+        self._suppress_preview_changed = True
+        try:
+            for item in self.all_items:
+                item.setText(2, shifted(item.text(2)))
+                self._refresh_item_tooltips(item)
+            self._history = [tuple(shift_record(row) for row in state)
+                             for state in self._history]
+        finally:
+            self._suppress_preview_changed = False
 
     def dropEvent(self, event):
-        self._perform_drop_event(event)
+        self.record_history()
+        self._history_paused = True
+        try:
+            self._perform_drop_event(event)
+        finally:
+            self._history_paused = False
         if event.isAccepted():
             self._configure_all_items()
             self._notify_preview_changed()
@@ -126,6 +229,14 @@ class TreeWidget(MixinContextMenu):
         super(TreeWidget, self).dropEvent(event)
 
     def keyPressEvent(self, event):
+        if event.matches(QKeySequence.Undo):
+            self.undo()
+            event.accept()
+            return
+        if event.matches(QKeySequence.Redo):
+            self.redo()
+            event.accept()
+            return
         key = event.key()
         modifiers = event.modifiers()
         if key == Qt.Key_F2 and self.currentItem():
@@ -153,6 +264,8 @@ class TreeWidget(MixinContextMenu):
         self.delete_action.setText(label)
 
     def _notify_preview_changed(self):
+        if not self._suppress_preview_changed:
+            self.record_history()
         callback = self._preview_changed_callback
         if callback and not self._suppress_preview_changed:
             callback()
@@ -163,6 +276,7 @@ class TreeWidget(MixinContextMenu):
             item = self.itemFromIndex(index)
             if item:
                 self._configure_item_tree(item)
+        self.record_history()
 
     def _configure_all_items(self):
         for item in self.all_items:

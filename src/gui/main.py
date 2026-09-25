@@ -243,7 +243,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             "preview_compact_hint": "编辑：F2 · 双击 · 拖动 · Delete",
             "preview_manual_hint": "预览已手工调整。编辑左侧目录或识别规则会重建并替换这些调整。",
             "preview_manual_compact_hint": "预览已手工调整；修改左侧内容会重建。",
-            "preview_reset": "目录或识别规则已更改，预览已重新生成",
+            "preview_reset": "预览已重新生成；可在右侧右键菜单中撤销",
             "invalid_regex": "{level} 的正则表达式无效：{message}",
             "empty_title": "第 {row} 条书签缺少标题，请在预览中修正。",
             "invalid_preview_page": "第 {row} 条书签页码必须是整数，请在预览中修正。",
@@ -330,7 +330,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             "preview_compact_hint": "Edit: F2 · double-click · drag · Delete",
             "preview_manual_hint": "Preview adjusted manually. Editing TOC text or recognition rules will rebuild and replace these changes.",
             "preview_manual_compact_hint": "Preview adjusted manually; changing the left side rebuilds it.",
-            "preview_reset": "TOC text or recognition rules changed; the preview was rebuilt",
+            "preview_reset": "Preview rebuilt; use Undo in the preview context menu to restore it",
             "invalid_regex": "Invalid regular expression for {level}: {message}",
             "empty_title": "Bookmark {row} has no title; correct it in the preview.",
             "invalid_preview_page": "Bookmark {row} must use integer page numbers; correct it in the preview.",
@@ -412,6 +412,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self._on_preview_changed
         )
         self.dir_tree_widget.fix_column()
+        self._preview_offset = self.offset_num
         self._set_connect()
         self._set_action()
         self._set_unwritable()
@@ -593,6 +594,15 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.tools_controls_layout = QtWidgets.QGridLayout()
         self.tools_controls_layout.setHorizontalSpacing(8)
         self.tools_controls_layout.setVerticalSpacing(6)
+        self.offset_controls = QtWidgets.QWidget(self.tools_frame)
+        offset_layout = QtWidgets.QHBoxLayout(self.offset_controls)
+        offset_layout.setContentsMargins(0, 0, 0, 0)
+        offset_layout.setSpacing(8)
+        offset_layout.addWidget(self.offset_edit)
+        offset_layout.addWidget(self.auto_offset_button)
+        self.offset_controls.setSizePolicy(
+            QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred
+        )
         tools_layout.addLayout(self.tools_controls_layout)
         self._tools_compact = None
         self._layout_tool_controls(False)
@@ -702,8 +712,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.level_mode_label,
             self.level_mode_box,
             self.offset_label,
-            self.offset_edit,
-            self.auto_offset_button,
+            self.offset_controls,
             self.advanced_button,
         ):
             layout.removeWidget(widget)
@@ -716,14 +725,12 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             layout.setColumnStretch(2, 1)
             layout.addWidget(self.advanced_button, 0, 3)
             layout.addWidget(self.offset_label, 1, 0)
-            layout.addWidget(self.offset_edit, 1, 1)
-            layout.addWidget(self.auto_offset_button, 1, 2)
+            layout.addWidget(self.offset_controls, 1, 1, 1, 2, QtCore.Qt.AlignLeft)
         else:
             layout.addWidget(self.level_mode_label, 0, 0)
             layout.addWidget(self.level_mode_box, 0, 1)
             layout.addWidget(self.offset_label, 0, 2)
-            layout.addWidget(self.offset_edit, 0, 3)
-            layout.addWidget(self.auto_offset_button, 0, 4)
+            layout.addWidget(self.offset_controls, 0, 3, 1, 2)
             layout.setColumnStretch(5, 1)
             layout.addWidget(self.advanced_button, 0, 6)
         layout.invalidate()
@@ -863,7 +870,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.cancel_button,
             self.export_button,
         )
-        tool_width = sum(widget.sizeHint().width() for widget in tool_controls)
+        tool_width = sum(
+            min(widget.maximumWidth(), max(widget.minimumWidth(), widget.sizeHint().width()))
+            for widget in tool_controls
+        )
         action_width = sum(
             widget.sizeHint().width() for widget in action_controls
         )
@@ -873,7 +883,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.action_status_label.fontMetrics().lineSpacing() + 8
         )
         self._layout_tool_controls(
-            large_font or self.tools_frame.width() < tool_width + 80
+            large_font or self.tools_frame.width() < tool_width + 5 * 8
         )
         self._layout_action_controls(
             large_font or self.action_frame.width() < action_width + 80
@@ -1260,7 +1270,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.level5_box.clicked.connect(self._change_level5_writable)
         for act in (
             self.dir_text_edit.textChanged,
-            self.offset_edit.textChanged,
             self.level0_box.stateChanged,
             self.level1_box.stateChanged,
             self.level2_box.stateChanged,
@@ -1278,6 +1287,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.fix_non_seq_box.stateChanged,
         ):
             act.connect(self.make_dir_tree)
+        self.offset_edit.textChanged.connect(self._update_preview_offset)
         self.pdf_path_edit.textChanged.connect(self._update_output_path)
         self.pdf_path_edit.editingFinished.connect(
             self._commit_typed_pdf_path
@@ -1841,6 +1851,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.dir_tree_widget.set_delete_action_label(
             "Delete" if english else "删除"
         )
+        self.dir_tree_widget.undo_action.setText("Undo" if english else "撤销")
+        self.dir_tree_widget.redo_action.setText("Redo" if english else "重做")
         for index, editor in enumerate(self._regex_editors):
             level_name = (
                 "Level {}".format(index + 1)
@@ -2426,6 +2438,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.dir_text_edit.clear()
         self.offset_edit.setText("0")
         self.keep_exist_dir_box.setChecked(False)
+        self.dir_tree_widget.reset_history()
 
     def _activate_document(self, filename):
         if self._has_active_task():
@@ -2523,11 +2536,24 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def tree_to_dict(self):
         return self.dir_tree_widget.to_dict()
 
+    def _update_preview_offset(self):
+        try:
+            offset = int(self.offset_edit.text())
+        except ValueError:
+            return
+        delta = offset - self._preview_offset
+        self._preview_offset = offset
+        self.dir_tree_widget.shift_page_offset(delta)
+        self._refresh_dirty_state()
+        self._update_action_availability()
+
     def make_dir_tree(self):
         if not hasattr(self, "preview_empty_label"):
             return
         had_manual_adjustments = self._preview_manually_adjusted
         self._rebuilding_tree = True
+        self.dir_tree_widget._history_paused = True
+        self._preview_offset = self.offset_num
         self._preview_manually_adjusted = False
         self._preview_validation_error = ""
         try:
@@ -2580,6 +2606,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             for item in inserted_items.values():
                 item.setExpanded(True)
         finally:
+            self.dir_tree_widget._history_paused = False
+            self.dir_tree_widget.record_history()
             self._rebuilding_tree = False
             self._refresh_preview_hint()
             self._update_preview_empty_state()

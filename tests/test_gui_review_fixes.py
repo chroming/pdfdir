@@ -72,7 +72,7 @@ def test_pure_page_number_is_not_exportable_bookmark(window, tmp_path):
     assert "标题" in window.export_button.toolTip()
 
 
-def test_rebuilding_after_manual_preview_edit_is_explicit(window):
+def test_offset_preserves_manual_preview_edit(window):
     window.dir_text_edit.setPlainText("Original title 1")
     item = window.dir_tree_widget.topLevelItem(0)
     item.setText(0, "Corrected title")
@@ -82,8 +82,71 @@ def test_rebuilding_after_manual_preview_edit_is_explicit(window):
 
     window.offset_edit.setText("1")
 
-    assert window.dir_tree_widget.topLevelItem(0).text(0) == "Original title"
-    assert "重新生成" in window.statusbar.currentMessage()
+    assert window.dir_tree_widget.topLevelItem(0).text(0) == "Corrected title"
+    assert window.dir_tree_widget.topLevelItem(0).text(2) == "2"
+
+
+def test_preview_undo_restores_subtree_and_redo_deletes_it(window):
+    window.dir_text_edit.setPlainText("Chapter 1\n  Child 2")
+    tree = window.dir_tree_widget
+    tree.topLevelItem(0).setText(0, "Corrected")
+    tree.setCurrentItem(tree.topLevelItem(0))
+    tree.item_remove_current()
+    assert tree.topLevelItemCount() == 0
+    assert tree.undo_action.isEnabled()
+    tree.undo()
+    assert tree.topLevelItem(0).text(0) == "Corrected"
+    assert tree.topLevelItem(0).child(0).text(0) == "Child"
+    tree.redo()
+    assert tree.topLevelItemCount() == 0
+
+
+def test_preview_rebuild_can_be_undone_and_offset_keeps_history_consistent(window):
+    window.dir_text_edit.setPlainText("Original 1")
+    tree = window.dir_tree_widget
+    tree.topLevelItem(0).setText(0, "Corrected")
+    window.dir_text_edit.setPlainText("Replacement 2")
+    tree.undo()
+    assert tree.topLevelItem(0).text(0) == "Corrected"
+    window.offset_edit.setText("-")
+    assert tree.topLevelItem(0).text(2) == "1"
+    window.offset_edit.setText("-2")
+    assert tree.topLevelItem(0).text(2) == "-1"
+    tree.redo()
+    assert tree.topLevelItem(0).text(2) == "0"
+    tree.undo()
+    tree.topLevelItem(0).setText(0, "New edit")
+    assert not tree.redo_action.isEnabled()
+
+
+def test_title_column_owns_remaining_space(window):
+    window.dir_text_edit.setPlainText("A long bookmark title 1")
+    window.resize(1440, 900)
+    window.app.processEvents()
+    tree = window.dir_tree_widget
+    assert not tree.header().stretchLastSection()
+    assert tree.columnWidth(0) > tree.columnWidth(1) + tree.columnWidth(2)
+
+
+def test_english_minimum_keeps_offset_controls_grouped(window):
+    window.to_english()
+    window.resize(780, 560)
+    window.app.processEvents()
+    assert window.offset_edit.parentWidget() is window.auto_offset_button.parentWidget()
+    gap = window.auto_offset_button.x() - (window.offset_edit.x() + window.offset_edit.width())
+    assert gap == window.offset_controls.layout().spacing()
+    assert not window._tools_compact
+
+
+def test_keyboard_undo_and_redo_restore_deleted_preview(window, qtbot):
+    window.dir_text_edit.setPlainText("Chapter 1")
+    tree = window.dir_tree_widget
+    tree.setCurrentItem(tree.topLevelItem(0))
+    qtbot.keyClick(tree, QtCore.Qt.Key_Delete)
+    qtbot.keyClick(tree, QtCore.Qt.Key_Z, QtCore.Qt.ControlModifier)
+    assert tree.topLevelItemCount() == 1
+    tree.redo_action.trigger()
+    assert tree.topLevelItemCount() == 0
 
 
 def test_advanced_dialog_has_local_mode_switch_and_initial_focus(

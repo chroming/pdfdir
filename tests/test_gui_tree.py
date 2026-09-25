@@ -50,7 +50,7 @@ def test_tree_controller_removes_selected_top_level_and_child_items(qtbot):
     child.setSelected(True)
     other.setSelected(True)
 
-    controller.context_menu.actions()[0].trigger()
+    controller.delete_action.trigger()
 
     assert parent.childCount() == 0
     assert widget.topLevelItemCount() == 1
