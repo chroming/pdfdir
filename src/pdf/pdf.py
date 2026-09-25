@@ -11,9 +11,12 @@ public:
 
 import logging
 import os
+import tempfile
 
 from pypdf import PageObject, PdfReader, PdfWriter
 from pypdf.generic import Destination, Fit
+
+from .page_labels import PageLabelPlan, apply_page_labels
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +45,14 @@ class Pdf(object):
 
     """
 
-    def __init__(self, path, keep_outline=False):
+    def __init__(self, path, keep_outline=False, page_label_plan=None):
         self.path = path
-        self.reader = PdfReader(open(path, "rb"), strict=False)
+        self._source_stat = os.stat(path)
+        self.reader = PdfReader(path, strict=False)
         self.pages_num = self._get_pages_num(self.reader.pages)
         self._writer = None
         self.keep_outline = keep_outline
+        self.page_label_plan = page_label_plan or PageLabelPlan()
 
     @property
     def _new_path(self):
@@ -69,6 +74,7 @@ class Pdf(object):
             # when adding bookmarks to some pdf which already have outline
             if not self.keep_outline:
                 writer._root_object.pop("/Outlines", None)
+            apply_page_labels(self.reader, writer, self.page_label_plan)
             self._writer = writer
         return self._writer
 
@@ -198,8 +204,35 @@ class Pdf(object):
 
     def save_pdf(self):
         """save the writer to a pdf file with name 'name_new.pdf'"""
-        if os.path.exists(self._new_path):
-            os.remove(self._new_path)
-        with open(self._new_path, "wb") as out:
-            self.writer.write(out)
+        writer = self.writer
+        fd, temp_path = tempfile.mkstemp(
+            prefix=".pdfdir-", suffix=".pdf", dir=os.path.dirname(self._new_path) or "."
+        )
+        try:
+            with os.fdopen(fd, "wb") as out:
+                writer.write(out)
+            output = PdfReader(temp_path)
+            if len(output.pages) != len(self.reader.pages):
+                raise ValueError("Exported PDF has a different page count")
+            if self.page_label_plan.mode == "preserve":
+                if self.reader.trailer["/Root"].get("/PageLabels") is not None:
+                    if output.page_labels != self.reader.page_labels:
+                        raise ValueError("Exported PDF lost its existing page labels")
+            elif output.page_labels[self.page_label_plan.body_start_page - 1] != "1":
+                raise ValueError("Exported PDF has incorrect body page labels")
+            current_stat = os.stat(self.path)
+            if (
+                current_stat.st_ino,
+                current_stat.st_size,
+                current_stat.st_mtime_ns,
+            ) != (
+                self._source_stat.st_ino,
+                self._source_stat.st_size,
+                self._source_stat.st_mtime_ns,
+            ):
+                raise ValueError("Source PDF changed during export; please retry")
+            os.replace(temp_path, self._new_path)
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
         return self._new_path

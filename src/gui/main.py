@@ -22,7 +22,9 @@ from src.gui.main_ui import Ui_PDFdir
 from src.updater import is_updated
 from src.pdf.bookmark import add_bookmark, check_bookmarks, get_bookmarks
 from src.pdf.page_offset import OcrCancelledError, infer_page_offset
+from src.pdf.page_labels import PageLabelPlan
 from src.pdf.toc import extract_toc_text
+from pypdf import PdfReader
 
 # import qdarkstyle
 
@@ -108,8 +110,12 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.app = app
         self.trans = trans
         self.setupUi(self)
+        self.setMinimumSize(760, 580)
+        self._pdf_page_count = 0
+        self._page_label_language = "zh"
         self._init_auto_offset_button()
         self._init_auto_toc_button()
+        self._init_page_label_controls()
         self._fix_small_fonts()
         self.version = CONFIG.VERSION
         self.default_folder = CONFIG.DEFAULT_FOLDER
@@ -129,6 +135,116 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._worker_thread = None
         self._worker_busy = False
         self._close_pending = False
+        self._loaded_draft = self._draft_snapshot()
+        self._update_page_label_summary()
+
+    def _draft_snapshot(self):
+        return (
+            self.dir_text,
+            self.offset_edit.text(),
+            self.tree_to_dict(),
+            self.page_label_mode.currentIndex(),
+            self.page_label_auto.isChecked(),
+            self.body_start_page.value(),
+        )
+
+    def _has_unsaved_draft(self):
+        return self._draft_snapshot() != self._loaded_draft
+
+    def _init_page_label_controls(self):
+        self.page_label_group = QtWidgets.QGroupBox(self.main_widget)
+        self.page_label_group.setObjectName("page_label_group")
+        layout = QtWidgets.QVBoxLayout(self.page_label_group)
+        self.page_label_mode = QtWidgets.QComboBox(self.page_label_group)
+        self.page_label_mode.setObjectName("page_label_mode")
+        layout.addWidget(self.page_label_mode)
+        self.page_label_auto = QtWidgets.QCheckBox(self.page_label_group)
+        self.page_label_auto.setObjectName("page_label_auto")
+        self.page_label_auto.setChecked(True)
+        self.body_start_page = QtWidgets.QSpinBox(self.page_label_group)
+        self.body_start_page.setObjectName("body_start_page")
+        self.body_start_page.setMinimum(1)
+        self.body_start_page.setMaximum(999999)
+        start_row = QtWidgets.QHBoxLayout()
+        start_row.addWidget(self.page_label_auto)
+        start_row.addWidget(self.body_start_page)
+        layout.addLayout(start_row)
+        self.page_label_summary = QtWidgets.QLabel(self.page_label_group)
+        self.page_label_summary.setObjectName("page_label_summary")
+        self.page_label_summary.setWordWrap(True)
+        layout.addWidget(self.page_label_summary)
+        self.verticalLayout_3.insertWidget(
+            self.verticalLayout_3.indexOf(self.sub_dir_group), self.page_label_group
+        )
+        self._translate_page_label_controls()
+
+    def _translate_page_label_controls(self):
+        zh = self._page_label_language == "zh"
+        self.page_label_group.setTitle("阅读器页码" if zh else "Reader page numbers")
+        self.page_label_mode.blockSignals(True)
+        selected = self.page_label_mode.currentIndex()
+        self.page_label_mode.clear()
+        self.page_label_mode.addItems(
+            ["保留原文件页码", "前置页罗马，正文从 1 开始"]
+            if zh else ["Preserve source labels", "Roman front, body from 1"]
+        )
+        self.page_label_mode.setCurrentIndex(max(selected, 0))
+        self.page_label_mode.blockSignals(False)
+        self.page_label_auto.setText("根据页差" if zh else "Use page offset")
+        self.body_start_page.setPrefix("PDF 第 " if zh else "PDF page ")
+        self.body_start_page.setSuffix(" 页" if zh else "")
+        self._update_page_label_summary()
+
+    def _update_page_label_summary(self):
+        if not hasattr(self, "page_label_mode"):
+            return
+        generated = self.page_label_mode.currentIndex() == 1
+        self.page_label_auto.setVisible(generated)
+        self.body_start_page.setVisible(generated)
+        self.body_start_page.setEnabled(generated and not self.page_label_auto.isChecked())
+        if generated and self.page_label_auto.isChecked():
+            suggested = self.offset_num + 1
+            if suggested > 0:
+                self.body_start_page.blockSignals(True)
+                self.body_start_page.setValue(suggested)
+                self.body_start_page.blockSignals(False)
+        zh = getattr(self, "_page_label_language", "zh") == "zh"
+        if not generated:
+            msg = "导出时保留原 PDF 的页码规则" if zh else "Keep the source PDF page labels"
+        elif self.page_label_auto.isChecked() and self.offset_num < 0:
+            msg = "页差不能推导正文起始页，请手动指定" if zh else "Set body start manually for a negative offset"
+        elif self._pdf_page_count and (
+            (self.page_label_auto.isChecked() and self.offset_num + 1 > self._pdf_page_count)
+            or self.body_start_page.value() > self._pdf_page_count
+        ):
+            msg = "正文起始页超过 PDF 总页数" if zh else "Body start exceeds the PDF page count"
+        else:
+            start = self.body_start_page.value()
+            if zh:
+                msg = "PDF 第 1–{} 页：i…；第 {} 页起：1…".format(start - 1, start) if start > 1 else "PDF 第 1 页起：1…"
+                msg += "；将替换原有页码规则"
+            else:
+                msg = "PDF pages 1–{}: i…; page {} onward: 1…".format(start - 1, start) if start > 1 else "PDF page 1 onward: 1…"
+                msg += "; replaces source labels"
+        self.page_label_summary.setText(msg)
+
+    def _refresh_pdf_page_count(self):
+        self._pdf_page_count = 0
+        if os.path.isfile(self.pdf_path):
+            try:
+                self._pdf_page_count = len(PdfReader(self.pdf_path).pages)
+            except Exception:
+                pass
+        self._update_page_label_summary()
+
+    @property
+    def page_label_plan(self):
+        if self.page_label_mode.currentIndex() == 0:
+            return PageLabelPlan()
+        if self.page_label_auto.isChecked() and self.offset_num < 0:
+            raise ValueError("A negative offset cannot infer the body start page")
+        start = self.offset_num + 1 if self.page_label_auto.isChecked() else self.body_start_page.value()
+        return PageLabelPlan("roman-body", start)
 
     def _fix_small_fonts(self):
         """Override hardcoded small font sizes from main_ui.py for readability.
@@ -206,6 +322,11 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.fix_non_seq_action.changed,
         ):
             act.connect(self.make_dir_tree)
+        self.offset_edit.textChanged.connect(self._update_page_label_summary)
+        self.page_label_mode.currentIndexChanged.connect(self._update_page_label_summary)
+        self.page_label_auto.stateChanged.connect(self._update_page_label_summary)
+        self.body_start_page.valueChanged.connect(self._update_page_label_summary)
+        self.pdf_path_edit.editingFinished.connect(self._refresh_pdf_page_count)
 
     def _set_action(self):
         self.home_page_action.triggered.connect(self._open_home_page)
@@ -282,13 +403,46 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         box.exec_()
 
     def to_english(self):
-        self.trans.load("./language/en")
+        if not self.trans.load("./language/en"):
+            self.trans.load(os.path.join(os.path.dirname(__file__), "..", "language", "en.qm"))
         self.app.installTranslator(self.trans)
-        self.retranslateUi(self)
+        self._retranslate_preserving_draft()
+        self._page_label_language = "en"
+        self._translate_page_label_controls()
 
     def to_chinese(self):
         self.app.removeTranslator(self.trans)
-        self.retranslateUi(self)
+        self._retranslate_preserving_draft()
+        self._page_label_language = "zh"
+        self._translate_page_label_controls()
+
+    def _retranslate_preserving_draft(self):
+        editable = [
+            self.dir_text_edit,
+            self.offset_edit,
+            self.level0_edit,
+            self.level1_edit,
+            self.level2_edit,
+            self.level3_edit,
+            self.level4_edit,
+            self.level5_edit,
+            self.unknown_level_box,
+            self.fix_non_seq_action,
+        ]
+        blockers = [QtCore.QSignalBlocker(widget) for widget in editable]
+        directory = self.dir_text
+        offset = self.offset_edit.text()
+        levels = [widget.text() for widget in editable[2:8]]
+        unknown_level = self.unknown_level_box.currentIndex()
+        try:
+            self.retranslateUi(self)
+            self.dir_text_edit.setPlainText(directory)
+            self.offset_edit.setText(offset)
+            for widget, value in zip(editable[2:8], levels):
+                widget.setText(value)
+            self.unknown_level_box.setCurrentIndex(unknown_level)
+        finally:
+            del blockers
 
     @property
     def pdf_path(self):
@@ -353,14 +507,43 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, "select PDF", directory=self.default_folder, filter="PDF (*.pdf)"
         )
+        if not filename or filename == self.pdf_path:
+            return
+        previous_path = self.pdf_path
+        if previous_path and self._has_unsaved_draft():
+            zh = self._page_label_language == "zh"
+            box = QMessageBox(self)
+            box.setWindowTitle("未导出的目录修改" if zh else "Unsaved directory edits")
+            box.setText(
+                "打开其他文件前，如何处理当前修改？"
+                if zh else "What should happen to the current edits?"
+            )
+            export = box.addButton("导出当前 PDF" if zh else "Export current PDF", QMessageBox.AcceptRole)
+            discard = box.addButton("放弃修改" if zh else "Discard edits", QMessageBox.DestructiveRole)
+            cancel = box.addButton("取消" if zh else "Cancel", QMessageBox.RejectRole)
+            box.setDefaultButton(cancel)
+            box.exec_()
+            if box.clickedButton() == cancel:
+                return
+            if box.clickedButton() == export and not self.write_tree_to_pdf():
+                return
+            if box.clickedButton() != discard and box.clickedButton() != export:
+                return
         self.default_folder = os.path.dirname(filename)
+        if previous_path:
+            self.dir_text_edit.clear()
+            self.offset_edit.setText("0")
         self.pdf_path_edit.setText(filename)
+        self.page_label_mode.setCurrentIndex(0)
+        self.page_label_auto.setChecked(True)
+        self._refresh_pdf_page_count()
 
         exist_bookmarks = self.read_pdf_dir_text(filename)
         if exist_bookmarks and self.read_exist_dir:
             exist_bookmarks = clean_clipboard_control_chars(exist_bookmarks)
             self.dir_text_edit.setText(exist_bookmarks)
             self.space_level_box.setChecked(True)
+        self._loaded_draft = self._draft_snapshot()
 
     def tree_to_dict(self):
         return self.dir_tree_widget.to_dict()
@@ -550,23 +733,48 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         super(Main, self).closeEvent(event)
 
     def pre_check(self, path, index_dict):
-        try:
-            check_bookmarks(path, index_dict, self.keep_exist_dir)
-        except ValueError as e:
-            self.alert_msg(str(e), level="Warning")
+        check_bookmarks(path, index_dict, self.keep_exist_dir)
+        self.page_label_plan.validate(len(PdfReader(path).pages))
 
     def write_tree_to_pdf(self):
         try:
             index_dict = self.tree_to_dict()
             self.pre_check(self.pdf_path, index_dict)
-            new_path = self.dict_to_pdf(self.pdf_path, index_dict, self.keep_exist_dir)
+            name, ext = os.path.splitext(self.pdf_path)
+            output_path = name + "_new" + ext
+            if os.path.exists(output_path):
+                zh = self._page_label_language == "zh"
+                box = QMessageBox(self)
+                box.setWindowTitle("替换导出的 PDF" if zh else "Replace exported PDF")
+                box.setText(
+                    ("替换已有文件？\n{}" if zh else "Replace the existing file?\n{}").format(
+                        output_path
+                    )
+                )
+                replace = box.addButton("替换" if zh else "Replace", QMessageBox.DestructiveRole)
+                cancel = box.addButton("取消" if zh else "Cancel", QMessageBox.RejectRole)
+                box.setDefaultButton(cancel)
+                box.exec_()
+                if box.clickedButton() != replace:
+                    return False
+            self.export_button.setEnabled(False)
+            self.show_status("Writing PDF..." if self._page_label_language == "en" else "正在写入 PDF…")
+            QtWidgets.QApplication.processEvents()
+            new_path = self.dict_to_pdf(
+                self.pdf_path, index_dict, self.keep_exist_dir, self.page_label_plan
+            )
             self.alert_msg("%s Finished！" % new_path)
-        except PermissionError:
-            self.alert_msg("Permission denied！", level="warn")
+            self._loaded_draft = self._draft_snapshot()
+            return True
+        except Exception as exc:
+            self.alert_msg(str(exc), level="warn")
+            return False
+        finally:
+            self.export_button.setEnabled(True)
 
     @staticmethod
-    def dict_to_pdf(pdf_path, index_dict, keep_exist_dir=False):
-        return add_bookmark(pdf_path, index_dict, keep_exist_dir)
+    def dict_to_pdf(pdf_path, index_dict, keep_exist_dir=False, page_label_plan=None):
+        return add_bookmark(pdf_path, index_dict, keep_exist_dir, page_label_plan)
 
     @staticmethod
     def read_pdf_dir_text(pdf_path):

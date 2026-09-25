@@ -56,13 +56,16 @@ def merge_bookmarks(existing_bookmarks, new_bookmarks):
     return merged
 
 
-def add_bookmark(path, index_dict, keep_exist_dir=False):
+def add_bookmark(path, index_dict, keep_exist_dir=False, page_label_plan=None):
     """
     Add directory bookmarks to the pdf file.
     :param path: pdf file path.
     :param index_dict: bookmarks dict, like {0:{'title':'A', 'pagenum':1}, 1:{'title':'B', pagenum:2, parent: 0} ......}
     """
-    pdf = Pdf(path, keep_outline=keep_exist_dir)
+    pdf = Pdf(
+        path, keep_outline=keep_exist_dir, page_label_plan=page_label_plan
+    )
+    check_bookmarks(path, index_dict, keep_exist_dir)
     _add_bookmark(pdf, index_dict)
     return pdf.save_pdf()
 
@@ -80,12 +83,12 @@ def get_bookmarks(path):
 def check_bookmarks(path, index_dict, keep_exist_dir=False):
     if not index_dict:
         return
-    pdf = Pdf(path, keep_outline=keep_exist_dir)
-    max_page_num = len(pdf.writer.pages)
-    max_set_page_num = max([v.get("real_num", 1) for v in index_dict.values()])
-    if max_set_page_num > max_page_num:
-        raise ValueError(
-            "Max page number '{}' exceeds the pdf real page number '{}'!".format(
-                max_set_page_num, max_page_num
+    from pypdf import PdfReader
+
+    max_page_num = len(PdfReader(path).pages)
+    for value in index_dict.values():
+        page = value.get("real_num", 1)
+        if not isinstance(page, int) or not 1 <= page <= max_page_num:
+            raise ValueError(
+                "Bookmark page '{}' must be between 1 and {}".format(page, max_page_num)
             )
-        )
