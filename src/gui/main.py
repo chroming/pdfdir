@@ -110,6 +110,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.app = app
         self.trans = trans
         self.setupUi(self)
+        self._active_pdf_path = self.pdf_path_edit.text()
         self.setMinimumSize(760, 580)
         self._pdf_page_count = 0
         self._page_label_language = "zh"
@@ -326,7 +327,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.page_label_mode.currentIndexChanged.connect(self._update_page_label_summary)
         self.page_label_auto.stateChanged.connect(self._update_page_label_summary)
         self.body_start_page.valueChanged.connect(self._update_page_label_summary)
-        self.pdf_path_edit.editingFinished.connect(self._refresh_pdf_page_count)
+        self.pdf_path_edit.editingFinished.connect(self._on_pdf_path_edited)
 
     def _set_action(self):
         self.home_page_action.triggered.connect(self._open_home_page)
@@ -507,9 +508,24 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, "select PDF", directory=self.default_folder, filter="PDF (*.pdf)"
         )
-        if not filename or filename == self.pdf_path:
-            return
-        previous_path = self.pdf_path
+        if filename:
+            self._open_pdf(filename)
+
+    def _on_pdf_path_edited(self):
+        filename = self.pdf_path_edit.text().strip()
+        if filename == self._active_pdf_path:
+            return True
+        # Restore the current document while its draft and possible export are
+        # resolved; the new path is accepted only after that decision.
+        blocker = QtCore.QSignalBlocker(self.pdf_path_edit)
+        self.pdf_path_edit.setText(self._active_pdf_path)
+        del blocker
+        return self._open_pdf(filename)
+
+    def _open_pdf(self, filename):
+        if filename == self._active_pdf_path:
+            return True
+        previous_path = self._active_pdf_path
         if previous_path and self._has_unsaved_draft():
             zh = self._page_label_language == "zh"
             box = QMessageBox(self)
@@ -524,16 +540,18 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             box.setDefaultButton(cancel)
             box.exec_()
             if box.clickedButton() == cancel:
-                return
+                return False
             if box.clickedButton() == export and not self.write_tree_to_pdf():
-                return
+                return False
             if box.clickedButton() != discard and box.clickedButton() != export:
-                return
-        self.default_folder = os.path.dirname(filename)
+                return False
+        if filename:
+            self.default_folder = os.path.dirname(filename)
         if previous_path:
             self.dir_text_edit.clear()
             self.offset_edit.setText("0")
         self.pdf_path_edit.setText(filename)
+        self._active_pdf_path = filename
         self.page_label_mode.setCurrentIndex(0)
         self.page_label_auto.setChecked(True)
         self._refresh_pdf_page_count()
@@ -544,6 +562,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.dir_text_edit.setText(exist_bookmarks)
             self.space_level_box.setChecked(True)
         self._loaded_draft = self._draft_snapshot()
+        return True
 
     def tree_to_dict(self):
         return self.dir_tree_widget.to_dict()
@@ -737,6 +756,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.page_label_plan.validate(len(PdfReader(path).pages))
 
     def write_tree_to_pdf(self):
+        if self.pdf_path != self._active_pdf_path:
+            self._on_pdf_path_edited()
+            return False
         try:
             index_dict = self.tree_to_dict()
             self.pre_check(self.pdf_path, index_dict)
@@ -763,10 +785,20 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             new_path = self.dict_to_pdf(
                 self.pdf_path, index_dict, self.keep_exist_dir, self.page_label_plan
             )
+            self.show_status(
+                ("Exported: " if self._page_label_language == "en" else "已导出：")
+                + new_path,
+                5000,
+            )
             self.alert_msg("%s Finished！" % new_path)
             self._loaded_draft = self._draft_snapshot()
             return True
         except Exception as exc:
+            self.show_status(
+                ("Export failed: " if self._page_label_language == "en" else "导出失败：")
+                + str(exc),
+                5000,
+            )
             self.alert_msg(str(exc), level="warn")
             return False
         finally:
