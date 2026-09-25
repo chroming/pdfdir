@@ -238,13 +238,13 @@ def test_level_checkbox_click_toggles_matching_editor(window, level):
 
 
 def test_language_menu_actions_switch_translation(window):
-    assert window.export_button.text() == "生成带书签的 PDF"
+    assert window.export_button.text() == "生成 PDF"
 
     window.english_action.trigger()
-    assert window.export_button.text() == "Generate bookmarked PDF"
+    assert window.export_button.text() == "Generate PDF"
 
     window.chinese_action.trigger()
-    assert window.export_button.text() == "生成带书签的 PDF"
+    assert window.export_button.text() == "生成 PDF"
 
 
 def test_home_and_help_menu_actions_open_expected_urls(window, monkeypatch):

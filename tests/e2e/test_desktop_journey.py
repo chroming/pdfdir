@@ -72,5 +72,38 @@ def test_user_opens_pdf_previews_hierarchy_and_generates_bookmarks(
     assert section.title == "Section One"
     assert reader.get_destination_page_number(section) == 1
     assert window.output_path_edit.text() == str(output_path)
-    assert "已生成" in window.action_status_label.text()
+    assert "已生成" in window.action_status_label.accessibleDescription()
+    assert window.export_button.text() == "打开生成的 PDF"
+
+
+@pytest.mark.e2e
+def test_user_can_choose_output_folder_and_filename(qtbot, qapp, tmp_path, monkeypatch):
+    source = tmp_path / "source.pdf"
+    destination = tmp_path / "results"
+    destination.mkdir()
+    output = destination / "reviewed.pdf"
+    _write_blank_pdf(source, page_count=2)
+
+    window = Main(qapp, QtCore.QTranslator())
+    track_main_window(qtbot, qapp, window)
+    window.show()
+    assert window._activate_document(str(source))
+    window.dir_text_edit.setPlainText("Chapter 1")
+    window.output_name_edit.setFocus()
+    window.output_name_edit.selectAll()
+    qtbot.keyClicks(window.output_name_edit, "reviewed.pdf")
+    monkeypatch.setattr(
+        QtWidgets.QFileDialog, "getExistingDirectory",
+        lambda *_args, **_kwargs: str(destination),
+    )
+    window.output_folder_button.click()
+
+    assert window.output_path_edit.text() == str(output)
+    window.export_button.click()
+    qtbot.waitUntil(
+        lambda: output.exists() and window._worker_thread is None,
+        timeout=15_000,
+    )
+    assert PdfReader(output).outline[0].title == "Chapter"
+    assert not (tmp_path / "source_new.pdf").exists()
     assert window.export_button.text() == "打开生成的 PDF"

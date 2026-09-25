@@ -82,3 +82,17 @@ def test_non_sequential_page_repair_can_be_disabled():
 
     assert [item["num"] for item in repaired.values()] == [23, 23, 23, 24]
     assert [item["num"] for item in raw.values()] == [23, 23, 21, 24]
+
+
+def test_blank_lines_separate_chapters_without_creating_bookmarks():
+    result = convert_dir_text(
+        "Chapter 1  1\n  Section 1  3\n\nChapter 2  5",
+        level_by_space=True,
+    )
+
+    assert list(result) == [0, 1, 2]
+    assert [item["title"] for item in result.values()] == [
+        "Chapter 1", "Section 1", "Chapter 2"
+    ]
+    assert result[1]["parent"] == 0
+    assert "parent" not in result[2]

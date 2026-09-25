@@ -20,10 +20,10 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QGridLayout,
     QGroupBox, QHBoxLayout, QHeaderView, QLabel,
     QLineEdit, QMainWindow, QMenu, QMenuBar,
     QPushButton, QSizePolicy, QSpacerItem, QSplitter,
-    QStatusBar, QTextEdit, QTreeWidgetItem, QVBoxLayout,
-    QWidget)
+    QStatusBar, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from src.gui.base import BookmarkTreeWidget
+from src.gui.numbered_text_edit import NumberedTextEdit
 
 class Ui_PDFdir(object):
     def setupUi(self, PDFdir):
@@ -116,9 +116,8 @@ class Ui_PDFdir(object):
 
         self.editor_layout.addWidget(self.editor_hint_label)
 
-        self.dir_text_edit = QTextEdit(self.editor_pane)
+        self.dir_text_edit = NumberedTextEdit(self.editor_pane)
         self.dir_text_edit.setObjectName(u"dir_text_edit")
-        self.dir_text_edit.setAcceptRichText(False)
 
         self.editor_layout.addWidget(self.dir_text_edit)
 

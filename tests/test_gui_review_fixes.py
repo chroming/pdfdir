@@ -134,8 +134,9 @@ def test_english_minimum_keeps_offset_controls_grouped(window):
     window.app.processEvents()
     assert window.offset_edit.parentWidget() is window.auto_offset_button.parentWidget()
     gap = window.auto_offset_button.x() - (window.offset_edit.x() + window.offset_edit.width())
-    assert gap == window.offset_controls.layout().spacing()
-    assert not window._tools_compact
+    assert gap == window.right_tools_layout.horizontalSpacing()
+    assert window.offset_edit.parentWidget() is window.right_tools
+    assert window.level_mode_box.parentWidget() is window.left_tools
 
 
 def test_keyboard_undo_and_redo_restore_deleted_preview(window, qtbot):
@@ -241,7 +242,7 @@ def test_effective_output_changes_leave_and_restore_result_state(
 
     item.setText(0, "Changed chapter")
 
-    assert window.export_button.text() == "生成带书签的 PDF"
+    assert window.export_button.text() == "生成 PDF"
     assert window.output_path_edit.text() == str(tmp_path / "source_new_2.pdf")
     assert "未生成" in window.action_status_label.text()
 
@@ -277,9 +278,9 @@ def test_missing_result_recovers_to_generation_without_duplicate(
 
     window.export_button.click()
 
-    assert window.export_button.text() == "生成带书签的 PDF"
+    assert window.export_button.text() == "生成 PDF"
     assert window.output_path_edit.text() == str(output)
-    assert "移动或删除" in window.action_status_label.text()
+    assert "移动或删除" in window.action_status_label.accessibleDescription()
 
 
 def test_open_failure_keeps_result_available_for_retry(
@@ -822,8 +823,7 @@ def test_large_font_preserves_core_workspaces_and_reflows_controls(
         line_height = QtGui.QFontMetrics(qapp.font()).lineSpacing()
         assert window.dir_text_edit.viewport().height() >= line_height * 2
         assert window.dir_tree_widget.viewport().height() >= line_height * 2
-        assert window.preview_hint_label.isVisible()
-        assert "F2" in window.preview_hint_label.text()
+        assert "F2" in window.dir_tree_widget.toolTip()
         for control in (
             window.advanced_button,
             window.auto_offset_button,

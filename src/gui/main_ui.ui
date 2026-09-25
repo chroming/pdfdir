@@ -143,10 +143,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QTextEdit" name="dir_text_edit">
-          <property name="acceptRichText">
-           <bool>false</bool>
-          </property>
+         <widget class="NumberedTextEdit" name="dir_text_edit">
           <property name="placeholderText">
            <string>示例：
 第 1 章 入门  1
@@ -616,6 +613,11 @@
   <tabstop>export_button</tabstop>
  </tabstops>
  <customwidgets>
+  <customwidget>
+   <class>NumberedTextEdit</class>
+   <extends>QPlainTextEdit</extends>
+   <header>src.gui.numbered_text_edit</header>
+  </customwidget>
   <customwidget>
    <class>BookmarkTreeWidget</class>
    <extends>QTreeWidget</extends>

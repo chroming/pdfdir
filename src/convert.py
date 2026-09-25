@@ -147,7 +147,9 @@ def _convert_dir_text(
 ):
     l0, l1, pagenum, index_dict = 0, 0, -float("inf"), {}
     l2, l3, l4 = 0, 0, 0
-    dir_list = text_to_list(dir_text)
+    # Blank lines are visual separators in the source editor, not bookmarks.
+    # Filter before numbering so parent indexes stay contiguous.
+    dir_list = [line for line in text_to_list(dir_text) if line.strip()]
     if level_by_space:
         level0, level1, level2, level3, level4, level5 = (
             generate_level_pattern_by_prefix_space(dir_list)

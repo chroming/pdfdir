@@ -37,7 +37,7 @@ def test_converted_tree_always_has_valid_parent_indexes(entries):
         fix_non_seq=True,
     )
 
-    assert list(result) == list(range(len(entries)))
+    assert list(result) == list(range(sum(bool(line.strip()) for line in lines)))
     assert [item["num"] for item in result.values()] == sorted(
         item["num"] for item in result.values()
     )
