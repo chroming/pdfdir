@@ -1,33 +1,48 @@
 # -*- coding:utf-8 -*-
 
-"""
-Check if github repository release is updated.
-"""
+"""Check whether a newer GitHub release is available."""
 
-import json
-import re
 from urllib import parse
 
+from packaging.version import Version
 import requests
-from six.moves import zip
-import logging
 
-logger = logging.getLogger(__name__)
+
+UPDATE_AVAILABLE = "update"
+UP_TO_DATE = "current"
+
+
+def _version(tag, split="."):
+    value = str(tag).strip()
+    if split != ".":
+        value = value.replace(split, ".")
+    return Version(value)
 
 
 def _compare_tag(l_tag, c_tag, split="."):
-    tag_pattern = re.compile(r"((?:\d*\%s){0,4}\d+)" % split)
-    l_list = re.search(tag_pattern, l_tag).group().split(split)
-    c_list = re.search(tag_pattern, c_tag).group().split(split)
-    if len(l_list) == len(c_list):
-        for l, c in zip(l_list, c_list):
-            if l > c:
-                return True
-            elif l < c:
-                return False
-        return False
-    else:
-        return True
+    """Return whether ``l_tag`` is newer according to PEP 440."""
+    return _version(l_tag, split) > _version(c_tag, split)
+
+
+def _check_release(github_url, current_tag, split="."):
+    release = Release(github_url)
+    latest_tag = release.latest_tag
+    if not latest_tag:
+        raise ValueError(
+            "The latest GitHub release response did not include tag_name"
+        )
+    state = (
+        UPDATE_AVAILABLE
+        if _compare_tag(latest_tag, current_tag, split)
+        else UP_TO_DATE
+    )
+    return state, release
+
+
+def check_for_update(github_url, current_tag, split="."):
+    """Return ``"update"`` or ``"current"``; propagate check failures."""
+    state, _release = _check_release(github_url, current_tag, split=split)
+    return state
 
 
 def is_updated(github_url, current_tag, with_dl=False, split="."):
@@ -41,13 +56,10 @@ def is_updated(github_url, current_tag, with_dl=False, split="."):
     :return: True/False or download link
 
     """
-    release = Release(github_url)
-    if not release.latest_tag:
-        return False
-    if _compare_tag(release.latest_tag, current_tag, split):
-        return True if not with_dl else release.get_latest_dl()
-    else:
-        return False
+    state, release = _check_release(github_url, current_tag, split=split)
+    if state == UPDATE_AVAILABLE:
+        return release.get_latest_dl() if with_dl else True
+    return False
 
 
 class Release(object):
@@ -76,13 +88,12 @@ class Release(object):
 
     def _get_response(self, url_path):
         url = self.base_api_url + url_path
-        try:
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logger.warning("Get release info failed: %s", e)
-            return {}
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("GitHub release response must be a JSON object")
+        return payload
 
     @staticmethod
     def _get_download_url(response, name=None, order_num=0):
@@ -102,4 +113,6 @@ class Release(object):
                 if asset.get("name") == name:
                     return asset.get("browser_download_url")
         else:
-            return assets[order_num].get("browser_download_url")
+            if 0 <= order_num < len(assets):
+                return assets[order_num].get("browser_download_url")
+        return None

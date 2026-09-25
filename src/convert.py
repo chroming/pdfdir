@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-
 """Convert a directory text which from website to index dict"""
 
-import re
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +31,7 @@ _PAGE_NUM_PATTERNS_RAW = [
 ]
 
 COMPILED_PAGE_NUM_PATTERNS = [
-    re.compile(r"(.*?)%s$" % pat) for pat in _PAGE_NUM_PATTERNS_RAW
+    re.compile(rf"(.*?){pat}$") for pat in _PAGE_NUM_PATTERNS_RAW
 ]
 
 PREFIX_SPACE_PATTERN = re.compile(r"\s*")
@@ -41,7 +39,7 @@ PREFIX_SPACE_PATTERN = re.compile(r"\s*")
 
 def split_page_num(text):
     """split between title and page number"""
-    con, num = "", 1
+    con, num = "", None
     for pat in COMPILED_PAGE_NUM_PATTERNS:
         res = pat.search(text)
         if res:
@@ -49,9 +47,7 @@ def split_page_num(text):
             break
     if con:
         con = con.rstrip(" .-")
-    if num == "":
-        num = 1
-    return con, int(num)
+    return con, int(num) if num else None
 
 
 def text_to_list(text):
@@ -147,7 +143,7 @@ def _convert_dir_text(
     level5=None,
     other=0,
     level_by_space=False,
-    fix_non_seq=False,
+    fix_non_seq=True,
 ):
     l0, l1, pagenum, index_dict = 0, 0, -float("inf"), {}
     l2, l3, l4 = 0, 0, 0
@@ -156,10 +152,11 @@ def _convert_dir_text(
         level0, level1, level2, level3, level4, level5 = (
             generate_level_pattern_by_prefix_space(dir_list)
         )
-    i = 0
-    for di in dir_list:
+    for i, di in enumerate(dir_list):
         di = di.rstrip()
         title, num = split_page_num(di)
+        if num is None:
+            num = pagenum if pagenum != -float("inf") else 1
         if num > pagenum or not fix_non_seq:
             pagenum = num
         index_dict[i] = {"title": title, "real_num": pagenum + offset, "num": pagenum}
@@ -183,7 +180,6 @@ def _convert_dir_text(
         elif level == 0:
             l0 = i
         index_dict[i]["title"] = title.lstrip()
-        i += 1
     return index_dict
 
 
@@ -198,7 +194,7 @@ def convert_dir_text(
     level5=None,
     other=0,
     level_by_space=False,
-    fix_non_seq=False,
+    fix_non_seq=True,
 ):
     """
     convert directory text to dict.

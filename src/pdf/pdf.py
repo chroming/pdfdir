@@ -9,13 +9,21 @@ public:
 
 """
 
+import hashlib
 import logging
 import os
+import tempfile
 
 from pypdf import PageObject, PdfReader, PdfWriter
 from pypdf.generic import Destination, Fit
 
+from src.pdf.cancellation import raise_if_cancelled
+
 logger = logging.getLogger(__name__)
+
+
+class OutputTargetChangedError(OSError):
+    """The output path changed after PDF generation started."""
 
 
 class Pdf(object):
@@ -42,15 +50,20 @@ class Pdf(object):
 
     """
 
-    def __init__(self, path, keep_outline=False):
+    def __init__(self, path, keep_outline=False, output_path=None):
         self.path = path
         self.reader = PdfReader(open(path, "rb"), strict=False)
         self.pages_num = self._get_pages_num(self.reader.pages)
         self._writer = None
+        self._added_bookmarks = []
+        self._added_bookmark_indices = {}
         self.keep_outline = keep_outline
+        self.output_path = output_path
 
     @property
     def _new_path(self):
+        if self.output_path:
+            return self.output_path
         name, ext = os.path.splitext(self.path)
         return name + "_new" + ext
 
@@ -74,34 +87,11 @@ class Pdf(object):
 
     @staticmethod
     def copy_reader_to_writer(reader, writer, keep_outline=False):
-        # Use fallback function to make sure copy pdf always successes.
-        try:
-            # `clone_from=reader (clone_document_from_reader)` is slow when pdf is complex
-            # `append_pages_from_reader` is fast but will lose annotations in pdf
-            new_writer = writer
-            new_writer.append(reader, import_outline=keep_outline)
-        except Exception as e:
-            logger.warning(
-                "Copy pdf failed, {}, try to exclude /Annots and /B".format(e)
-            )
-            try:
-                new_writer = type(writer)()
-                new_writer.append(
-                    reader,
-                    import_outline=keep_outline,
-                    excluded_fields=["/Annots", "/B"],
-                )
-            except Exception as e:
-                logger.warning(
-                    "Copy pdf failed again, {}, try to use append_pages_from_reader".format(
-                        e
-                    )
-                )
-                new_writer = type(writer)()
-                new_writer.append_pages_from_reader(reader)
-        if reader.metadata is not None:
-            new_writer.add_metadata(reader.metadata)
-        return new_writer
+        # Clone the complete document catalog. Page-only/append copying can
+        # silently discard document-level data such as embedded files, forms,
+        # named destinations, and other entries under /Root.
+        writer.clone_document_from_reader(reader)
+        return writer
 
     @staticmethod
     def _get_page_ref(page):
@@ -137,9 +127,8 @@ class Pdf(object):
         for o in outlines:
             if isinstance(o, Destination):
                 try:
-                    idnum = o.page if isinstance(o.page, int) else o.page.idnum
                     title = " " * current_level + o.title.strip()
-                    page_num = self.pages_num[idnum] + 1
+                    page_num = self.reader.get_destination_page_number(o) + 1
                     index_list.append(
                         "{title}  {page_num}".format(title=title, page_num=page_num)
                     )
@@ -192,14 +181,241 @@ class Pdf(object):
 
         """
         # Set fit=Fit.xyz() to inherit zoom
-        return self.writer.add_outline_item(
+        parent_index = None
+        if parent is not None:
+            parent_index = self._added_bookmark_indices.get(id(parent))
+            if parent_index is None:
+                raise ValueError("Bookmark parent was not added by this PDF")
+        bookmark = self.writer.add_outline_item(
             title, pagenum, parent=parent, fit=Fit.xyz()
         )
+        bookmark_index = len(self._added_bookmarks)
+        self._added_bookmarks.append(
+            {
+                "title": str(title),
+                "page_number": pagenum,
+                "parent": parent_index,
+            }
+        )
+        self._added_bookmark_indices[id(bookmark)] = bookmark_index
+        return bookmark
 
-    def save_pdf(self):
+    @staticmethod
+    def _outline_specs(reader):
+        specs = []
+
+        def walk(entries, parent_index=None):
+            last_destination_index = None
+            for entry in entries:
+                if isinstance(entry, list):
+                    if last_destination_index is None:
+                        raise IOError(
+                            "Generated PDF has an invalid bookmark structure"
+                        )
+                    walk(entry, last_destination_index)
+                elif isinstance(entry, Destination):
+                    destination_index = len(specs)
+                    specs.append(
+                        (
+                            str(entry.title),
+                            reader.get_destination_page_number(entry),
+                            parent_index,
+                        )
+                    )
+                    last_destination_index = destination_index
+                else:
+                    raise IOError(
+                        "Generated PDF has an unsupported bookmark entry"
+                    )
+
+        walk(reader.outline)
+        return specs
+
+    def _ordered_added_bookmarks(self):
+        children = {None: []}
+        for index, bookmark in enumerate(self._added_bookmarks):
+            parent_index = bookmark["parent"]
+            children.setdefault(parent_index, []).append(index)
+            children.setdefault(index, [])
+
+        ordered = []
+
+        def append_subtree(index, parent_index=None):
+            bookmark = self._added_bookmarks[index]
+            ordered_index = len(ordered)
+            ordered.append(
+                (
+                    bookmark["title"],
+                    bookmark["page_number"],
+                    parent_index,
+                )
+            )
+            for child_index in children[index]:
+                append_subtree(child_index, ordered_index)
+
+        for root_index in children[None]:
+            append_subtree(root_index)
+        if len(ordered) != len(self._added_bookmarks):
+            raise IOError("Requested bookmarks have an invalid structure")
+        return ordered
+
+    def _expected_bookmark_specs(self):
+        expected = self._outline_specs(self.reader) if self.keep_outline else []
+        added_offset = len(expected)
+        for title, page_number, parent_index in self._ordered_added_bookmarks():
+            expected.append(
+                (
+                    title,
+                    page_number,
+                    (
+                        parent_index + added_offset
+                        if parent_index is not None
+                        else None
+                    ),
+                )
+            )
+        return expected
+
+    def _validate_candidate(self, candidate):
+        if len(candidate.pages) != len(self.reader.pages):
+            raise IOError("Generated PDF page count does not match source")
+
+        if self._attachment_specs(candidate) != self._attachment_specs(
+            self.reader
+        ):
+            raise IOError(
+                "Generated PDF embedded files do not match source"
+            )
+
+        expected_specs = self._expected_bookmark_specs()
+        candidate_specs = self._outline_specs(candidate)
+        expected_structure = [
+            (title, parent_index)
+            for title, _page_number, parent_index in expected_specs
+        ]
+        candidate_structure = [
+            (title, parent_index)
+            for title, _page_number, parent_index in candidate_specs
+        ]
+        if candidate_structure != expected_structure:
+            raise IOError(
+                "Generated PDF bookmark structure does not match requested bookmarks"
+            )
+        expected_page_targets = [
+            page_number
+            for _title, page_number, _parent_index in expected_specs
+        ]
+        candidate_page_targets = [
+            page_number
+            for _title, page_number, _parent_index in candidate_specs
+        ]
+        if candidate_page_targets != expected_page_targets:
+            raise IOError(
+                "Generated PDF bookmark page targets do not match requested bookmarks"
+            )
+
+    @staticmethod
+    def _attachment_specs(reader):
+        """Return stable names, sizes, and hashes for every embedded file."""
+        specs = []
+        for name in reader.attachments:
+            payloads = reader.attachments[name]
+            if isinstance(payloads, (bytes, bytearray, memoryview)):
+                payloads = [payloads]
+            fingerprints = sorted(
+                (
+                    len(payload),
+                    hashlib.sha256(bytes(payload)).digest(),
+                )
+                for payload in payloads
+            )
+            specs.append((str(name), tuple(fingerprints)))
+        return tuple(sorted(specs))
+
+    @staticmethod
+    def output_fingerprint(path):
+        try:
+            with open(path, "rb") as target:
+                before = os.fstat(target.fileno())
+                digest = hashlib.sha256()
+                while True:
+                    chunk = target.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    digest.update(chunk)
+                after = os.fstat(target.fileno())
+            current = os.stat(path)
+        except FileNotFoundError:
+            return None
+
+        stat_fields = (
+            "st_dev",
+            "st_ino",
+            "st_mode",
+            "st_size",
+            "st_mtime_ns",
+        )
+        before_state = tuple(getattr(before, field) for field in stat_fields)
+        after_state = tuple(getattr(after, field) for field in stat_fields)
+        current_state = tuple(getattr(current, field) for field in stat_fields)
+        if before_state != after_state or after_state != current_state:
+            raise OutputTargetChangedError(
+                "Output target changed during generation; refusing to replace it"
+            )
+        return after_state + (digest.digest(),)
+
+    # Backward-compatible private alias for callers/tests that used the helper
+    # during the initial safety hardening.
+    _output_fingerprint = output_fingerprint
+
+    def save_pdf(
+        self,
+        cancel_check=None,
+        expected_output_fingerprint=None,
+        enforce_output_fingerprint=False,
+    ):
         """save the writer to a pdf file with name 'name_new.pdf'"""
-        if os.path.exists(self._new_path):
-            os.remove(self._new_path)
-        with open(self._new_path, "wb") as out:
-            self.writer.write(out)
+        raise_if_cancelled(cancel_check)
+        output_path = os.path.abspath(self._new_path)
+        output_dir = os.path.dirname(output_path)
+        output_name = os.path.basename(output_path)
+        output_fingerprint = self.output_fingerprint(output_path)
+        if output_fingerprint is not None:
+            raise OutputTargetChangedError(
+                "Output target already exists; refusing to replace it"
+            )
+        if enforce_output_fingerprint and expected_output_fingerprint is not None:
+            raise OutputTargetChangedError(
+                "Replacing an existing output target is not supported"
+            )
+        file_descriptor, temporary_path = tempfile.mkstemp(
+            prefix=".{}.".format(output_name),
+            suffix=".tmp",
+            dir=output_dir,
+        )
+        try:
+            with os.fdopen(file_descriptor, "wb") as out:
+                self.writer.write(out)
+                out.flush()
+                os.fsync(out.fileno())
+
+            with open(temporary_path, "rb") as candidate_file:
+                candidate = PdfReader(candidate_file, strict=False)
+                self._validate_candidate(candidate)
+
+            raise_if_cancelled(cancel_check)
+            try:
+                # Hard-linking is an atomic create-if-absent operation on the
+                # same filesystem. Unlike os.replace(), it cannot overwrite a
+                # file created in the gap after our final check.
+                os.link(temporary_path, output_path)
+            except FileExistsError as exc:
+                raise OutputTargetChangedError(
+                    "Output target changed during generation; refusing to replace it"
+                ) from exc
+            os.remove(temporary_path)
+        except Exception:
+            if os.path.exists(temporary_path):
+                os.remove(temporary_path)
+            raise
         return self._new_path

@@ -1,0 +1,359 @@
+name: Build and publish release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_VERSION: ${{ github.ref_name }}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v8
+
+      - name: Install system and project dependencies
+        run: |
+          bash .github/scripts/install-linux-qt-deps.sh
+          uv pip install --system -r requirements.txt -r requirements_dev.txt
+
+      - name: Test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q
+
+      - name: Validate and inject release version
+        shell: bash
+        run: |
+          python -c 'import os; from packaging.version import Version; Version(os.environ["RELEASE_VERSION"])'
+          python -c 'import os; from pathlib import Path; value = os.environ["RELEASE_VERSION"]; Path("src/version.py").write_text("__version__ = {!r}\n".format(value), encoding="utf-8")'
+
+      - name: Build packages
+        run: |
+          pyinstaller -F run_gui.py -i pdf.ico --add-data "pdf.ico:." --distpath . -n pdfdir --noconfirm --clean --noconsole
+          pyinstaller -F run_gui.py -i pdf.ico --add-data "pdf.ico:." --distpath . -n pdfdir_debug --noconfirm --clean
+
+      - name: Smoke test frozen app
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ./pdfdir --smoke-test
+
+      - name: Prepare archives
+        run: |
+          chmod +x pdfdir pdfdir_debug
+          zip pdfdir_ubuntu.zip pdfdir
+          zip pdfdir_debug_ubuntu.zip pdfdir_debug
+
+      - name: Upload verified Linux packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-linux
+          path: |
+            pdfdir_ubuntu.zip
+            pdfdir_debug_ubuntu.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-2025
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          architecture: "x64"
+
+      - uses: astral-sh/setup-uv@v8
+
+      - name: Install dependencies
+        run: uv pip install --system -r requirements.txt -r requirements_dev.txt
+
+      - name: Test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q
+
+      - name: Validate and inject release version
+        shell: bash
+        run: |
+          python -c 'import os; from packaging.version import Version; Version(os.environ["RELEASE_VERSION"])'
+          python -c 'import os; from pathlib import Path; value = os.environ["RELEASE_VERSION"]; Path("src/version.py").write_text("__version__ = {!r}\n".format(value), encoding="utf-8")'
+
+      - name: Build packages
+        run: |
+          pyinstaller -F run_gui.py -i pdf.ico --add-data "pdf.ico;." --distpath . -n pdfdir --noconfirm --clean --noconsole
+          pyinstaller -D run_gui.py -i pdf.ico --add-data "pdf.ico;." --distpath . -n pdfdir_folder --noconfirm --clean --noconsole
+          pyinstaller -F run_gui.py -i pdf.ico --add-data "pdf.ico;." --distpath . -n pdfdir_debug --noconfirm --clean
+
+      - name: Smoke test frozen app
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          .\pdfdir.exe --smoke-test
+          .\pdfdir_folder\pdfdir_folder.exe --smoke-test
+
+      - name: Prepare archives
+        run: |
+          tar.exe -a -c -f pdfdir_win.zip pdfdir.exe
+          tar.exe -a -c -f pdfdir_win_folder.zip pdfdir_folder
+          tar.exe -a -c -f pdfdir_debug_win.zip pdfdir_debug.exe
+
+      - name: Upload verified Windows packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-windows
+          path: |
+            pdfdir_win.zip
+            pdfdir_win_folder.zip
+            pdfdir_debug_win.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  build-macos:
+    name: Build macOS (${{ matrix.architecture }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: Intel
+            runner: macos-15-intel
+            archive: pdfdir_mac_intel.zip
+            artifact: release-macos-intel
+          - architecture: Apple-Silicon
+            runner: macos-15
+            archive: pdfdir_mac_silicon.zip
+            artifact: release-macos-silicon
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v8
+
+      - name: Install dependencies
+        run: uv pip install --system -r requirements.txt -r requirements_dev.txt
+
+      - name: Test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q
+
+      - name: Validate and inject release version
+        shell: bash
+        run: |
+          python -c 'import os; from packaging.version import Version; Version(os.environ["RELEASE_VERSION"])'
+          python -c 'import os; from pathlib import Path; value = os.environ["RELEASE_VERSION"]; Path("src/version.py").write_text("__version__ = {!r}\n".format(value), encoding="utf-8")'
+
+      - name: Derive and validate macOS bundle versions
+        shell: bash
+        run: |
+          APP_VERSION="$(python -c 'import os; from packaging.version import Version; release = Version(os.environ["RELEASE_VERSION"]).release; assert len(release) <= 3, "macOS release versions support at most three numeric components"; print(".".join(map(str, release + (0,) * (3 - len(release)))))')"
+          BUILD_VERSION="${GITHUB_RUN_NUMBER}"
+          if [[ ! "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid CFBundleShortVersionString: ${APP_VERSION}"
+            exit 1
+          fi
+          if [[ ! "$BUILD_VERSION" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid CFBundleVersion: ${BUILD_VERSION}"
+            exit 1
+          fi
+          echo "APP_VERSION=${APP_VERSION}" >> "$GITHUB_ENV"
+          echo "BUILD_VERSION=${BUILD_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Require Apple signing and notarization credentials
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          for name in BUILD_CERTIFICATE_BASE64 P12_PASSWORD KEYCHAIN_PASSWORD DEVELOPER_ID_APPLICATION APPLE_ID APPLE_TEAM_ID APPLE_APP_SPECIFIC_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing required macOS release secret: ${name}"
+              exit 1
+            fi
+          done
+
+      - name: Install Apple signing certificate
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/pdfdir-signing.keychain-db"
+          echo "KEYCHAIN_PATH=${KEYCHAIN_PATH}" >> "$GITHUB_ENV"
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      - name: Build signed package
+        env:
+          DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+        run: |
+          pyinstaller -D run_gui.py -i pdf.ico --add-data "pdf.ico:." --distpath . -n pdfdir --noconfirm --clean --noconsole --osx-bundle-identifier com.chroming.pdfdir --codesign-identity "$DEVELOPER_ID_APPLICATION"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.chroming.pdfdir" pdfdir.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${APP_VERSION}" pdfdir.app/Contents/Info.plist || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string ${APP_VERSION}" pdfdir.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${BUILD_VERSION}" pdfdir.app/Contents/Info.plist || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string ${BUILD_VERSION}" pdfdir.app/Contents/Info.plist
+          codesign --force --deep --options runtime --timestamp --sign "$DEVELOPER_ID_APPLICATION" pdfdir.app
+
+      - name: Smoke test frozen app
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ./pdfdir.app/Contents/MacOS/pdfdir --smoke-test
+
+      - name: Verify, notarize, and staple
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          codesign --verify --deep --strict --verbose=2 pdfdir.app
+          ditto -c -k --sequesterRsrc --keepParent pdfdir.app "$RUNNER_TEMP/pdfdir-notary.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/pdfdir-notary.zip" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --wait
+          xcrun stapler staple pdfdir.app
+          xcrun stapler validate pdfdir.app
+          spctl --assess --type execute --verbose=4 pdfdir.app
+
+      - name: Prepare archive
+        run: ditto -c -k --sequesterRsrc --keepParent pdfdir.app "${{ matrix.archive }}"
+
+      - name: Upload verified macOS package
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove temporary signing keychain
+        if: always()
+        run: |
+          if [[ -n "${KEYCHAIN_PATH:-}" && -f "$KEYCHAIN_PATH" ]]; then
+            security delete-keychain "$KEYCHAIN_PATH"
+          fi
+
+  publish:
+    name: Publish verified release
+    needs:
+      - build-linux
+      - build-windows
+      - build-macos
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Refuse to mutate an existing tag release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            > "$RUNNER_TEMP/all-releases.json"
+          python .github/scripts/guard_existing_release.py \
+            "$RUNNER_TEMP/all-releases.json" \
+            "$RELEASE_VERSION"
+
+      - name: Download all verified packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Verify release asset set and write checksums
+        shell: bash
+        run: |
+          expected=(
+            pdfdir_ubuntu.zip
+            pdfdir_debug_ubuntu.zip
+            pdfdir_win.zip
+            pdfdir_win_folder.zip
+            pdfdir_debug_win.zip
+            pdfdir_mac_intel.zip
+            pdfdir_mac_silicon.zip
+          )
+          for asset in "${expected[@]}"; do
+            if [[ ! -s "release-assets/${asset}" ]]; then
+              echo "::error::Missing or empty release asset: ${asset}"
+              exit 1
+            fi
+          done
+          ASSET_COUNT="$(find release-assets -maxdepth 1 -type f -name '*.zip' | wc -l | tr -d ' ')"
+          if [[ "$ASSET_COUNT" -ne "${#expected[@]}" ]]; then
+            echo "::error::Expected ${#expected[@]} zip assets, found ${ASSET_COUNT}"
+            exit 1
+          fi
+          cd release-assets
+          sha256sum ./*.zip > SHA256SUMS
+
+      - name: Create isolated draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_VERSION" --draft --verify-tag --generate-notes --title "PDFdir ${RELEASE_VERSION}" --repo "$GITHUB_REPOSITORY"
+
+      - name: Upload verified assets to the draft
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: PDFdir ${{ github.ref_name }}
+          draft: true
+          overwrite_files: false
+          fail_on_unmatched_files: true
+          files: release-assets/*
+
+      - name: Publish completed release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$RELEASE_VERSION" --draft=false --repo "$GITHUB_REPOSITORY"
