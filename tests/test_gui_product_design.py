@@ -67,11 +67,55 @@ def test_related_controls_stay_grouped_at_default_and_minimum_width(window):
     )
 
 
-def test_pdf_identity_leads_header_and_editor_has_comparable_reading_size(window):
-    assert window.document_name_label.geometry().left() < window.open_button.geometry().left()
-    assert window.dir_text_edit.font().pointSizeF() >= (
-        window.dir_tree_widget.font().pointSizeF()
+def test_file_entry_starts_header_and_workspaces_share_reading_size(window):
+    assert window.open_button.geometry().right() < (
+        window.document_name_label.geometry().left()
     )
+    assert window.dir_text_edit.fontMetrics().height() == (
+        window.dir_tree_widget.fontMetrics().height()
+    )
+
+
+def test_fields_and_commands_share_a_control_track(window):
+    for size in (window.size(), window.minimumSize()):
+        window.resize(size)
+        window.app.processEvents()
+        controls = (
+            window.open_button, window.level_mode_box, window.advanced_button,
+            window.offset_edit, window.auto_offset_button,
+            window.output_name_edit, window.output_folder_button,
+            window.export_button,
+        )
+        assert len({control.height() for control in controls}) == 1
+        assert window.level_mode_box.mapTo(
+            window, window.level_mode_box.rect().center()
+        ).y() == window.offset_edit.mapTo(
+            window, window.offset_edit.rect().center()
+        ).y()
+
+
+@pytest.mark.parametrize("name", ["level_mode_box", "advanced_mode_box"])
+def test_select_popup_shows_current_option_and_supports_keyboard(window, qtbot, name):
+    if name == "advanced_mode_box":
+        window.advanced_button.click()
+        qtbot.waitUntil(window.advanced_dialog.isVisible)
+    combo = getattr(window, name)
+    combo.setFocus()
+    combo.showPopup()
+    view = combo.view()
+    qtbot.waitUntil(view.isVisible)
+    assert view.selectionModel().isSelected(view.currentIndex())
+    assert view.window().width() >= combo.width()
+    qtbot.keyClick(view, QtCore.Qt.Key_Down)
+    assert view.currentIndex().row() == 1
+    assert view.selectionModel().isSelected(view.currentIndex())
+    qtbot.keyClick(view, QtCore.Qt.Key_Escape)
+    assert combo.currentIndex() == 0
+    combo.showPopup()
+    qtbot.keyClick(view, QtCore.Qt.Key_Down)
+    qtbot.keyClick(view, QtCore.Qt.Key_Return)
+    assert combo.currentIndex() == 1
+    assert window.level_mode_box.currentIndex() == window.advanced_mode_box.currentIndex()
 
 
 def test_output_destination_details_align_with_filename_at_minimum_width(
@@ -231,23 +275,22 @@ def test_core_actions_use_specific_user_facing_verbs(window):
     assert window.auto_toc_button.text() == "从 PDF 识别"
     assert window.auto_offset_button.text() == "识别页差"
     assert window.export_button.text() == "生成 PDF"
-    assert window.level_mode_box.currentText() == "按缩进识别层级"
+    assert window.level_mode_box.currentText() == "按缩进"
 
 
 def test_recognize_button_disabled_state_does_not_look_available(
     window, tmp_path
 ):
-    def blue_pixel_count():
+    def dark_pixel_count():
         image = window.auto_toc_button.grab().toImage()
         return sum(
-            image.pixelColor(x, y).blue()
-            > image.pixelColor(x, y).red() + 30
+            max(image.pixelColor(x, y).getRgb()[:3]) < 140
             for y in range(image.height())
             for x in range(image.width())
         )
 
     assert not window.auto_toc_button.isEnabled()
-    disabled_blue = blue_pixel_count()
+    disabled_dark = dark_pixel_count()
 
     source = tmp_path / "source.pdf"
     _write_blank_pdf(source)
@@ -255,7 +298,7 @@ def test_recognize_button_disabled_state_does_not_look_available(
     window.app.processEvents()
 
     assert window.auto_toc_button.isEnabled()
-    assert blue_pixel_count() > disabled_blue + 20
+    assert dark_pixel_count() > disabled_dark + 20
 
 
 def test_output_path_is_visible_before_generation(window, tmp_path):
