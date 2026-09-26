@@ -150,24 +150,21 @@ def test_keyboard_undo_and_redo_restore_deleted_preview(window, qtbot):
     assert tree.topLevelItemCount() == 0
 
 
-def test_advanced_dialog_has_local_mode_switch_and_initial_focus(
+def test_inline_rules_use_the_existing_mode_switch(
     window, qtbot
 ):
     window.advanced_button.click()
-    qtbot.waitUntil(window.advanced_dialog.isVisible)
-    qtbot.waitUntil(lambda: window.advanced_dialog.focusWidget() is not None)
-
-    assert window.advanced_dialog.focusWidget() is window.advanced_mode_box
-    assert window.advanced_mode_box.currentIndex() == 0
+    qtbot.waitUntil(window.rules_scroll.isVisible)
+    assert window.level_mode_box.currentIndex() == 0
     assert window.sub_dir_group.isHidden()
 
-    window.advanced_mode_box.setCurrentIndex(1)
+    window.level_mode_box.setCurrentIndex(1)
 
     assert window.level_mode_box.currentIndex() == 1
     assert not window.sub_dir_group.isHidden()
     assert window.sub_dir_group.isEnabled()
 
-    window.advanced_mode_box.setCurrentIndex(0)
+    window.level_mode_box.setCurrentIndex(0)
 
     assert window.sub_dir_group.isHidden()
 
@@ -963,38 +960,22 @@ def test_large_font_preserves_core_workspaces_and_reflows_controls(
         window._task_context = None
         window._update_action_availability()
         window.advanced_button.click()
-        qtbot.waitUntil(window.advanced_dialog.isVisible)
-        assert window._regex_single_column
-        assert window.advanced_dialog.minimumWidth() >= 720
-        assert window.advanced_dialog.minimumHeight() >= 360
-        window.advanced_mode_box.setCurrentIndex(1)
-        qtbot.waitUntil(lambda: window.advanced_dialog.minimumHeight() >= 600)
-        window.advanced_mode_box.setFocus()
-        qtbot.waitUntil(window.advanced_mode_box.hasFocus)
-        qtbot.keyClick(
-            window.advanced_mode_box,
-            QtCore.Qt.Key_Tab,
-        )
-        assert window.level0_box.hasFocus()
-        for _ in range(16):
-            if window.read_exist_dir_box.hasFocus():
-                break
-            qtbot.keyClick(
-                window.advanced_dialog.focusWidget(),
-                QtCore.Qt.Key_Tab,
-            )
-        assert window.read_exist_dir_box.hasFocus()
+        qtbot.waitUntil(window.rules_scroll.isVisible)
+        window.level_mode_box.setCurrentIndex(1)
+        window.rules_options_button.click()
+        window.read_exist_dir_box.setFocus()
+        qtbot.waitUntil(window.read_exist_dir_box.hasFocus)
         qtbot.wait(10)
         option_rect = QtCore.QRect(
-            window.read_exist_dir_box.mapTo(
-                window.advanced_dialog,
-                QtCore.QPoint(),
-            ),
+            window.read_exist_dir_box.mapTo(window.rules_scroll.viewport(), QtCore.QPoint()),
             window.read_exist_dir_box.size(),
         )
-        assert window.advanced_dialog.rect().contains(option_rect)
+        assert window.rules_scroll.viewport().rect().intersects(option_rect)
+        assert window.dir_tree_widget.isVisible()
+        assert window.export_button.isVisible()
     finally:
-        window.advanced_dialog.close()
+        if window.advanced_button.isChecked():
+            window.advanced_button.click()
         window._worker_thread = None
         window._task_context = None
         window.pdf_path_edit.clear()

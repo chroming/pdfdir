@@ -13,6 +13,9 @@ from PySide6.QtWidgets import (
     QTreeWidgetItemIterator,
 )
 
+SOURCE_ROLE = Qt.UserRole + 41
+RULE_ROLE = Qt.UserRole + 42
+
 
 class MixinContextMenu(object):
     def __init__(self, parents=None):
@@ -132,7 +135,8 @@ class TreeWidget(MixinContextMenu):
     def _snapshot(self):
         def record(item):
             return (tuple(item.text(i) for i in range(self.columnCount())),
-                    tuple(record(item.child(i)) for i in range(item.childCount())))
+                    tuple(record(item.child(i)) for i in range(item.childCount())),
+                    (item.data(0, SOURCE_ROLE), item.data(0, RULE_ROLE)))
         return tuple(record(self.topLevelItem(i)) for i in range(self.topLevelItemCount()))
 
     def reset_history(self):
@@ -156,6 +160,27 @@ class TreeWidget(MixinContextMenu):
         self._history_index = len(self._history) - 1
         self._update_history_actions()
 
+    def load_snapshot(self, snapshot):
+        """Restore plain data, never retain C++ item ownership across rebuilds."""
+        self.clear()
+
+        def restore(record, parent):
+            texts, children, source = record
+            item = QTreeWidgetItem(list(texts))
+            item.setData(0, SOURCE_ROLE, source[0])
+            item.setData(0, RULE_ROLE, source[1])
+            if parent is None:
+                self.addTopLevelItem(item)
+            else:
+                parent.addChild(item)
+            for child in children:
+                restore(child, item)
+            item.setExpanded(True)
+
+        for record in snapshot:
+            restore(record, None)
+        self._configure_all_items()
+
     def _restore_history(self, direction):
         target = self._history_index + direction
         if not 0 <= target < len(self._history):
@@ -163,19 +188,7 @@ class TreeWidget(MixinContextMenu):
         self._history_paused = True
         self._suppress_preview_changed = True
         try:
-            self.clear()
-            def restore(record, parent):
-                texts, children = record
-                item = QTreeWidgetItem(list(texts))
-                if parent is None:
-                    self.addTopLevelItem(item)
-                else:
-                    parent.addChild(item)
-                for child in children:
-                    restore(child, item)
-                item.setExpanded(True)
-            for record in self._history[target]:
-                restore(record, None)
+            self.load_snapshot(self._history[target])
             self._history_index = target
             self._configure_all_items()
         finally:
@@ -200,10 +213,10 @@ class TreeWidget(MixinContextMenu):
             except ValueError:
                 return text
         def shift_record(record):
-            texts, children = record
+            texts, children, source = record
             texts = list(texts)
             texts[2] = shifted(texts[2])
-            return tuple(texts), tuple(shift_record(child) for child in children)
+            return tuple(texts), tuple(shift_record(child) for child in children), source
         self._suppress_preview_changed = True
         try:
             for item in self.all_items:

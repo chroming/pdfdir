@@ -26,6 +26,7 @@ from src.gui.main_ui import Ui_PDFdir
 from src.gui.product_style import configure_select
 from src.gui.product_style import icon as product_icon
 from src.gui.product_style import stylesheet as product_stylesheet
+from src.gui.rule_workbench import RuleWorkbenchMixin
 from src.updater import check_for_update
 from src.pdf.bookmark import (
     BookmarkPageError,
@@ -179,7 +180,7 @@ class UpdateCheckWorker(QtCore.QObject):
             self.finished.emit(result)
 
 
-class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
+class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     _MESSAGES = {
         "zh": {
             "advanced_title": "识别设置",
@@ -394,7 +395,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._dirty_close_box = None
         self._dirty_discard_button = None
         self._compact_shell = False
-        self._regex_single_column = None
         self._output_directory_override = ""
         self._output_name_override = ""
         self._output_source_key = ""
@@ -500,15 +500,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         ]
         self.keep_exist_dir_box.setVisible(False)
         self.keep_exist_dir_action.setVisible(False)
-        self.advanced_mode_box.setCurrentIndex(
-            self.level_mode_box.currentIndex()
-        )
-        self.advanced_dialog.setTabOrder(
-            self.advanced_mode_box,
-            self.level0_box,
-        )
         advanced_focus_chain = [
-            self.advanced_mode_box,
             self.level0_box,
             self.level0_edit,
             self.level1_box,
@@ -521,12 +513,11 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.level4_edit,
             self.level5_box,
             self.level5_edit,
+            self.rules_options_button,
             self.unknown_level_box,
             self.fix_non_seq_box,
             self.read_exist_dir_box,
-            self.advanced_button_box.button(
-                QtWidgets.QDialogButtonBox.Close
-            ),
+            self.rules_restore_button,
         ]
         self._advanced_focus_chain = [
             control
@@ -539,7 +530,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self._advanced_focus_chain,
             self._advanced_focus_chain[1:],
         ):
-            self.advanced_dialog.setTabOrder(current, following)
+            self.setTabOrder(current, following)
         self._apply_type_scale()
         self._update_accessible_layout_constraints()
         self._update_level_mode(self.level_mode_box.currentIndex())
@@ -555,6 +546,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.dir_text_edit,
             self.level_mode_box,
             self.advanced_button,
+            *self._advanced_focus_chain,
+            self.rules_unmatched_button,
+            self.rules_accept_button,
             self.dir_tree_widget,
             self.undo_button,
             self.redo_button,
@@ -782,59 +776,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         action_layout.addLayout(self.action_controls_layout)
         root.addWidget(self.action_frame)
 
-        self.advanced_dialog = QtWidgets.QDialog(self)
-        self.advanced_dialog.setObjectName("advanced_dialog")
-        self.advanced_dialog.setModal(True)
-        self.advanced_dialog.setMinimumSize(680, 300)
-        self.advanced_dialog.resize(720, 320)
-        advanced_dialog_layout = QtWidgets.QVBoxLayout(self.advanced_dialog)
-        advanced_dialog_layout.setContentsMargins(18, 16, 18, 14)
-        advanced_dialog_layout.setSpacing(14)
-        advanced_mode_row = QtWidgets.QHBoxLayout()
-        advanced_mode_row.setSpacing(8)
-        self.advanced_mode_label = QtWidgets.QLabel(self.advanced_dialog)
-        self.advanced_mode_box = QtWidgets.QComboBox(self.advanced_dialog)
-        self.advanced_mode_box.addItems(["", ""])
-        for combo in (self.level_mode_box, self.advanced_mode_box, self.unknown_level_box):
-            configure_select(combo)
-        self.advanced_mode_label.setBuddy(self.advanced_mode_box)
-        advanced_mode_row.addWidget(self.advanced_mode_label)
-        advanced_mode_row.addWidget(self.advanced_mode_box, 1)
-        advanced_dialog_layout.addLayout(advanced_mode_row)
-        self.advanced_widget.setParent(self.advanced_dialog)
-        self.advanced_widget.setVisible(True)
-        advanced_dialog_layout.addWidget(self.advanced_widget, 1)
-        self.regex_error_label = QtWidgets.QLabel(self.advanced_dialog)
-        self.regex_error_label.setObjectName("regex_error_label")
-        self.regex_error_label.setWordWrap(True)
-        self.regex_error_label.setVisible(False)
-        advanced_dialog_layout.addWidget(self.regex_error_label)
-        self.advanced_button_box = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Close,
-            self.advanced_dialog,
-        )
-        self.advanced_button_box.rejected.connect(self.advanced_dialog.reject)
-        advanced_dialog_layout.addWidget(self.advanced_button_box)
-        self.advanced_dialog.finished.connect(
-            lambda _result: self.advanced_button.setFocus()
-        )
-
-        while self.advanced_options_layout.count():
-            self.advanced_options_layout.takeAt(0)
-        self.advanced_options_layout.setDirection(QtWidgets.QBoxLayout.TopToBottom)
-        self.advanced_options_layout.setSpacing(8)
-        unmatched_row = QtWidgets.QHBoxLayout()
-        unmatched_row.setSpacing(8)
-        unmatched_row.addWidget(self.unknown_level_label)
-        unmatched_row.addWidget(self.unknown_level_box)
-        unmatched_row.addStretch(1)
-        self.advanced_options_layout.addLayout(unmatched_row)
-        self.advanced_options_layout.addWidget(self.fix_non_seq_box)
-        self.advanced_options_layout.addWidget(self.read_exist_dir_box)
-        self.advanced_options_layout.addStretch(1)
-        self.advanced_layout.setContentsMargins(0, 0, 0, 8)
-        self.advanced_button.setCheckable(False)
-        self._layout_regex_controls(False)
+        self._build_rule_workbench()
 
     @staticmethod
     def _clear_layout(layout):
@@ -982,50 +924,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._action_status_full_width = full_width
         layout.invalidate()
 
-    def _layout_regex_controls(self, single_column):
-        if self._regex_single_column == single_column:
-            return
-        self._regex_single_column = single_column
-        controls = tuple(
-            zip(
-                (
-                    self.level0_box,
-                    self.level1_box,
-                    self.level2_box,
-                    self.level3_box,
-                    self.level4_box,
-                    self.level5_box,
-                ),
-                (
-                    self.level0_edit,
-                    self.level1_edit,
-                    self.level2_edit,
-                    self.level3_edit,
-                    self.level4_edit,
-                    self.level5_edit,
-                ),
-            )
-        )
-        for box, editor in controls:
-            self.regex_grid.removeWidget(box)
-            self.regex_grid.removeWidget(editor)
-        for column in range(4):
-            self.regex_grid.setColumnStretch(column, 0)
-        for index, (box, editor) in enumerate(controls):
-            if single_column:
-                row, column = index, 0
-            else:
-                row, column = divmod(index, 2)
-                column *= 2
-            self.regex_grid.addWidget(box, row, column)
-            self.regex_grid.addWidget(editor, row, column + 1)
-        if single_column:
-            self.regex_grid.setColumnStretch(1, 1)
-        else:
-            self.regex_grid.setColumnStretch(1, 1)
-            self.regex_grid.setColumnStretch(3, 1)
-        self.regex_grid.invalidate()
-        self.advanced_widget.updateGeometry()
 
     def _large_text_mode(self):
         return self.app.font().pointSizeF() >= 18
@@ -1033,25 +931,16 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def _update_accessible_layout_constraints(self):
         """Keep the two core editors usable when system text is enlarged."""
         large_text = self._large_text_mode()
-        numbering_mode = self.level_mode_box.currentIndex() == 1
         if large_text:
             line_height = QtGui.QFontMetrics(self.app.font()).lineSpacing()
             self.setMinimumSize(900, 700)
             self.dir_text_edit.setMinimumHeight(line_height * 3 + 12)
             self.dir_tree_widget.setMinimumHeight(line_height * 3 + 32)
-            self.advanced_dialog.setMinimumSize(
-                720,
-                600 if numbering_mode else 360,
-            )
         else:
             self.setMinimumSize(780, 560)
             self.dir_text_edit.setMinimumHeight(0)
             self.dir_tree_widget.setMinimumHeight(0)
-            self.advanced_dialog.setMinimumSize(
-                680,
-                360 if numbering_mode else 220,
-            )
-        self._layout_regex_controls(large_text)
+        self._resize_rule_workbench()
 
     def _reflow_controls(self):
         if not hasattr(self, "left_tools_layout"):
@@ -1081,6 +970,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._layout_tool_controls(
             large_font or self.editor_pane.width() < 450 or self.preview_pane.width() < 510
         )
+        self._resize_rule_workbench()
         self._layout_action_controls(
             large_font or self.action_frame.width() < action_width + 80
         )
@@ -1113,15 +1003,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.cancel_button.clicked.connect(self.cancel_active_task)
         self.auto_offset_button.clicked.connect(self.fill_offset)
         self.auto_toc_button.clicked.connect(self.fill_toc_text)
-        self.advanced_button.clicked.connect(self._open_advanced_dialog)
+        self.advanced_button.clicked.connect(self._toggle_rule_workbench)
         self.level_mode_box.currentIndexChanged.connect(
             self._update_level_mode
-        )
-        self.level_mode_box.currentIndexChanged.connect(
-            self.advanced_mode_box.setCurrentIndex
-        )
-        self.advanced_mode_box.currentIndexChanged.connect(
-            self.level_mode_box.setCurrentIndex
         )
         self.level0_box.clicked.connect(self._change_level0_writable)
         self.level1_box.clicked.connect(self._change_level1_writable)
@@ -1130,7 +1014,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.level4_box.clicked.connect(self._change_level4_writable)
         self.level5_box.clicked.connect(self._change_level5_writable)
         for act in (
-            self.dir_text_edit.textChanged,
             self.level0_box.stateChanged,
             self.level1_box.stateChanged,
             self.level2_box.stateChanged,
@@ -1147,7 +1030,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.level_mode_box.currentIndexChanged,
             self.fix_non_seq_box.stateChanged,
         ):
-            act.connect(self.make_dir_tree)
+            act.connect(self._queue_rule_preview)
+        self.dir_text_edit.textChanged.connect(self.make_dir_tree)
         self.offset_edit.textChanged.connect(self._update_preview_offset)
         self.pdf_path_edit.textChanged.connect(self._update_output_path)
         self.pdf_path_edit.editingFinished.connect(
@@ -1304,35 +1188,14 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def _output_target_error(self, target):
         return self._output_target_problem(target)[1]
 
-    def _open_advanced_dialog(self):
-        self._update_accessible_layout_constraints()
-        self.advanced_dialog.show()
-        self._resize_advanced_dialog()
-        self.advanced_dialog.raise_()
-        self.advanced_dialog.activateWindow()
-        QtCore.QTimer.singleShot(0, self.advanced_mode_box.setFocus)
-
     def _update_level_mode(self, index):
         numbering_mode = index == 1
         self.sub_dir_group.setVisible(numbering_mode)
         self.sub_dir_group.setEnabled(numbering_mode)
+        self.rules_indent_hint.setVisible(not numbering_mode)
         self._update_accessible_layout_constraints()
-        if self.advanced_dialog.isVisible():
-            QtCore.QTimer.singleShot(0, self._resize_advanced_dialog)
         self._validate_regex_settings()
         self._update_action_availability()
-
-    def _resize_advanced_dialog(self):
-        self.advanced_dialog.adjustSize()
-        screen = self.advanced_dialog.screen() or self.screen()
-        available = screen.availableGeometry().size()
-        maximum = QtCore.QSize(
-            max(320, available.width() - 48),
-            max(240, available.height() - 72),
-        )
-        target = self.advanced_dialog.size().boundedTo(maximum)
-        target = target.expandedTo(self.advanced_dialog.minimumSize())
-        self.advanced_dialog.resize(target)
 
     def _update_output_path(self):
         source = self.pdf_path.strip()
@@ -1632,6 +1495,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self.level_mode_box,
             self.offset_edit,
             self.advanced_button,
+            self.rules_section,
         ):
             control.setEnabled(not write_running)
 
@@ -1710,7 +1574,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         )
 
     def _has_active_update(self):
-        return bool(self._update_thread and self._update_thread.isRunning())
+        return self._update_thread is not None
 
     def _resume_pending_close(self):
         """Retry a deferred close only after every background thread is idle."""
@@ -1735,6 +1599,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def _validate_preview_tree(self):
         if self._regex_validation_error:
             return self._regex_validation_error
+        if self._rules_pending:
+            return "Rule preview is not updated" if self._language == "en" else "规则预览尚未更新"
         row = 0
         for item in self.dir_tree_widget.all_items:
             row += 1
@@ -1812,10 +1678,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 "Rules…",
                 "规则…",
             ),
-            self.advanced_mode_label: (
-                "Hierarchy detection",
-                "层级识别方式",
-            ),
             self.sub_dir_group: (
                 "Numbering rules (regular expressions)",
                 "编号规则（正则表达式）",
@@ -1861,12 +1723,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             else:
                 target.setTitle(translated)
 
-        self.advanced_dialog.setWindowTitle(self._t("advanced_title"))
-        close_button = self.advanced_button_box.button(
-            QtWidgets.QDialogButtonBox.Close
-        )
-        if close_button:
-            close_button.setText("Close" if english else "关闭")
+        self._translate_rule_workbench()
         self.pdf_path_edit.setPlaceholderText(
             "Choose the PDF to bookmark"
             if english
@@ -1903,12 +1760,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         )
         self.level_mode_box.setItemText(
             1, "Numbering" if english else "按编号"
-        )
-        self.advanced_mode_box.setItemText(
-            0, "Indentation" if english else "按缩进识别层级"
-        )
-        self.advanced_mode_box.setItemText(
-            1, "Numbering rules" if english else "按编号规则识别层级"
         )
         for index in range(self.unknown_level_box.count()):
             self.unknown_level_box.setItemText(
@@ -2080,7 +1931,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._update_worker.failed.connect(self._update_thread.quit)
         self._update_worker.finished.connect(self._update_worker.deleteLater)
         self._update_worker.failed.connect(self._update_worker.deleteLater)
-        self._update_thread.finished.connect(self._update_thread.deleteLater)
         self._update_thread.finished.connect(self._update_check_complete)
         self._update_thread.start()
 
@@ -2101,6 +1951,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.alert_msg(self._t("check_update_failed"), level="warn")
 
     def _update_check_complete(self):
+        if not self._release_finished_thread(self._update_thread, self._update_check_complete):
+            return
         self._update_worker = None
         self._update_thread = None
         self.update_action.setEnabled(True)
@@ -2213,7 +2065,14 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             and source_path.is_file()
             and source_path.suffix.lower() == ".pdf"
         )
-        if validation_error:
+        if self._rules_pending:
+            self._set_action_status(
+                ("Fix rules to update preview" if self._regex_validation_error else "Rule preview is not updated")
+                if self._language == "en" else
+                ("请修正规则以更新预览" if self._regex_validation_error else "规则预览尚未更新"),
+                "normal",
+            )
+        elif validation_error:
             self._set_action_status(validation_error, "error")
         elif has_pdf and self._primary_action_mode != "open" and self._output_target_error(self.output_path_edit.text()):
             self._set_action_status("", "normal")
@@ -2333,18 +2192,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             and hasattr(self, "_document_display_name")
         ):
             self._refresh_document_name()
-        if (
-            watched in getattr(self, "_advanced_focus_chain", ())
-            and event.type() == QtCore.QEvent.KeyPress
-            and event.key() in (QtCore.Qt.Key_Tab, QtCore.Qt.Key_Backtab)
-            and not event.modifiers() & QtCore.Qt.ControlModifier
-        ):
-            backwards = bool(
-                event.modifiers() & QtCore.Qt.ShiftModifier
-                or event.key() == QtCore.Qt.Key_Backtab
-            )
-            if self._focus_advanced_relative(watched, not backwards):
-                return True
+        if self._rule_event_filter(watched, event):
+            return True
         if (
             watched is self.dir_tree_widget.viewport()
             and event.type() == QtCore.QEvent.Resize
@@ -2366,22 +2215,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 return True
         return super(Main, self).eventFilter(watched, event)
 
-    def _focus_advanced_relative(self, current, forwards):
-        controls = getattr(self, "_advanced_focus_chain", ())
-        if current not in controls:
-            return False
-        step = 1 if forwards else -1
-        start = controls.index(current)
-        for distance in range(1, len(controls) + 1):
-            candidate = controls[(start + step * distance) % len(controls)]
-            if (
-                candidate.isEnabled()
-                and candidate.isVisible()
-                and candidate.focusPolicy() & QtCore.Qt.TabFocus
-            ):
-                candidate.setFocus(QtCore.Qt.TabFocusReason)
-                return True
-        return False
 
     def _tree_snapshot(self):
         snapshot = []
@@ -2491,6 +2324,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.preview_empty_label.setVisible(is_empty and has_room)
         if is_empty and has_room:
             self.preview_empty_label.raise_()
+        self._update_rule_feedback()
 
     def _validate_regex_settings(self):
         if not hasattr(self, "_regex_editors"):
@@ -2582,6 +2416,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         return "cancel"
 
     def _reset_draft(self):
+        self._clear_rule_trial()
         self._preview_manually_adjusted = False
         self._draft_imported_from_source = False
         self.dir_text_edit.clear()
@@ -2642,6 +2477,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 self.dir_text_edit.setPlainText(bookmark_text)
                 self.level_mode_box.setCurrentIndex(0)
                 self.keep_exist_dir_box.setChecked(False)
+                self._clear_rule_trial()
                 self._draft_imported_from_source = True
                 imported = True
 
@@ -2699,6 +2535,16 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def make_dir_tree(self):
         if not hasattr(self, "preview_empty_label"):
             return
+        if self._rule_guarded:
+            return
+        if not self._validate_regex_settings():
+            self._rules_pending = True
+            self._update_rule_feedback()
+            self._refresh_dirty_state()
+            self._update_action_availability()
+            return
+        self._rules_timer.stop()
+        view_state = self._capture_rule_view()
         had_manual_adjustments = self._preview_manually_adjusted
         self._rebuilding_tree = True
         self.dir_tree_widget._history_paused = True
@@ -2707,8 +2553,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._preview_validation_error = ""
         try:
             self.dir_tree_widget.clear()
-            if not self._validate_regex_settings():
-                return
             index_dict = convert_dir_text(
                 self.dir_text,
                 self.offset_num,
@@ -2752,8 +2596,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                         inserted_items[parent_index].addChild(tree_item)
                         children.pop(key)
                         inserted_items[key] = tree_item
-            for item in inserted_items.values():
-                item.setExpanded(True)
+            self._annotate_rule_sources(inserted_items)
+            self._restore_rule_view(view_state)
+            self._rules_pending = False
+            self._last_rule_values = self._rule_values()
         finally:
             self.dir_tree_widget._history_paused = False
             self.dir_tree_widget.record_history()
@@ -2762,6 +2608,8 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             self._update_preview_empty_state()
             self._refresh_dirty_state()
             self._update_action_availability()
+            self._update_rule_feedback()
+            self._highlight_rule_matches()
         if had_manual_adjustments:
             self.show_status(self._t("preview_reset"), 4000)
 
@@ -2814,7 +2662,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._worker.finished.connect(self._worker.deleteLater)
         self._worker.failed.connect(self._worker.deleteLater)
         self._worker.cancelled.connect(self._worker.deleteLater)
-        self._worker_thread.finished.connect(self._worker_thread.deleteLater)
         self._worker_thread.finished.connect(self._offset_worker_finished)
         self._worker_thread.start()
         self._update_action_availability()
@@ -2854,7 +2701,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._worker.finished.connect(self._worker.deleteLater)
         self._worker.failed.connect(self._worker.deleteLater)
         self._worker.cancelled.connect(self._worker.deleteLater)
-        self._worker_thread.finished.connect(self._worker_thread.deleteLater)
         self._worker_thread.finished.connect(self._toc_worker_finished)
         self._worker_thread.start()
         self._update_action_availability()
@@ -2967,7 +2813,20 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     def _task_cancelled(self):
         self.show_status(self._t("task_cancelled"), 3000)
 
+    def _release_finished_thread(self, thread, continuation):
+        # finished() precedes deferred QObject destruction. Keep the Python
+        # wrapper alive until native teardown has joined, otherwise Shiboken
+        # can destroy the same wrapper concurrently on the UI/worker threads.
+        if thread is not None:
+            if not thread.wait(0):
+                QtCore.QTimer.singleShot(10, continuation)
+                return False
+            thread.deleteLater()
+        return True
+
     def _background_task_finished(self):
+        if not self._release_finished_thread(self._worker_thread, self._background_task_finished):
+            return
         focus_origin = self._task_focus_origin
         self._worker = None
         self._worker_thread = None
@@ -3189,7 +3048,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self._worker.finished.connect(self._worker.deleteLater)
         self._worker.failed.connect(self._worker.deleteLater)
         self._worker.cancelled.connect(self._worker.deleteLater)
-        self._worker_thread.finished.connect(self._worker_thread.deleteLater)
         self._worker_thread.finished.connect(self._background_task_finished)
         self._worker_thread.start()
         self._update_action_availability()

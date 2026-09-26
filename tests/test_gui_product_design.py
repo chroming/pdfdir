@@ -94,11 +94,12 @@ def test_fields_and_commands_share_a_control_track(window):
         ).y()
 
 
-@pytest.mark.parametrize("name", ["level_mode_box", "advanced_mode_box"])
+@pytest.mark.parametrize("name", ["level_mode_box", "unknown_level_box"])
 def test_select_popup_shows_current_option_and_supports_keyboard(window, qtbot, name):
-    if name == "advanced_mode_box":
+    if name == "unknown_level_box":
         window.advanced_button.click()
-        qtbot.waitUntil(window.advanced_dialog.isVisible)
+        window.rules_options_button.click()
+        qtbot.waitUntil(window.rules_options.isVisible)
     combo = getattr(window, name)
     combo.setFocus()
     combo.showPopup()
@@ -115,7 +116,6 @@ def test_select_popup_shows_current_option_and_supports_keyboard(window, qtbot, 
     qtbot.keyClick(view, QtCore.Qt.Key_Down)
     qtbot.keyClick(view, QtCore.Qt.Key_Return)
     assert combo.currentIndex() == 1
-    assert window.level_mode_box.currentIndex() == window.advanced_mode_box.currentIndex()
 
 
 def test_output_destination_details_align_with_filename_at_minimum_width(
@@ -238,36 +238,36 @@ def test_working_actions_remain_visible_at_minimum_window(window):
     window._update_action_availability()
 
 
-def test_recognition_rules_open_in_dialog_without_resizing_main_shell(
+def test_recognition_rules_expand_inline_without_moving_preview_or_output(
     window, qtbot
 ):
     window.resize(window.minimumSize())
     shell_size = window.size()
     action_position = window.export_button.mapToGlobal(QtCore.QPoint())
+    preview_rect = window.dir_tree_widget.geometry()
 
     assert not window.advanced_widget.isVisible()
-    assert not window.advanced_button.isCheckable()
+    assert window.advanced_button.isCheckable()
 
     window.advanced_button.click()
 
-    dialog = window.advanced_dialog
-    qtbot.waitUntil(dialog.isVisible)
+    qtbot.waitUntil(window.rules_scroll.isVisible)
     assert window.advanced_widget.isVisible()
-    assert isinstance(dialog, QtWidgets.QDialog)
-    assert window.advanced_widget.window() is dialog
+    assert window.advanced_widget.window() is window
     assert not window.level0_edit.isVisible()
-    assert window.fix_non_seq_box.isVisible()
+    assert not window.fix_non_seq_box.isVisible()
     assert window.sub_dir_group.isHidden()
     assert window.size() == shell_size
     assert window.export_button.mapToGlobal(QtCore.QPoint()) == action_position
     assert window.export_button.isVisible()
+    assert window.dir_tree_widget.geometry() == preview_rect
 
     window.level_mode_box.setCurrentIndex(1)
 
     assert window.level0_edit.isVisible()
     assert window.sub_dir_group.isEnabled()
-    qtbot.keyClick(dialog, QtCore.Qt.Key_Escape)
-    qtbot.waitUntil(lambda: not dialog.isVisible())
+    qtbot.keyClick(window.level0_box, QtCore.Qt.Key_Escape)
+    qtbot.waitUntil(lambda: not window.rules_scroll.isVisible())
     assert window.advanced_button.hasFocus()
 
 
@@ -471,14 +471,14 @@ def test_language_switch_translates_dynamic_controls_and_preview_columns(
     assert window.level_mode_box.itemText(0) == "Indentation"
     assert window.dir_tree_widget.headerItem().text(0) == "Bookmark title"
     assert window.dir_tree_widget.headerItem().text(2) == "PDF page"
-    assert window.advanced_button.text() == "Rules…"
+    assert window.advanced_button.text() == "Rules"
     assert window.page_title_label.text() == "PDF Bookmark Editor"
 
     window.to_chinese()
 
     assert window.auto_toc_button.text() == "从 PDF 识别"
     assert window.dir_tree_widget.headerItem().text(0) == "书签标题"
-    assert window.advanced_button.text() == "规则…"
+    assert window.advanced_button.text() == "规则"
 
 
 def test_labels_shortcuts_and_accessible_names_support_keyboard_use(window):

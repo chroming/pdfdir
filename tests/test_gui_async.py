@@ -182,6 +182,14 @@ def test_worker_busy_guard_covers_thread_cleanup_gap(
         def isRunning():
             return False
 
+        @staticmethod
+        def wait(_timeout):
+            return True
+
+        @staticmethod
+        def deleteLater():
+            pass
+
     prior_thread = FinishedThread()
     window._worker_thread = prior_thread
     window._worker_busy = True
@@ -198,6 +206,36 @@ def test_worker_busy_guard_covers_thread_cleanup_gap(
     assert messages == [window._t("task_running")]
 
     window._background_task_finished()
+    assert not window._worker_busy
+
+
+def test_finished_signal_keeps_worker_alive_until_native_teardown(window, qtbot):
+    class FinishingThread:
+        joined = False
+        deleted = False
+
+        def wait(self, timeout):
+            assert timeout == 0
+            return self.joined
+
+        def isRunning(self):
+            return False
+
+        def deleteLater(self):
+            self.deleted = True
+
+    thread = FinishingThread()
+    worker = object()
+    window._worker_thread = thread
+    window._worker = worker
+    window._worker_busy = True
+    window._background_task_finished()
+    assert window._worker is worker
+    assert window._worker_busy
+    assert not thread.deleted
+    thread.joined = True
+    qtbot.waitUntil(lambda: window._worker is None)
+    assert thread.deleted
     assert not window._worker_busy
 
 

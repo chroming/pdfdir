@@ -6,6 +6,14 @@ from src.gui import icons_rc  # Registers the bundled selector arrow.
 
 
 class SelectListView(QtWidgets.QListView):
+    def __init__(self, combo):
+        super().__init__(combo)
+        self.combo = combo
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.setCurrentIndex(self.model().index(self.combo.currentIndex(), 0))
+
     def currentChanged(self, current, previous):
         super().currentChanged(current, previous)
         if current.isValid():
@@ -59,6 +67,13 @@ def icon(name):
             path.closeSubpath()
             path.moveTo(2, 7)
             path.lineTo(14, 7)
+        elif name in ("chevron-right", "chevron-down"):
+            if name == "chevron-down":
+                painter.translate(16, 0)
+                painter.rotate(90)
+            path.moveTo(6, 4)
+            path.lineTo(10, 8)
+            path.lineTo(6, 12)
         elif name in ("undo", "redo"):
             if name == "redo":
                 painter.translate(16, 0)
@@ -210,13 +225,15 @@ def stylesheet(app_font):
             border: 0; border-bottom: 1px solid #e4e7ec;
         }}
         QWidget#pane_tools {{ border-top: 1px solid #e4e7ec; }}
-        QDialog#advanced_dialog {{ background: #f7f8fa; }}
-        QDialog#advanced_dialog QGroupBox {{
-            font-weight: 600; background: #ffffff;
-            border: 1px solid #dfe3e8; border-radius: 6px;
-            margin-top: 10px; padding: 12px 10px 10px;
-        }}
-        QDialog#advanced_dialog QGroupBox::title {{
-            subcontrol-origin: margin; left: 10px; padding: 0 4px;
-        }}
+        QScrollArea#rules_scroll, QWidget#advanced_widget,
+        QScrollArea#rules_scroll > QWidget > QWidget {{ background: #ffffff; }}
+        QGroupBox#sub_dir_group {{ border: 0; margin: 0; padding: 0; }}
+        QSplitter#rule_splitter::handle {{ background: #ffffff; }}
+        QSplitter#rule_splitter::handle:hover {{ background: #dfe7f1; }}
+        QScrollBar:vertical {{ background: transparent; width: 8px; margin: 0; border: 0; }}
+        QScrollBar::handle:vertical {{ background: #a3a9b2; min-height: 24px; border-radius: 4px; }}
+        QScrollBar::handle:vertical:hover {{ background: #7c8490; }}
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; border: 0; }}
+        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{ background: transparent; }}
+        QLineEdit[matchedRule="true"] {{ border-color: #82ace2; }}
     """
