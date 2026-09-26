@@ -44,6 +44,74 @@ def test_primary_workspace_has_readable_default_geometry(window):
     assert window.offset_edit.parentWidget() is window.right_tools
 
 
+def test_related_controls_stay_grouped_at_default_and_minimum_width(window):
+    for size in (QtCore.QSize(1200, 760), window.minimumSize()):
+        window.resize(size)
+        window.app.processEvents()
+        window._reflow_controls()
+
+        hierarchy = window.level_mode_box.geometry()
+        rules = window.advanced_button.geometry()
+        offset = window.offset_edit.geometry()
+        detect = window.auto_offset_button.geometry()
+        assert rules.center().y() == hierarchy.center().y()
+        assert 0 <= rules.left() - hierarchy.right() <= 16
+        assert detect.center().y() == offset.center().y()
+        assert 0 <= detect.left() - offset.right() <= 16
+
+    window.to_english()
+    window.app.processEvents()
+    window._reflow_controls()
+    assert window.advanced_button.geometry().center().y() == (
+        window.level_mode_box.geometry().center().y()
+    )
+
+
+def test_pdf_identity_leads_header_and_editor_has_comparable_reading_size(window):
+    assert window.document_name_label.geometry().left() < window.open_button.geometry().left()
+    assert window.dir_text_edit.font().pointSizeF() >= (
+        window.dir_tree_widget.font().pointSizeF()
+    )
+
+
+def test_output_destination_details_align_with_filename_at_minimum_width(
+    window, tmp_path
+):
+    source = tmp_path / "source.pdf"
+    _write_blank_pdf(source)
+    window.pdf_path_edit.setText(str(source))
+    window.resize(window.minimumSize())
+    window.app.processEvents()
+
+    assert window.output_feedback_stack.currentWidget() is window.output_location_widget
+    assert window.output_location_label.text()
+    assert window.output_location_button.text() == "查看路径"
+    assert window.output_location_widget.mapTo(
+        window.action_frame, QtCore.QPoint()
+    ).x() == window.output_name_edit.mapTo(
+        window.action_frame, QtCore.QPoint()
+    ).x()
+
+    window.to_english()
+    window.app.processEvents()
+    assert window.output_location_button.text() == "View path"
+    assert window.output_location_label.text().startswith("Source folder")
+
+    destination = tmp_path / ("destination-" + "long-name-" * 8)
+    destination.mkdir()
+    window._output_directory_override = str(destination)
+    window._update_action_availability()
+    window.app.processEvents()
+    location = window.output_location_button.mapTo(
+        window.output_feedback_stack, QtCore.QPoint()
+    )
+    assert "…" in window.output_location_label.text()
+    assert location.x() + window.output_location_button.width() <= (
+        window.output_feedback_stack.width()
+    )
+    assert window.output_location_label.toolTip() == window.output_path_edit.text()
+
+
 def test_workspace_does_not_frame_sparse_editors_as_full_height_cards(window):
     """The two task surfaces share one canvas, including while editing."""
     style = window.styleSheet()
@@ -57,6 +125,12 @@ def test_workspace_does_not_frame_sparse_editors_as_full_height_cards(window):
         image = editor.grab().toImage()
         right_edge = image.pixelColor(image.width() - 2, image.height() // 2)
         assert min(right_edge.red(), right_edge.green(), right_edge.blue()) > 235
+
+    window.dir_tree_widget.setFocus()
+    window.app.processEvents()
+    tree_image = window.dir_tree_widget.grab().toImage()
+    left_edge = tree_image.pixelColor(1, tree_image.height() // 2)
+    assert left_edge.blue() - left_edge.red() < 20
 
 
 def test_primary_action_and_status_remain_visible_at_minimum_window(window):
@@ -290,7 +364,7 @@ def test_output_error_is_complete_beside_field_at_english_minimum(
 
     window.output_name_edit.selectAll()
     qtbot.keyClicks(window.output_name_edit, "good.pdf")
-    assert window.output_feedback_stack.currentWidget() is window.output_location_button
+    assert window.output_feedback_stack.currentWidget() is window.output_location_widget
     assert window.output_name_edit.accessibleDescription() == ""
 
 

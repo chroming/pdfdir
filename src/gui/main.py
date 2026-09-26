@@ -621,13 +621,6 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         document_layout = QtWidgets.QHBoxLayout(self.document_frame)
         document_layout.setContentsMargins(18, 8, 18, 8)
         document_layout.setSpacing(12)
-        self.brand_label = QtWidgets.QLabel("PDFdir", self.document_frame)
-        self.brand_label.setObjectName("brand_label")
-        document_layout.addWidget(self.brand_label)
-        self.document_separator = QtWidgets.QFrame(self.document_frame)
-        self.document_separator.setFrameShape(QtWidgets.QFrame.NoFrame)
-        self.document_separator.setFixedSize(1, 20)
-        document_layout.addWidget(self.document_separator)
         self.document_name_label = QtWidgets.QLabel(self.document_frame)
         self.document_name_label.setObjectName("document_name_label")
         self.document_name_label.setSizePolicy(
@@ -743,9 +736,19 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         self.output_folder_button = QtWidgets.QPushButton(self.action_frame)
         self.output_folder_button.setObjectName("output_folder_button")
         self.output_folder_button.clicked.connect(self._choose_output_folder)
-        self.output_location_button = QtWidgets.QToolButton(self.action_frame)
+        self.output_location_widget = QtWidgets.QWidget(self.action_frame)
+        self.output_location_widget.setObjectName("output_location_widget")
+        location_layout = QtWidgets.QHBoxLayout(self.output_location_widget)
+        location_layout.setContentsMargins(0, 0, 0, 0)
+        location_layout.setSpacing(2)
+        self.output_location_label = QtWidgets.QLabel(self.output_location_widget)
+        self.output_location_label.setObjectName("output_location_label")
+        location_layout.addWidget(self.output_location_label)
+        self.output_location_button = QtWidgets.QToolButton(self.output_location_widget)
         self.output_location_button.setObjectName("output_location_button")
         self.output_location_button.clicked.connect(self._show_output_details)
+        location_layout.addWidget(self.output_location_button)
+        location_layout.addStretch(1)
         self.output_error_label = QtWidgets.QLabel(self.action_frame)
         self.output_error_label.setObjectName("output_error_label")
         self.output_error_label.setWordWrap(True)
@@ -753,7 +756,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             QtCore.Qt.TextSelectableByMouse
         )
         self.output_feedback_stack = QtWidgets.QStackedWidget(self.action_frame)
-        self.output_feedback_stack.addWidget(self.output_location_button)
+        self.output_feedback_stack.addWidget(self.output_location_widget)
         self.output_feedback_stack.addWidget(self.output_error_label)
         self.output_feedback_stack.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
@@ -833,26 +836,28 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             for column in range(5):
                 layout.setColumnStretch(column, 0)
             self._clear_layout(layout)
-        if compact:
-            left.addWidget(self.level_mode_label, 0, 0)
-            left.addWidget(self.level_mode_box, 0, 1)
-            left.setColumnStretch(1, 1)
-            left.addWidget(self.advanced_button, 1, 0, 1, 2, QtCore.Qt.AlignLeft)
-            right.addWidget(self.offset_label, 0, 0)
-            right.addWidget(self.offset_edit, 0, 1)
-            right.addWidget(self.auto_offset_button, 0, 2)
-            right.setColumnStretch(3, 1)
-            right.addWidget(self.offset_formula_label, 1, 0, 1, 4)
+        left.addWidget(self.level_mode_label, 0, 0)
+        left.addWidget(self.level_mode_box, 0, 1)
+        # Rules changes hierarchy recognition, so it belongs beside that mode.
+        # At accessibility text sizes it stays beneath the selector, not alone
+        # at the far edge of the pane.
+        if self._large_text_mode():
+            left.addWidget(self.advanced_button, 1, 1, QtCore.Qt.AlignLeft)
         else:
-            left.addWidget(self.level_mode_label, 0, 0)
-            left.addWidget(self.level_mode_box, 0, 1)
-            left.setColumnStretch(2, 1)
-            left.addWidget(self.advanced_button, 0, 3)
+            left.addWidget(self.advanced_button, 0, 2)
+        left.setColumnStretch(3, 1)
+        if compact:
             right.addWidget(self.offset_label, 0, 0)
             right.addWidget(self.offset_edit, 0, 1)
             right.addWidget(self.auto_offset_button, 0, 2)
             right.setColumnStretch(3, 1)
-            right.addWidget(self.offset_formula_label, 0, 4)
+            right.addWidget(self.offset_formula_label, 1, 1, 1, 3)
+        else:
+            right.addWidget(self.offset_label, 0, 0)
+            right.addWidget(self.offset_edit, 0, 1)
+            right.addWidget(self.auto_offset_button, 0, 2)
+            right.addWidget(self.offset_formula_label, 0, 3)
+            right.setColumnStretch(4, 1)
         left.invalidate()
         right.invalidate()
 
@@ -881,7 +886,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             layout.addWidget(self.output_name_edit, 0, 2)
             layout.addWidget(self.output_folder_button, 0, 3)
             layout.setColumnStretch(2, 1)
-            layout.addWidget(self.output_feedback_stack, 1, 0, 1, 3)
+            layout.addWidget(self.output_feedback_stack, 1, 2, 1, 2)
             layout.addWidget(self.action_status_label, 2, 0, 1, 3)
             layout.addWidget(self.cancel_button, 1, 3)
             layout.addWidget(self.export_button, 2, 3)
@@ -1029,7 +1034,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 color: #202b3a;
             }
             QFrame#document_frame, QFrame#action_frame {
-                background-color: #f8f9fb;
+                background-color: #ffffff;
                 border: 0;
                 border-radius: 0;
             }
@@ -1044,20 +1049,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 background-color: #ffffff;
                 border: 0;
             }
-            QFrame#document_separator {
-                background-color: #d8dee7;
-                border: 0;
-                max-width: 1px;
-            }
             QSplitter::handle {
                 background-color: #ffffff;
                 border-left: 1px solid #e1e5eb;
                 margin: 0 5px;
-            }
-            QLabel#brand_label {
-                font-size: 13px;
-                font-weight: 600;
-                color: #697689;
             }
             QLabel#document_name_label {
                 font-weight: 600;
@@ -1071,7 +1066,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             QLabel#page_subtitle_label, QLabel#editor_hint_label,
             QLabel#preview_hint_label, QLabel#pdf_path_label,
             QLabel#output_label, QLabel#level_mode_label,
-            QLabel#offset_label {
+            QLabel#offset_label, QLabel#output_location_label {
                 color: #6e7b8c;
             }
             QLabel#preview_empty_label {
@@ -1116,6 +1111,10 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
             QToolButton#history_button:disabled {
                 color: #aab3bf;
             }
+            QToolButton#output_location_button {
+                color: #245fa8;
+                padding: 2px 4px;
+            }
             QPlainTextEdit#dir_text_edit {
                 color: #202b3a;
                 background-color: #ffffff;
@@ -1125,7 +1124,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 selection-color: #202b3a;
             }
             QPlainTextEdit#dir_text_edit:focus {
-                border-left: 2px solid #5b8fd4;
+                border-top: 1px solid #5b8fd4;
             }
             QPlainTextEdit#dir_text_edit:disabled {
                 color: #8994a3;
@@ -1138,15 +1137,15 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 show-decoration-selected: 1;
             }
             QTreeWidget#dir_tree_widget:focus {
-                border-left: 2px solid #5b8fd4;
+                border-top: 1px solid #5b8fd4;
             }
             QTreeWidget#dir_tree_widget:disabled {
                 color: #8994a3;
                 background-color: #f8f9fb;
             }
             QTreeWidget#dir_tree_widget::item {
-                min-height: 22px;
-                padding: 2px 4px;
+                min-height: 21px;
+                padding: 1px 4px;
                 border: 0;
                 border-bottom: 1px solid #eef1f5;
             }
@@ -1159,13 +1158,12 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
                 font-weight: 500;
             }
             QHeaderView::section {
-                color: #536174;
-                background-color: #f8f9fb;
+                color: #6e7b8c;
+                background-color: #ffffff;
                 border: 0;
                 border-bottom: 1px solid #e1e5eb;
-                border-right: 1px solid #edf0f4;
-                padding: 6px 10px;
-                font-weight: 600;
+                padding: 5px 10px;
+                font-weight: 500;
             }
             QWidget#pane_tools {
                 border-top: 1px solid #e7ebf0;
@@ -1366,7 +1364,9 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         for editor in (self.dir_text_edit, self.dir_tree_widget):
             editor_font = QtGui.QFont(base_font)
             if base_size < 18:
-                editor_font.setPointSizeF(base_size + 1)
+                editor_font.setPointSizeF(
+                    base_size + (3 if editor is self.dir_text_edit else 1)
+                )
             if abs(editor.font().pointSizeF() - editor_font.pointSizeF()) > 0.1:
                 editor.setFont(editor_font)
 
@@ -1784,15 +1784,24 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         if output:
             if self._output_directory_override:
                 location = os.path.basename(folder) or folder
+                location = self.output_location_label.fontMetrics().elidedText(
+                    location, QtCore.Qt.ElideMiddle, 90
+                )
             else:
                 location = "Source folder" if self._language == "en" else "原文件所在文件夹"
+            self.output_location_label.setText(
+                ("{} · Source unchanged ·" if self._language == "en"
+                 else "{} · 原文件不变 ·").format(location)
+            )
             self.output_location_button.setText(
-                ("{} · Source unchanged · View path" if self._language == "en"
-                 else "{} · 原文件不变 · 查看路径").format(location)
+                "View path" if self._language == "en" else "查看路径"
             )
             self.output_location_button.setToolTip(output)
+            self.output_location_label.setToolTip(output)
         else:
+            self.output_location_label.setText("")
             self.output_location_button.setText("")
+            self.output_location_label.setToolTip("")
         self.output_location_button.setEnabled(bool(output))
         source = self.pdf_path.strip()
         self.open_button.setText(
@@ -1924,7 +1933,7 @@ class Main(QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
         )
         self.output_feedback_stack.setCurrentWidget(
             self.output_error_label if output_error
-            else self.output_location_button
+            else self.output_location_widget
         )
         if hasattr(self, "open_result_action"):
             self.open_result_action.setEnabled(
