@@ -17,6 +17,7 @@ import tempfile
 from pypdf import PageObject, PdfReader, PdfWriter
 from pypdf.generic import Destination, Fit
 
+from src.convert import GROUP_PAGE_MARKER
 from src.pdf.cancellation import raise_if_cancelled
 
 logger = logging.getLogger(__name__)
@@ -128,7 +129,11 @@ class Pdf(object):
             if isinstance(o, Destination):
                 try:
                     title = " " * current_level + o.title.strip()
-                    page_num = self.reader.get_destination_page_number(o) + 1
+                    page_index = self.reader.get_destination_page_number(o)
+                    # A PDF outline may be a grouping node without a /Dest or
+                    # /A. Keep it in the editable text instead of inventing a
+                    # page or dropping the parent of its children.
+                    page_num = GROUP_PAGE_MARKER if page_index is None else page_index + 1
                     index_list.append(
                         "{title}  {page_num}".format(title=title, page_num=page_num)
                     )

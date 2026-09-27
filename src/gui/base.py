@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QTreeWidgetItemIterator,
 )
 
+from src.convert import GROUP_PAGE_MARKER
+
 SOURCE_ROLE = Qt.UserRole + 41
 RULE_ROLE = Qt.UserRole + 42
 
@@ -312,7 +314,10 @@ class TreeWidget(MixinContextMenu):
     def _refresh_item_tooltips(self, item):
         for column in self._TOOLTIP_COLUMNS:
             if column < self.columnCount():
-                item.setToolTip(column, item.text(column))
+                text = item.text(column)
+                if column in (1, 2) and text == GROUP_PAGE_MARKER:
+                    text = getattr(self, "group_page_description", text)
+                item.setToolTip(column, text)
 
     def _item_changed(self, item, column):
         if self._suppress_preview_changed:
@@ -321,7 +326,7 @@ class TreeWidget(MixinContextMenu):
         self._suppress_preview_changed = True
         try:
             if column in self._TOOLTIP_COLUMNS:
-                item.setToolTip(column, item.text(column))
+                self._refresh_item_tooltips(item)
         finally:
             self._suppress_preview_changed = previous
         self._notify_preview_changed()
@@ -422,13 +427,8 @@ class TreeWidget(MixinContextMenu):
         children_dict = {}
         for child in children:
             k, vs = child
-            real_num = int(k.text(2))
-            c = {
-                "title": k.text(0),
-                "num": int(k.text(1)),
-                "real_num": real_num,
-                "parent": parent_index,
-            }
+            c = self.item_to_record(k)
+            c["parent"] = parent_index
             children_dict[current_index] = c
             if vs:
                 children_dict.update(
@@ -443,15 +443,23 @@ class TreeWidget(MixinContextMenu):
         dir_dict = {}
         for r in qtrees:
             k, vs = r
-            dir_dict[current_index] = {
-                "title": k.text(0),
-                "num": int(k.text(1)),
-                "real_num": int(k.text(2)),
-            }
+            dir_dict[current_index] = self.item_to_record(k)
             children_dict = self.children_to_dict(vs, current_index + 1, current_index)
             dir_dict.update(children_dict)
             current_index = max(dir_dict.keys()) + 1
         return dir_dict
+
+    @staticmethod
+    def item_to_record(item):
+        if item.text(1) == item.text(2) == GROUP_PAGE_MARKER:
+            return {
+                "title": item.text(0), "num": None, "real_num": None,
+                "is_group": True,
+            }
+        return {
+            "title": item.text(0), "num": int(item.text(1)),
+            "real_num": int(item.text(2)),
+        }
 
     @staticmethod
     def set_pagenum(item, num, real_num):

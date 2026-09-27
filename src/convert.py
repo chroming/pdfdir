@@ -35,10 +35,20 @@ COMPILED_PAGE_NUM_PATTERNS = [
 ]
 
 PREFIX_SPACE_PATTERN = re.compile(r"\s*")
+GROUP_PAGE_MARKER = "—"
+GROUP_LINE_PATTERN = re.compile(rf"^(.*?)\s{{2,}}{re.escape(GROUP_PAGE_MARKER)}$")
+
+
+def is_group_line(text):
+    """Two spaces and an em dash explicitly denote a no-target outline node."""
+    return GROUP_LINE_PATTERN.fullmatch(text.rstrip()) is not None
 
 
 def split_page_num(text):
     """split between title and page number"""
+    group = GROUP_LINE_PATTERN.fullmatch(text.rstrip())
+    if group:
+        return group.group(1), None
     con, num = "", None
     for pat in COMPILED_PAGE_NUM_PATTERNS:
         res = pat.search(text)
@@ -157,11 +167,16 @@ def _convert_dir_text(
     for i, di in enumerate(dir_list):
         di = di.rstrip()
         title, num = split_page_num(di)
-        if num is None:
-            num = pagenum if pagenum != -float("inf") else 1
-        if num > pagenum or not fix_non_seq:
-            pagenum = num
-        index_dict[i] = {"title": title, "real_num": pagenum + offset, "num": pagenum}
+        if is_group_line(di):
+            index_dict[i] = {
+                "title": title, "real_num": None, "num": None, "is_group": True,
+            }
+        else:
+            if num is None:
+                num = pagenum if pagenum != -float("inf") else 1
+            if num > pagenum or not fix_non_seq:
+                pagenum = num
+            index_dict[i] = {"title": title, "real_num": pagenum + offset, "num": pagenum}
         level = check_level(
             title, level0, level1, level2, level3, level4, level5, other=other
         )

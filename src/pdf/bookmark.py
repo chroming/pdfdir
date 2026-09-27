@@ -10,6 +10,7 @@ Public:
 """
 
 import logging
+from dataclasses import dataclass
 
 from src.pdf.cancellation import raise_if_cancelled
 
@@ -46,6 +47,12 @@ def _add_bookmark(pdf, index_dict, cancel_check=None):
     for i in range(m + 1):
         raise_if_cancelled(cancel_check)
         value = index_dict[i]
+        if value.get("is_group") is True:
+            parent_dict[i] = pdf.add_bookmark(
+                value.get("title", ""), None,
+                parent_dict.get(value.get("parent")),
+            )
+            continue
         real_page_num = value.get("real_num", 1)
         if real_page_num < 1:
             raise BookmarkPageError(
@@ -131,7 +138,22 @@ def get_bookmarks_strict(path):
     """Return existing bookmarks while preserving PDF read failures."""
     if not path:
         return []
-    return Pdf(path).exist_bookmarks()
+    return read_document_info(path).bookmarks
+
+
+@dataclass(frozen=True)
+class PdfDocumentInfo:
+    bookmarks: list
+    page_count: int
+
+
+def read_document_info(path):
+    """Read outline and page count from the same parser, propagating failures."""
+    pdf = Pdf(path)
+    try:
+        return PdfDocumentInfo(pdf.exist_bookmarks(), len(pdf.reader.pages))
+    finally:
+        pdf.reader.stream.close()
 
 
 def _validate_bookmark_structure(index_dict):
@@ -145,6 +167,10 @@ def _validate_bookmark_structure(index_dict):
         ):
             raise ValueError(f"Invalid parent index '{parent}' for bookmark '{index}'!")
         page = value.get("real_num", 1)
+        if value.get("is_group") is True:
+            if page is not None:
+                raise ValueError("Group bookmarks must not have a page number!")
+            continue
         if not isinstance(page, int) or isinstance(page, bool):
             raise ValueError("Page numbers must be integers!")
 
@@ -157,7 +183,12 @@ def check_bookmarks(path, index_dict, keep_exist_dir=False):
     # Validation must stay read-only and cheap; building the writer copies the
     # entire document and belongs in the background write worker.
     max_page_num = len(pdf.reader.pages)
-    page_numbers = [v.get("real_num", 1) for v in index_dict.values()]
+    page_numbers = [
+        v.get("real_num", 1) for v in index_dict.values()
+        if v.get("is_group") is not True
+    ]
+    if not page_numbers:
+        return
     min_set_page_num = min(page_numbers)
     if min_set_page_num < 1:
         raise BookmarkPageError(

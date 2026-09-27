@@ -20,7 +20,11 @@ from PySide6.QtWidgets import QMessageBox
 from pypdf import PdfReader
 
 from src.config import CONFIG
-from src.convert import clean_clipboard_control_chars, convert_dir_text
+from src.convert import (
+    GROUP_PAGE_MARKER,
+    clean_clipboard_control_chars,
+    convert_dir_text,
+)
 from src.gui.base import TreeWidget
 from src.gui.main_ui import Ui_PDFdir
 from src.gui.product_style import configure_select
@@ -33,7 +37,7 @@ from src.pdf.bookmark import (
     add_bookmark,
     check_bookmarks,
     get_bookmarks,
-    get_bookmarks_strict,
+    read_document_info,
 )
 from src.pdf.cancellation import OperationCancelled
 from src.pdf.page_offset import infer_page_offset
@@ -399,6 +403,7 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self._output_name_override = ""
         self._output_source_key = ""
         self._document_page_count = None
+        self._pending_document_info = None
         self._build_product_shell()
         self._apply_product_style()
         self.version = CONFIG.VERSION
@@ -1206,7 +1211,12 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
             self._output_directory_override = ""
             self._output_name_override = ""
             self._document_page_count = None
-            if source and os.path.isfile(source):
+            if (
+                self._pending_document_info
+                and self._pending_document_info[0] == source_key
+            ):
+                self._document_page_count = self._pending_document_info[1].page_count
+            elif source and os.path.isfile(source):
                 try:
                     self._document_page_count = len(PdfReader(source).pages)
                 except Exception:
@@ -1255,7 +1265,8 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
                 records.append(
                     (
                         str(record.get("title", "")),
-                        int(record.get("real_num", 1)),
+                        None if record.get("is_group") is True
+                        else int(record.get("real_num", 1)),
                         record.get("parent"),
                     )
                 )
@@ -1606,11 +1617,10 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
             row += 1
             if not item.text(0).strip():
                 return self._t("empty_title", row=row)
-            for column in (1, 2):
-                try:
-                    int(item.text(column))
-                except (TypeError, ValueError):
-                    return self._t("invalid_preview_page", row=row)
+            try:
+                self.dir_tree_widget.item_to_record(item)
+            except (TypeError, ValueError):
+                return self._t("invalid_preview_page", row=row)
         return self._preview_validation_error
 
     def _preview_item_count(self):
@@ -1841,6 +1851,18 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self.redo_button.setToolTip("Redo bookmark edit" if english else "重做书签修改")
         self.undo_button.setAccessibleName(self.undo_button.toolTip())
         self.redo_button.setAccessibleName(self.redo_button.toolTip())
+        group_help = (
+            "— means a group without a page destination. In TOC text, end the title "
+            "with two spaces and — to preserve a group."
+            if english else
+            "— 表示不跳转页面的分组。目录文本中，标题后加两个空格和 — 可保留分组。"
+        )
+        self.dir_text_edit.setToolTip(group_help)
+        self.dir_text_edit.setAccessibleDescription(group_help)
+        self.dir_tree_widget.group_page_description = (
+            "Group without a page destination" if english else "分组标题，不跳转页面"
+        )
+        self.dir_tree_widget._configure_all_items()
         for index, editor in enumerate(self._regex_editors):
             level_name = (
                 "Level {}".format(index + 1)
@@ -2435,7 +2457,8 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
                 or source_path.suffix.lower() != ".pdf"
             ):
                 raise ValueError(self._t("select_pdf_first"))
-            bookmarks = get_bookmarks_strict(candidate)
+            document_info = read_document_info(candidate)
+            bookmarks = document_info.bookmarks
         except Exception as exc:
             self.alert_msg(
                 self._t("invalid_pdf", message=str(exc)),
@@ -2463,7 +2486,15 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         if switching or not self._active_pdf_path:
             self._clear_generated_result(clear_feedback=True)
         self._active_pdf_path = candidate
-        self.pdf_path_edit.setText(candidate)
+        self._pending_document_info = (
+            self._canonical_source_path(candidate), document_info,
+        )
+        self._document_page_count = document_info.page_count
+        try:
+            self.pdf_path_edit.setText(candidate)
+        finally:
+            self._pending_document_info = None
+        self._refresh_document_name()
         self._source_has_bookmarks = bool(bookmarks)
         self._draft_imported_from_source = False
         self.default_folder = os.path.dirname(candidate)
@@ -2617,8 +2648,10 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         item = QtWidgets.QTreeWidgetItem(
             [
                 str(record.get("title", "")),
-                str(record.get("num", 1)),
-                str(record.get("real_num", 1)),
+                GROUP_PAGE_MARKER if record.get("is_group")
+                else str(record.get("num", 1)),
+                GROUP_PAGE_MARKER if record.get("is_group")
+                else str(record.get("real_num", 1)),
             ]
         )
         if not item.text(0).strip():
