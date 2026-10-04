@@ -17,6 +17,7 @@ class RuleWorkbenchMixin:
         self._rule_restore_running = False
         self._active_rule = None
         self._last_rule_values = None
+        self._rule_panel_ratio = 0.4
         self._rules_timer = QtCore.QTimer(self)
         self._rules_timer.setSingleShot(True)
         self._rules_timer.setInterval(250)
@@ -182,6 +183,10 @@ class RuleWorkbenchMixin:
     def _toggle_rule_workbench(self):
         """Show tools beside their live result, without changing the main shell."""
         expanded = self.advanced_button.isChecked()
+        if not expanded:
+            sizes = self.rule_splitter.sizes()
+            if sum(sizes):
+                self._rule_panel_ratio = sizes[1] / sum(sizes)
         if expanded and self._rule_baseline is None:
             self._capture_rule_trial()
         self.rules_scroll.setVisible(expanded)
@@ -190,9 +195,15 @@ class RuleWorkbenchMixin:
         self._resize_rule_workbench()
         self._translate_rule_workbench()
         if expanded:
-            total = self.rule_splitter.height()
-            self.rule_splitter.setSizes([max(100, total - 225), 225])
+            total = self.rule_splitter.height() - self.rule_splitter.handleWidth()
+            height = round(total * self._rule_panel_ratio)
+            self.rule_splitter.setSizes([total - height, height])
         else:
+            # QSplitter retains its allocation when only the child's maximum
+            # height changes; explicitly return the hidden tools' space.
+            total = self.rule_splitter.height() - self.rule_splitter.handleWidth()
+            height = self.left_tools.sizeHint().height()
+            self.rule_splitter.setSizes([total - height, height])
             self._active_rule = None
             self._highlight_rule_matches()
             self.advanced_button.setFocus()
@@ -309,6 +320,7 @@ class RuleWorkbenchMixin:
         self._restore_rule_view(state["view"])
         self._rebuilding_tree = False
         self._preview_offset = self.offset_num
+        tree.page_offset = self._preview_offset
         self._preview_manually_adjusted = state["manual"]
         self._preview_validation_error = ""
         self._rule_restore_running = False

@@ -4,6 +4,8 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from src.gui import icons_rc  # Registers the bundled selector arrow.
 
+ERROR_COLOR = "#b43d3d"
+
 
 class SelectListView(QtWidgets.QListView):
     def __init__(self, combo):
@@ -139,7 +141,7 @@ def stylesheet(app_font):
         QLabel#action_status_label[statusKind="working"] {{ color: #246ac2; }}
         QLabel#action_status_label[statusKind="success"] {{ color: #26734d; }}
         QLabel#action_status_label[statusKind="error"],
-        QLabel#regex_error_label, QLabel#output_error_label {{ color: #b43d3d; }}
+        QLabel#regex_error_label, QLabel#output_error_label {{ color: {ERROR_COLOR}; }}
 
         QPushButton, QToolButton, QLineEdit, QComboBox {{
             min-height: {height}px; max-height: {height}px;

@@ -12,7 +12,9 @@ public:
 import hashlib
 import logging
 import os
+import sys
 import tempfile
+import threading
 
 from pypdf import PageObject, PdfReader, PdfWriter
 from pypdf.generic import Destination, Fit
@@ -21,6 +23,12 @@ from src.convert import GROUP_PAGE_MARKER
 from src.pdf.cancellation import raise_if_cancelled
 
 logger = logging.getLogger(__name__)
+
+# Linked page annotations can traverse hundreds of otherwise shallow objects.
+# Bound this budget and serialize changes to Python's process-wide limit so
+# concurrent exports cannot restore it while another clone is still running.
+_CLONE_RECURSION_LIMIT = 10000
+_CLONE_LOCK = threading.RLock()
 
 
 class OutputTargetChangedError(OSError):
@@ -91,7 +99,13 @@ class Pdf(object):
         # Clone the complete document catalog. Page-only/append copying can
         # silently discard document-level data such as embedded files, forms,
         # named destinations, and other entries under /Root.
-        writer.clone_document_from_reader(reader)
+        with _CLONE_LOCK:
+            previous_limit = sys.getrecursionlimit()
+            try:
+                sys.setrecursionlimit(max(previous_limit, _CLONE_RECURSION_LIMIT))
+                writer.clone_document_from_reader(reader)
+            finally:
+                sys.setrecursionlimit(previous_limit)
         return writer
 
     @staticmethod

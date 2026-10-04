@@ -49,6 +49,35 @@ def test_invalid_rule_retains_last_good_tree_and_blocks_stale_export(window, qtb
     assert window.export_button.isEnabled()
 
 
+def test_rule_panel_remembers_user_size_across_disclosure(window, qtbot):
+    window.resize(1040, 720)
+    qtbot.wait(30)
+    window.rule_splitter.setSizes([400, 175])
+    qtbot.wait(30)
+    before = window.rule_splitter.sizes()
+    window.advanced_button.click()
+    window.advanced_button.click()
+    qtbot.wait(30)
+    assert abs(window.rule_splitter.sizes()[1] - before[1]) <= 2
+
+
+def test_initial_rule_panel_leaves_most_small_window_for_source(window, qtbot):
+    window.advanced_button.click()
+    window.resize(780, 560)
+    qtbot.wait(30)
+    window.advanced_button.click()
+    qtbot.wait(30)
+    source, rules = window.rule_splitter.sizes()
+    assert source >= rules
+
+
+def test_collapsing_rules_returns_space_to_source(window, qtbot):
+    window.advanced_button.click()
+    qtbot.wait(30)
+    available = window.rule_splitter.height() - window.rule_splitter.handleWidth()
+    assert abs(window.dir_text_edit.height() + window.rules_section.height() - available) <= 2
+
+
 def test_real_typing_debounces_without_blanking_preview(window, qtbot):
     before = window._tree_snapshot()
     window.level1_edit.setEnabled(True)

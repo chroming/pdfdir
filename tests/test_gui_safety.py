@@ -79,6 +79,10 @@ def test_out_of_range_preview_does_not_write_pdf(window, qapp, tmp_path):
     _write_blank_pdf(source_path, page_count=2)
     window.pdf_path_edit.setText(str(source_path))
     window.dir_text_edit.setPlainText("Chapter 999")
+    assert not window.export_button.isEnabled()
+    assert window.dir_tree_widget.topLevelItem(0).toolTip(2) == (
+        "书签页码 999 超出 PDF 总页数 2，请在预览中修正"
+    )
     timer, messages = _dismiss_message_boxes(qapp, window)
 
     window.export_button.click()
@@ -86,9 +90,7 @@ def test_out_of_range_preview_does_not_write_pdf(window, qapp, tmp_path):
     timer.stop()
 
     assert not output_path.exists()
-    assert messages == [
-        "书签页码 999 超出 PDF 总页数 2，请在预览中修正"
-    ]
+    assert messages == []
 
 
 def test_cancelled_file_picker_preserves_current_work(window, tmp_path, monkeypatch):

@@ -27,7 +27,7 @@ from src.convert import (
 )
 from src.gui.base import TreeWidget
 from src.gui.main_ui import Ui_PDFdir
-from src.gui.product_style import configure_select
+from src.gui.product_style import ERROR_COLOR, configure_select
 from src.gui.product_style import icon as product_icon
 from src.gui.product_style import stylesheet as product_stylesheet
 from src.gui.rule_workbench import RuleWorkbenchMixin
@@ -428,6 +428,7 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         )
         self.dir_tree_widget.fix_column()
         self._preview_offset = self.offset_num
+        self.dir_tree_widget.page_offset = self._preview_offset
         self._set_connect()
         self._set_action()
         self._set_unwritable()
@@ -1612,16 +1613,35 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
             return self._regex_validation_error
         if self._rules_pending:
             return "Rule preview is not updated" if self._language == "en" else "规则预览尚未更新"
-        row = 0
-        for item in self.dir_tree_widget.all_items:
-            row += 1
-            if not item.text(0).strip():
-                return self._t("empty_title", row=row)
-            try:
-                self.dir_tree_widget.item_to_record(item)
-            except (TypeError, ValueError):
-                return self._t("invalid_preview_page", row=row)
-        return self._preview_validation_error
+        first_error = ""
+        # Presentation is derived, not a tree edit or an undoable mutation.
+        with QtCore.QSignalBlocker(self.dir_tree_widget):
+            for row, item in enumerate(self.dir_tree_widget.all_items, 1):
+                error = ""
+                try:
+                    record = self.dir_tree_widget.item_to_record(item)
+                except (TypeError, ValueError):
+                    error = self._t("invalid_preview_page", row=row)
+                else:
+                    page = record["real_num"]
+                    if page is not None and page < 1:
+                        error = self._t("page_below_minimum", page=page)
+                    elif (page is not None and self._document_page_count is not None
+                          and page > self._document_page_count):
+                        error = self._t("page_above_maximum", page=page,
+                                        total=self._document_page_count)
+                for column in (1, 2):
+                    item.setForeground(column, QtGui.QBrush(QtGui.QColor(ERROR_COLOR))
+                                       if error else QtGui.QBrush())
+                    normal = (self.dir_tree_widget.group_page_description
+                              if item.text(column) == GROUP_PAGE_MARKER else item.text(column))
+                    item.setToolTip(column, error or normal)
+                    item.setData(column, QtCore.Qt.AccessibleDescriptionRole, error or normal)
+                if not item.text(0).strip():
+                    error = self._t("empty_title", row=row)
+                if error and not first_error:
+                    first_error = error
+        return first_error or self._preview_validation_error
 
     def _preview_item_count(self):
         return sum(1 for _item in self.dir_tree_widget.all_items)
@@ -1982,6 +2002,7 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
 
     def show_status(self, msg, timeout=10 * 3600 * 1000):
         """Show an operation message next to the action it explains."""
+        self._status_validation = self._validate_preview_tree()
         self._status_override_active = True
         self._set_action_status(msg, self._status_kind_for_message(msg))
         if 0 < timeout < 10 * 3600 * 1000:
@@ -2063,7 +2084,13 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
 
     def _refresh_action_status(self):
         if self._status_override_active and self._status_timer.isActive():
-            return
+            validation = self._validate_preview_tree()
+            if (self._has_active_task() or not validation
+                    or validation == getattr(self, "_status_validation", "")):
+                return
+            # A new blocking error supersedes a previous transient success.
+            self._status_override_active = False
+            self._status_timer.stop()
         if not self._has_active_task():
             self._status_override_active = False
         task_kind = (self._task_context or {}).get("kind")
@@ -2505,9 +2532,23 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
                 bookmark_text = clean_clipboard_control_chars(
                     "\n".join(bookmarks)
                 )
-                self.dir_text_edit.setPlainText(bookmark_text)
+                # Imported numbers already are physical PDF pages. Replace the
+                # draft atomically, even while a previous rule trial is guarded.
+                self._clear_rule_trial()
+                self._preview_manually_adjusted = False
+                controls = (self.dir_text_edit, self.offset_edit,
+                            self.level_mode_box, self.fix_non_seq_box)
+                blockers = [QtCore.QSignalBlocker(control) for control in controls]
+                self.offset_edit.setText("0")
+                self.fix_non_seq_box.setChecked(False)
                 self.level_mode_box.setCurrentIndex(0)
+                self.dir_text_edit.setPlainText(bookmark_text)
+                del blockers
+                self.fix_non_seq_action.setChecked(False)
                 self.keep_exist_dir_box.setChecked(False)
+                self._update_level_mode(0)
+                self.make_dir_tree()
+                self.dir_tree_widget.reset_history()
                 self._clear_rule_trial()
                 self._draft_imported_from_source = True
                 imported = True
@@ -2559,6 +2600,7 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
             return
         delta = offset - self._preview_offset
         self._preview_offset = offset
+        self.dir_tree_widget.page_offset = offset
         self.dir_tree_widget.shift_page_offset(delta)
         self._refresh_dirty_state()
         self._update_action_availability()
@@ -2580,6 +2622,7 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self._rebuilding_tree = True
         self.dir_tree_widget._history_paused = True
         self._preview_offset = self.offset_num
+        self.dir_tree_widget.page_offset = self._preview_offset
         self._preview_manually_adjusted = False
         self._preview_validation_error = ""
         try:

@@ -1,4 +1,5 @@
 import pytest
+import sys
 from pypdf import PdfReader, PdfWriter
 from pypdf.annotations import Text
 
@@ -7,6 +8,35 @@ from src.pdf.bookmark import add_bookmark, check_bookmarks
 from src.pdf.cancellation import OperationCancelled
 from src.pdf.pdf import Pdf
 from src.pdf.pdf import OutputTargetChangedError
+
+
+def test_deep_link_graph_preserves_complete_document_and_recursion_budget(tmp_path):
+    from pypdf.generic import DictionaryObject, NameObject, NumberObject
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    writer.add_attachment("notes.txt", b"must survive")
+    # Indirect links are flat on disk but recursive in pypdf's default clone.
+    tail = writer._add_object(DictionaryObject({NameObject("/Value"): NumberObject(500)}))
+    for value in reversed(range(500)):
+        tail = writer._add_object(DictionaryObject({
+            NameObject("/Value"): NumberObject(value), NameObject("/Link"): tail,
+        }))
+    writer.root_object[NameObject("/DeepLinks")] = tail
+    source = tmp_path / "deep.pdf"
+    writer.write(source)
+    original = source.read_bytes()
+    budget = sys.getrecursionlimit()
+    pdf = Pdf(str(source))
+    pdf.save_pdf()
+    assert sys.getrecursionlimit() == budget
+    reader = PdfReader(tmp_path / "deep_new.pdf")
+    assert reader.attachments["notes.txt"] == [b"must survive"]
+    node = reader.root_object["/DeepLinks"]
+    for value in range(500):
+        assert node["/Value"] == value
+        node = node["/Link"]
+    assert node["/Value"] == 500
+    assert source.read_bytes() == original
 
 
 def _write_blank_pdf(path):
@@ -43,12 +73,33 @@ def test_copy_failure_does_not_fall_back_to_lossy_page_copy(
         record_lossy_fallback,
     )
 
+    original_limit = sys.getrecursionlimit()
     with pytest.raises(OSError, match="lossless copy failed"):
         pdf.save_pdf()
 
+    assert sys.getrecursionlimit() == original_limit
     assert copy_attempts == ["lossless"]
     assert not output_path.exists()
     assert not list(tmp_path.glob(".source_new.*.tmp"))
+
+
+def test_concurrent_clones_share_budget_and_restore_it(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    source = tmp_path / "source.pdf"
+    _write_blank_pdf(source)
+    original_limit = sys.getrecursionlimit()
+
+    def clone(index):
+        pdf = Pdf(str(source), output_path=str(tmp_path / f"output-{index}.pdf"))
+        try:
+            return pdf.save_pdf()
+        finally:
+            pdf.reader.stream.close()
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        outputs = list(pool.map(clone, range(8)))
+    assert all(len(PdfReader(path).pages) == 1 for path in outputs)
+    assert sys.getrecursionlimit() == original_limit
 
 
 def test_existing_output_is_never_replaced(tmp_path):

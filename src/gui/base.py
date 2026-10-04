@@ -92,6 +92,7 @@ class TreeWidget(MixinContextMenu):
     ):
         self._preview_changed_callback = preview_changed
         self._suppress_preview_changed = False
+        self.page_offset = 0
         super(TreeWidget, self).__init__(parents)
         self.undo_action = self.add_action("撤销", self.undo)
         self.redo_action = self.add_action("重做", self.redo)
@@ -325,6 +326,19 @@ class TreeWidget(MixinContextMenu):
         previous = self._suppress_preview_changed
         self._suppress_preview_changed = True
         try:
+            if column in (1, 2):
+                text = item.text(column).strip()
+                other = 3 - column
+                if text == GROUP_PAGE_MARKER:
+                    item.setText(other, GROUP_PAGE_MARKER)
+                else:
+                    try:
+                        value = int(text)
+                    except ValueError:
+                        pass  # Keep incomplete input visible for validation.
+                    else:
+                        delta = self.page_offset if column == 1 else -self.page_offset
+                        item.setText(other, str(value + delta))
             if column in self._TOOLTIP_COLUMNS:
                 self._refresh_item_tooltips(item)
         finally:
