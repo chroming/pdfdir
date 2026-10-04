@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.convert import GROUP_PAGE_MARKER
+from src.gui.controls import BookmarkItemDelegate
 
 SOURCE_ROLE = Qt.UserRole + 41
 RULE_ROLE = Qt.UserRole + 42
@@ -94,6 +95,7 @@ class TreeWidget(MixinContextMenu):
         self._suppress_preview_changed = False
         self.page_offset = 0
         super(TreeWidget, self).__init__(parents)
+        self.setItemDelegate(BookmarkItemDelegate(self))
         self.undo_action = self.add_action("撤销", self.undo)
         self.redo_action = self.add_action("重做", self.redo)
         self.undo_action.setShortcut(QKeySequence.Undo)

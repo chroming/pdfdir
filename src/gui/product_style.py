@@ -184,9 +184,26 @@ def stylesheet(app_font):
         QPushButton[variant="primary"]:hover {{ background: #1e66c0; border-color: #1e66c0; }}
         QPushButton[variant="primary"]:pressed {{ background: #1958a8; border-color: #1958a8; }}
         QPushButton[variant="primary"]:disabled {{ background: #e6eaf0; border-color: #e6eaf0; color: #929eaf; }}
-        QToolButton#output_location_button {{
-            color: #246ac2; font-size: {metadata}; padding: 0 4px;
+        QToolButton[variant="disclosure"], QToolButton[variant="detail"] {{
+            background: transparent; border-color: transparent; padding: 0 4px;
+        }}
+        QToolButton[variant="detail"] {{ color: #246ac2; }}
+        QToolButton[variant="disclosure"]:hover, QToolButton[variant="detail"]:hover {{
+            background: #edf0f4;
+        }}
+        QToolButton[variant="disclosure"]:focus, QToolButton[variant="detail"]:focus {{
+            border-color: #4385d7;
+        }}
+        QToolButton[variant="disclosure"]:disabled, QToolButton[variant="detail"]:disabled {{
+            color: #a2a9b4; background: transparent; border-color: transparent;
+        }}
+        QToolButton[variant="detail"][density="compact"] {{
+            font-size: {metadata};
             min-height: {height if large else 20}px; max-height: {height if large else 20}px;
+        }}
+        QLineEdit[variant="cell-editor"] {{
+            min-height: 0; max-height: 16777215px; padding: 0 4px;
+            border-radius: 2px; font-size: {content};
         }}
         QLineEdit[invalid="true"] {{ border-color: #bf4747; background: #fff8f8; }}
         QComboBox {{ padding: 0 32px 0 10px; }}

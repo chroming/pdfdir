@@ -28,6 +28,7 @@ from src.convert import (
 from src.gui.base import TreeWidget
 from src.gui.main_ui import Ui_PDFdir
 from src.gui.product_style import ERROR_COLOR, configure_select
+from src.gui.controls import DetailButton, DisclosureButton, configure_command
 from src.gui.product_style import icon as product_icon
 from src.gui.product_style import stylesheet as product_stylesheet
 from src.gui.rule_workbench import RuleWorkbenchMixin
@@ -658,8 +659,9 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self.preview_layout.setContentsMargins(20, 12, 20, 12)
         self.paste_button = QtWidgets.QPushButton(self.editor_pane)
         self.paste_button.setObjectName("paste_button")
-        self.auto_toc_button.setProperty("variant", "quiet")
-        self.paste_button.setProperty("variant", "quiet")
+        for button in (self.auto_toc_button, self.paste_button, self.auto_offset_button,
+                       self.open_button, self.cancel_button):
+            configure_command(button)
         self.paste_button.clicked.connect(self._paste_toc_text)
         self.editor_header_layout.removeWidget(self.dir_text_label)
         self.editor_header_layout.removeWidget(self.auto_toc_button)
@@ -686,6 +688,10 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self._layout_pane_headers()
         while self.quick_settings_layout.count():
             self.quick_settings_layout.takeAt(0)
+        self.advanced_button.hide()
+        self.advanced_button.deleteLater()
+        self.advanced_button = DisclosureButton(self.editor_pane)
+        self.advanced_button.setObjectName("advanced_button")
         self.left_tools = QtWidgets.QWidget(self.editor_pane)
         self.left_tools.setObjectName("pane_tools")
         self.left_tools_layout = QtWidgets.QGridLayout(self.left_tools)
@@ -756,9 +762,8 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self.output_location_label = QtWidgets.QLabel(self.output_location_widget)
         self.output_location_label.setObjectName("output_location_label")
         location_layout.addWidget(self.output_location_label)
-        self.output_location_button = QtWidgets.QToolButton(self.output_location_widget)
+        self.output_location_button = DetailButton(self.output_location_widget, compact=True)
         self.output_location_button.setObjectName("output_location_button")
-        self.output_location_button.setProperty("variant", "quiet")
         self.output_location_button.clicked.connect(self._show_output_details)
         location_layout.addWidget(self.output_location_button)
         location_layout.addStretch(1)
@@ -983,6 +988,8 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self._update_tree_headers(compact=large_font)
         self.root_layout.invalidate()
         self.root_layout.activate()
+        self.left_tools_layout.activate()
+        self.right_tools_layout.activate()
         self._render_action_status()
 
     def _apply_product_style(self):

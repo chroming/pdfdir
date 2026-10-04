@@ -5,7 +5,8 @@ import re
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from src.convert import split_page_num
-from src.gui.product_style import configure_select, icon
+from src.gui.product_style import configure_select
+from src.gui.controls import DetailButton, DisclosureButton, configure_command
 from src.gui.base import SOURCE_ROLE, RULE_ROLE
 
 
@@ -67,8 +68,7 @@ class RuleWorkbenchMixin:
             editor.setMinimumWidth(40)
             self.regex_grid.addWidget(box, i, 0)
             self.regex_grid.addWidget(editor, i, 1)
-            count = QtWidgets.QToolButton(self.sub_dir_group)
-            count.setProperty("variant", "quiet")
+            count = DetailButton(self.sub_dir_group)
             count.clicked.connect(lambda _checked=False, rule=i: self._show_rule_matches(rule))
             self.rule_counts.append(count)
             self.regex_grid.addWidget(count, i, 2)
@@ -88,6 +88,7 @@ class RuleWorkbenchMixin:
         self.rules_guard_label.setWordWrap(True)
         self.rules_guard_label.hide()
         self.rules_accept_button = QtWidgets.QPushButton(self.advanced_widget)
+        configure_command(self.rules_accept_button)
         self.rules_accept_button.clicked.connect(self._accept_rule_trial)
         self.rules_accept_button.hide()
         self.advanced_layout.insertWidget(0, self.rules_accept_button)
@@ -95,11 +96,7 @@ class RuleWorkbenchMixin:
 
         while self.advanced_options_layout.count():
             self.advanced_options_layout.takeAt(0)
-        self.rules_options_button = QtWidgets.QToolButton(self.advanced_widget)
-        self.rules_options_button.setProperty("variant", "quiet")
-        self.rules_options_button.setCheckable(True)
-        self.rules_options_button.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
-        self.rules_options_button.setIcon(icon("chevron-right"))
+        self.rules_options_button = DisclosureButton(self.advanced_widget)
         self.rules_options_button.toggled.connect(self._toggle_rule_options)
         self.advanced_layout.addWidget(self.rules_options_button, 0, QtCore.Qt.AlignLeft)
         self.rules_options = QtWidgets.QWidget(self.advanced_widget)
@@ -111,13 +108,12 @@ class RuleWorkbenchMixin:
         options.addWidget(self.read_exist_dir_box)
         self.advanced_layout.addWidget(self.rules_options)
         self.rules_options.hide()
-        self.rules_unmatched_button = QtWidgets.QToolButton(self.advanced_widget)
-        self.rules_unmatched_button.setProperty("variant", "quiet")
+        self.rules_unmatched_button = DetailButton(self.advanced_widget)
         self.rules_unmatched_button.clicked.connect(lambda: self._show_rule_matches(-1))
         self.advanced_layout.addStretch(1)
 
         self.rules_restore_button = QtWidgets.QToolButton(self.rules_section)
-        self.rules_restore_button.setProperty("variant", "quiet")
+        configure_command(self.rules_restore_button)
         self.rules_restore_button.clicked.connect(self._restore_rule_trial)
         self.rules_footer = QtWidgets.QWidget(self.rules_section)
         footer = QtWidgets.QHBoxLayout(self.rules_footer)
@@ -139,10 +135,7 @@ class RuleWorkbenchMixin:
 
     def _translate_rule_workbench(self):
         english = self._language == "en"
-        self.advanced_button.setText(
-            ("Hide rules" if english else "收起规则") if self.advanced_button.isChecked()
-            else ("Rules" if english else "规则")
-        )
+        self.advanced_button.setText("Rules" if english else "规则")
         self.advanced_button.setAccessibleDescription(
             "Show or hide the inline rule editor" if english else "展开或收起内嵌规则编辑区"
         )
@@ -151,7 +144,11 @@ class RuleWorkbenchMixin:
             "Indent TOC lines to set their hierarchy; preview updates alongside."
             if english else "在上方调整目录缩进，右侧同步显示层级。"
         )
-        self.rules_options_button.setText("More levels & handling" if english else "更多层级与处理")
+        self.rules_options_button.setText("More levels && handling" if english else "更多层级与处理")
+        self.rules_options_button.setAccessibleDescription(
+            "Show or hide additional levels and processing options"
+            if english else "展开或收起更多层级与处理选项"
+        )
         self.read_exist_dir_box.setText("Ask to import bookmarks" if english else "打开 PDF 时询问导入书签")
         self.fix_non_seq_box.setText("Keep pages in order" if english else "修正倒序页码")
         self.rules_restore_button.setText("Restore trial" if english else "恢复试调前")
@@ -169,7 +166,6 @@ class RuleWorkbenchMixin:
 
     def _toggle_rule_options(self, expanded):
         self.rules_options.setVisible(expanded)
-        self.rules_options_button.setIcon(icon("chevron-down" if expanded else "chevron-right"))
         self._update_rule_rows()
         self.advanced_widget.layout().activate()
 
@@ -394,9 +390,12 @@ class RuleWorkbenchMixin:
                 counts[rule] += 1
         stale = self._rules_pending or bool(self._regex_validation_error)
         for i, button in enumerate(self.rule_counts):
-            button.setText("—" if stale else str(counts[i]))
+            button.setText(
+                ("Not updated" if english else "待更新") if stale
+                else (("{} matches" if english else "{} 条匹配").format(counts[i]))
+            )
             button.setToolTip(("Show matches for rule {}" if english else "定位第 {} 层规则匹配的书签").format(i + 1))
-            button.setAccessibleName(button.toolTip())
+            button.setAccessibleName(f"{button.toolTip()} · {button.text()}")
             button.setEnabled(bool(counts[i]) and not stale)
         self.rules_unmatched_button.setText(
             ("Unmatched: {}" if english else "未匹配：{} 条").format("—" if stale else counts[-1])

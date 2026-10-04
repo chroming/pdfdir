@@ -107,7 +107,7 @@ def test_rebuild_keeps_selected_source_and_collapsed_nodes(window, qtbot):
 def test_match_counts_follow_effective_priority_and_link_to_source(window):
     # The child matches both rules, but the same highest-level precedence as
     # conversion assigns it only to rule 2, not to both counts.
-    assert [button.text() for button in window.rule_counts[:2]] == ["2", "1"]
+    assert [button.text() for button in window.rule_counts[:2]] == ["2 条匹配", "1 条匹配"]
     assert "1" in window.rules_unmatched_button.text()
     window.rule_counts[1].click()
     item = window.dir_tree_widget.currentItem()
