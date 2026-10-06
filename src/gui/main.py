@@ -7,6 +7,7 @@ The main GUI model of project.
 
 import os
 import re
+import signal
 import sys
 import tempfile
 import threading
@@ -14,6 +15,7 @@ import time
 import traceback
 import webbrowser
 from pathlib import Path
+from functools import partial
 
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtWidgets import QMessageBox
@@ -3195,8 +3197,40 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         return "\n".join(get_bookmarks(pdf_path))
 
 
+class _GuiInterruptHandler:
+    """Deliver terminal interrupts through Qt's ordinary close lifecycle."""
+
+    def __init__(self, app):
+        self.window = None
+        self._pending = False
+        self._previous_handler = None
+        self._timer = QtCore.QTimer(app)
+        self._timer.setInterval(100)
+        self._timer.timeout.connect(self._process_interrupt)
+
+    def request_interrupt(self, *_args):
+        # Python signal handlers can run between arbitrary bytecodes. Do not
+        # raise or call Qt here; wait until control returns to the event loop.
+        self._pending = True
+
+    def _process_interrupt(self):
+        if self._pending and self.window is not None:
+            self._pending = False
+            self.window.close()
+
+    def __enter__(self):
+        self._previous_handler = signal.getsignal(signal.SIGINT)
+        signal.signal(signal.SIGINT, self.request_interrupt)
+        self._timer.start()
+        return self
+
+    def __exit__(self, *_args):
+        self._timer.stop()
+        signal.signal(signal.SIGINT, self._previous_handler)
+        self._timer.deleteLater()
+
+
 def run():
-    sys.excepthook = exception_hook
     # High DPI must be set before QApplication creation
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
@@ -3207,18 +3241,25 @@ def run():
     trans = QtCore.QTranslator()
     # trans.load("./gui/en")
     # app.installTranslator(trans)
-    window = Main(app, trans)
-    if "--smoke-test" in sys.argv:
-        QtCore.QTimer.singleShot(
-            0,
-            lambda: _start_packaged_smoke_test(app, window),
-        )
-    else:
-        window.show()
-    exit_code = app.exec()
-    smoke_tempdir = getattr(window, "_smoke_tempdir", None)
-    if smoke_tempdir:
-        smoke_tempdir.cleanup()
+    previous_hook = sys.excepthook
+    try:
+        with _GuiInterruptHandler(app) as interrupts:
+            sys.excepthook = partial(exception_hook, interrupt_handler=interrupts)
+            window = Main(app, trans)
+            interrupts.window = window
+            if "--smoke-test" in sys.argv:
+                QtCore.QTimer.singleShot(
+                    0,
+                    lambda: _start_packaged_smoke_test(app, window),
+                )
+            else:
+                window.show()
+            exit_code = app.exec()
+            smoke_tempdir = getattr(window, "_smoke_tempdir", None)
+            if smoke_tempdir:
+                smoke_tempdir.cleanup()
+    finally:
+        sys.excepthook = previous_hook
     sys.exit(exit_code)
 
 
@@ -3279,7 +3320,13 @@ def _start_packaged_smoke_test(app, window):
 _original_excepthook = sys.excepthook
 
 
-def exception_hook(exctype, value, exc_traceback):
+def exception_hook(exctype, value, exc_traceback, *, interrupt_handler=None):
+    if issubclass(exctype, KeyboardInterrupt):
+        if interrupt_handler is not None:
+            interrupt_handler.request_interrupt()
+        else:
+            _original_excepthook(exctype, value, exc_traceback)
+        return
     _original_excepthook(exctype, value, exc_traceback)
     error_message = "".join(traceback.format_exception(exctype, value, exc_traceback))
     if QtWidgets.QApplication.instance() is not None:
