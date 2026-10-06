@@ -41,7 +41,8 @@ def test_primary_workspace_has_readable_default_geometry(window):
     assert window.output_name_edit.isVisible()
     assert window.dir_text_edit.line_number_area_width() > 0
     assert window.level_mode_box.parentWidget() is window.left_tools
-    assert window.offset_edit.parentWidget() is window.right_tools
+    assert window.offset_edit.parentWidget() is window.calibration_direct
+    assert not window.calibration_panel.isVisible()
 
 
 def test_related_controls_stay_grouped_at_default_and_minimum_width(window):
@@ -52,12 +53,10 @@ def test_related_controls_stay_grouped_at_default_and_minimum_width(window):
 
         hierarchy = window.level_mode_box.geometry()
         rules = window.advanced_button.geometry()
-        offset = window.offset_edit.geometry()
-        detect = window.auto_offset_button.geometry()
         assert rules.center().y() == hierarchy.center().y()
         assert 0 <= rules.left() - hierarchy.right() <= 16
-        assert detect.center().y() == offset.center().y()
-        assert 0 <= detect.left() - offset.right() <= 16
+        assert window.calibrate_button.parentWidget() is window.right_tools
+        assert window.offset_summary.parentWidget() is window.right_tools
 
     window.to_english()
     window.app.processEvents()
@@ -82,15 +81,15 @@ def test_fields_and_commands_share_a_control_track(window):
         window.app.processEvents()
         controls = (
             window.open_button, window.level_mode_box, window.advanced_button,
-            window.offset_edit, window.auto_offset_button,
+            window.calibrate_button, window.hierarchy_button,
             window.output_name_edit, window.output_folder_button,
             window.export_button,
         )
         assert len({control.height() for control in controls}) == 1
         assert window.level_mode_box.mapTo(
             window, window.level_mode_box.rect().center()
-        ).y() == window.offset_edit.mapTo(
-            window, window.offset_edit.rect().center()
+        ).y() == window.calibrate_button.mapTo(
+            window, window.calibrate_button.rect().center()
         ).y()
 
 
@@ -263,7 +262,7 @@ def test_recognition_rules_expand_inline_without_moving_preview_or_output(
     assert window.dir_tree_widget.geometry() == preview_rect
 
     window.level_mode_box.setCurrentIndex(1)
-
+    window._add_rule_level(0)
     assert window.level0_edit.isVisible()
     assert window.sub_dir_group.isEnabled()
     qtbot.keyClick(window.level0_box, QtCore.Qt.Key_Escape)
@@ -518,14 +517,14 @@ def test_tab_order_follows_visible_bookmark_workflow(
             if window.focusWidget() is window.help_button:
                 break
         expected = (
-            window.auto_toc_button,
-            window.paste_button,
-            window.dir_text_edit,
+            window.source_tabs,
+            window.source_import_button,
             window.level_mode_box,
             window.advanced_button,
+            window.dir_text_edit,
+            window.hierarchy_button,
+            window.calibrate_button,
             window.dir_tree_widget,
-            window.offset_edit,
-            window.auto_offset_button,
             window.output_name_edit,
             window.output_folder_button,
             window.output_location_button,
@@ -548,15 +547,15 @@ def test_tab_and_shift_tab_reach_recognition_actions(window, tmp_path, qtbot):
         clipboard.setText("Chapter 1")
         window.open_button.setFocus()
         qtbot.keyClick(window.open_button, QtCore.Qt.Key_Tab)
-        assert window.auto_toc_button.hasFocus()
-        qtbot.keyClick(window.auto_toc_button, QtCore.Qt.Key_Tab)
-        assert window.paste_button.hasFocus()
+        assert window.source_tabs.hasFocus()
+        qtbot.keyClick(window.source_tabs, QtCore.Qt.Key_Tab)
+        assert window.source_import_button.hasFocus()
         qtbot.keyClick(
-            window.paste_button,
+            window.source_import_button,
             QtCore.Qt.Key_Tab,
             QtCore.Qt.ShiftModifier,
         )
-        assert window.auto_toc_button.hasFocus()
+        assert window.source_tabs.hasFocus()
     finally:
         clipboard.setText(previous)
 

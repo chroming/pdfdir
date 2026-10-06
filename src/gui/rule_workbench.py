@@ -18,6 +18,7 @@ class RuleWorkbenchMixin:
         self._rule_restore_running = False
         self._active_rule = None
         self._last_rule_values = None
+        self._last_source_text = ""
         self._rule_panel_ratio = 0.4
         self._rules_timer = QtCore.QTimer(self)
         self._rules_timer.setSingleShot(True)
@@ -105,7 +106,7 @@ class RuleWorkbenchMixin:
         self.rules_unmatched_layout = QtWidgets.QGridLayout()
         options.addLayout(self.rules_unmatched_layout)
         options.addWidget(self.fix_non_seq_box)
-        options.addWidget(self.read_exist_dir_box)
+        self.read_exist_dir_box.hide()  # Owned by the existing preferences menu.
         self.advanced_layout.addWidget(self.rules_options)
         self.rules_options.hide()
         self.rules_unmatched_button = DetailButton(self.advanced_widget)
@@ -124,6 +125,10 @@ class RuleWorkbenchMixin:
         section.addWidget(self.rules_footer)
         self.rules_footer.hide()
         self.rules_restore_button.hide()
+        self.add_rule_button = DetailButton(self.advanced_widget)
+        self.add_rule_button.clicked.connect(self._show_add_rule_menu)
+        self.advanced_layout.insertWidget(self.advanced_layout.indexOf(self.sub_dir_group) + 1,
+                                         self.add_rule_button, 0, QtCore.Qt.AlignLeft)
         self._rules_escape = QtGui.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Escape), self.rules_section)
         self._rules_escape.setContext(QtCore.Qt.WidgetWithChildrenShortcut)
         self._rules_escape.activated.connect(
@@ -144,11 +149,12 @@ class RuleWorkbenchMixin:
             "Indent TOC lines to set their hierarchy; preview updates alongside."
             if english else "在上方调整目录缩进，右侧同步显示层级。"
         )
-        self.rules_options_button.setText("More levels && handling" if english else "更多层级与处理")
+        self.rules_options_button.setText("Processing options" if english else "处理选项")
         self.rules_options_button.setAccessibleDescription(
-            "Show or hide additional levels and processing options"
-            if english else "展开或收起更多层级与处理选项"
+            "Show or hide processing options"
+            if english else "展开或收起目录处理选项"
         )
+        self.add_rule_button.setText("+ Add level" if english else "+ 添加层级")
         self.read_exist_dir_box.setText("Ask to import bookmarks" if english else "打开 PDF 时询问导入书签")
         self.fix_non_seq_box.setText("Keep pages in order" if english else "修正倒序页码")
         self.rules_restore_button.setText("Restore trial" if english else "恢复试调前")
@@ -157,10 +163,10 @@ class RuleWorkbenchMixin:
             if english else "恢复本次试调前的规则、目录文本、页差及书签；不修改 PDF。"
         )
         self.rules_guard_label.setText(
-            "Preview has manual edits. Trying rules will replace them; a restore point is kept."
-            if english else "书签已有手工修改。试调将重建书签，原修改会保留在恢复点中。"
+            "Source or rules changed. Your bookmark edits are preserved. Rebuild to use the changes; you can restore the previous draft."
+            if english else "原文或规则已变化，手工校对的书签已保留。重新生成后仍可恢复到修改前。"
         )
-        self.rules_accept_button.setText("Try rules" if english else "试调规则")
+        self.rules_accept_button.setText("Rebuild bookmarks" if english else "重新生成书签")
         self._update_rule_rows()
         self._update_rule_feedback()
 
@@ -172,9 +178,27 @@ class RuleWorkbenchMixin:
     def _update_rule_rows(self):
         for i, count in enumerate(self.rule_counts):
             box = getattr(self, f"level{i}_box")
-            visible = i < 2 or box.isChecked() or self.rules_options_button.isChecked()
+            visible = box.isChecked()
             for control in (box, getattr(self, f"level{i}_edit"), count):
                 control.setVisible(visible)
+        self.add_rule_button.setVisible(not self.level_by_space)
+        self.add_rule_button.setEnabled(any(not getattr(self, f"level{i}_box").isChecked() for i in range(6)))
+
+    def _show_add_rule_menu(self):
+        menu = QtWidgets.QMenu(self.add_rule_button)
+        for i in range(6):
+            box = getattr(self, f"level{i}_box")
+            if not box.isChecked():
+                action = menu.addAction(("Level {}" if self._language == "en" else "第 {} 层").format(i + 1))
+                action.triggered.connect(lambda _checked=False, index=i: self._add_rule_level(index))
+        menu.exec(self.add_rule_button.mapToGlobal(QtCore.QPoint(0, self.add_rule_button.height())))
+
+    def _add_rule_level(self, index):
+        getattr(self, f"level{index}_box").setChecked(True)
+        editor = getattr(self, f"level{index}_edit")
+        editor.setEnabled(True)
+        self.rules_scroll.ensureWidgetVisible(editor)
+        editor.setFocus()
 
     def _toggle_rule_workbench(self):
         """Show tools beside their live result, without changing the main shell."""
@@ -188,6 +212,7 @@ class RuleWorkbenchMixin:
         self.rules_scroll.setVisible(expanded)
         self.rules_restore_button.setVisible(expanded)
         self.rules_footer.setVisible(expanded)
+        self.rules_section.setVisible(expanded)
         self._resize_rule_workbench()
         self._translate_rule_workbench()
         if expanded:
@@ -198,7 +223,7 @@ class RuleWorkbenchMixin:
             # QSplitter retains its allocation when only the child's maximum
             # height changes; explicitly return the hidden tools' space.
             total = self.rule_splitter.height() - self.rule_splitter.handleWidth()
-            height = self.left_tools.sizeHint().height()
+            height = 0
             self.rule_splitter.setSizes([total - height, height])
             self._active_rule = None
             self._highlight_rule_matches()
@@ -212,9 +237,9 @@ class RuleWorkbenchMixin:
             self.dir_text_edit.fontMetrics().lineSpacing() * 3 + 12
         )
         line = self.rules_restore_button.sizeHint().height()
-        self.rules_section.setMinimumHeight(self.left_tools.sizeHint().height() + line * 3 + 16 if expanded else 0)
+        self.rules_section.setMinimumHeight(line * 3 + 16 if expanded else 0)
         self.rules_section.setMaximumHeight(
-            16777215 if expanded else self.left_tools.sizeHint().height()
+            16777215 if expanded else 0
         )
         layout = self.rules_unmatched_layout
         self._clear_layout(layout)
@@ -241,6 +266,18 @@ class RuleWorkbenchMixin:
             "history": list(tree._history), "history_index": tree._history_index,
         }
 
+    def _source_text_changed(self):
+        previous_text = self._last_source_text
+        self._last_source_text = self.dir_text
+        if self._preview_manually_adjusted:
+            if not self._rule_guarded:
+                self._capture_rule_trial()
+                self._rule_baseline["text"] = previous_text
+                self._rule_guarded = True
+            self._queue_rule_preview()
+        else:
+            self.make_dir_tree()
+
     def _queue_rule_preview(self):
         if self._rule_restore_running or not hasattr(self, "_regex_editors"):
             return
@@ -254,11 +291,8 @@ class RuleWorkbenchMixin:
             if not self._rule_guarded:
                 self._capture_rule_trial(self._last_rule_values)
             self._rule_guarded = True
-            if not self.advanced_button.isChecked():
-                self.advanced_button.click()
             self.rules_guard_label.show()
             self.rules_accept_button.show()
-            self.rules_scroll.ensureWidgetVisible(self.rules_guard_label)
         if not self._rule_guarded and not self._regex_validation_error:
             # Debounce real typing, while discrete choices and programmatic
             # changes remain immediate and use the same guarded path.
@@ -303,6 +337,7 @@ class RuleWorkbenchMixin:
         self.unknown_level_box.setCurrentIndex(unknown)
         self.fix_non_seq_box.setChecked(fix)
         self.dir_text_edit.setPlainText(state["text"])
+        self._last_source_text = state["text"]
         self.offset_edit.setText(state["offset"])
         del blockers
         tree = self.dir_tree_widget
@@ -416,12 +451,14 @@ class RuleWorkbenchMixin:
             self.preview_count_label.setText(("{} items" if english else "{} 条").format(count))
 
     def _show_rule_matches(self, rule):
+        matches = [item for item in self.dir_tree_widget.all_items if item.data(0, RULE_ROLE) == rule]
+        current = self.dir_tree_widget.currentItem()
+        index = (matches.index(current) + 1) % len(matches) if self._active_rule == rule and current in matches else 0
         self._active_rule = rule
         self._highlight_rule_matches()
-        item = next((item for item in self.dir_tree_widget.all_items if item.data(0, RULE_ROLE) == rule), None)
-        if item:
-            self.dir_tree_widget.setCurrentItem(item)
-            self.dir_tree_widget.scrollToItem(item)
+        if matches:
+            self.dir_tree_widget.setCurrentItem(matches[index])
+            self.dir_tree_widget.scrollToItem(matches[index])
 
     def _highlight_rule_matches(self):
         blocker = QtCore.QSignalBlocker(self.dir_tree_widget)

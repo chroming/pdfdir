@@ -34,6 +34,7 @@ from src.gui.controls import DetailButton, DisclosureButton, configure_command
 from src.gui.product_style import icon as product_icon
 from src.gui.product_style import stylesheet as product_stylesheet
 from src.gui.rule_workbench import RuleWorkbenchMixin
+from src.gui.reference_workspace import ReferenceWorkspaceMixin
 from src.updater import check_for_update
 from src.pdf.bookmark import (
     BookmarkPageError,
@@ -187,7 +188,7 @@ class UpdateCheckWorker(QtCore.QObject):
             self.finished.emit(result)
 
 
-class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
+class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMixin):
     _MESSAGES = {
         "zh": {
             "advanced_title": "识别设置",
@@ -407,6 +408,9 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self._output_source_key = ""
         self._document_page_count = None
         self._pending_document_info = None
+        self._layout_timer = QtCore.QTimer(self)
+        self._layout_timer.setSingleShot(True)
+        self._layout_timer.timeout.connect(self._reflow_controls)
         self._build_product_shell()
         self._apply_product_style()
         self.version = CONFIG.VERSION
@@ -550,14 +554,25 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         """Follow the document, editor, preview, and output workflow."""
         controls = (
             self.open_button,
-            self.auto_toc_button,
-            self.paste_button,
-            self.dir_text_edit,
+            self.source_tabs,
+            self.source_import_button,
             self.level_mode_box,
             self.advanced_button,
+            self.dir_text_edit,
+            self.add_rule_button,
             *self._advanced_focus_chain,
             self.rules_unmatched_button,
             self.rules_accept_button,
+            self.source_restore_button,
+            self.pdf_reference.previous_button,
+            self.pdf_reference.page_edit,
+            self.pdf_reference.next_button,
+            self.pdf_reference.zoom_box,
+            self.hierarchy_button,
+            self.calibrate_button,
+            self.printed_anchor,
+            self.pdf_anchor,
+            self.calibration_apply_button,
             self.dir_tree_widget,
             self.undo_button,
             self.redo_button,
@@ -790,6 +805,7 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         root.addWidget(self.action_frame)
 
         self._build_rule_workbench()
+        self._build_reference_workspace()
 
     @staticmethod
     def _clear_layout(layout):
@@ -797,74 +813,12 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
             layout.takeAt(0)
 
     def _layout_pane_headers(self):
-        large = self._large_text_mode()
-        if self._headers_large == large:
-            return
-        self._headers_large = large
-        source = self.source_header_layout
-        preview = self.preview_header_layout
-        for layout in (source, preview):
-            self._clear_layout(layout)
-            for column in range(5):
-                layout.setColumnStretch(column, 0)
-        if large:
-            source.addWidget(self.dir_text_label, 0, 0, 1, 3)
-            source.addWidget(self.auto_toc_button, 1, 0)
-            source.addWidget(self.paste_button, 1, 1)
-            source.setColumnStretch(2, 1)
-            preview.addWidget(self.preview_label, 0, 0)
-            preview.addWidget(self.preview_count_label, 0, 1)
-            preview.addWidget(self.undo_button, 1, 0, QtCore.Qt.AlignLeft)
-            preview.addWidget(self.redo_button, 1, 1, QtCore.Qt.AlignLeft)
-            preview.setColumnStretch(2, 1)
-        else:
-            source.addWidget(self.dir_text_label, 0, 0)
-            source.setColumnStretch(1, 1)
-            source.addWidget(self.auto_toc_button, 0, 2)
-            source.addWidget(self.paste_button, 0, 3)
-            preview.addWidget(self.preview_label, 0, 0)
-            preview.addWidget(self.preview_count_label, 0, 1)
-            preview.setColumnStretch(2, 1)
-            preview.addWidget(self.undo_button, 0, 3)
-            preview.addWidget(self.redo_button, 0, 4)
+        if hasattr(self, "source_tabs"):
+            self._layout_reference_headers()
 
     def _layout_tool_controls(self, compact):
-        large = self._large_text_mode()
-        key = (compact, large)
-        if self._tools_layout_key == key:
-            return
-        self._tools_layout_key = key
-        self._tools_compact = compact
-        left = self.left_tools_layout
-        right = self.right_tools_layout
-        for layout in (left, right):
-            for column in range(5):
-                layout.setColumnStretch(column, 0)
-            self._clear_layout(layout)
-        if large:
-            left.addWidget(self.level_mode_label, 0, 0, 1, 3)
-            left.addWidget(self.level_mode_box, 1, 0)
-            left.addWidget(self.advanced_button, 1, 1)
-            left.setColumnStretch(2, 1)
-            right.addWidget(self.offset_label, 0, 0, 1, 3)
-            right.addWidget(self.offset_edit, 1, 0)
-            right.addWidget(self.auto_offset_button, 1, 1)
-            right.setColumnStretch(2, 1)
-        else:
-            left.addWidget(self.level_mode_label, 0, 0)
-            left.addWidget(self.level_mode_box, 0, 1)
-            left.addWidget(self.advanced_button, 0, 2)
-            left.setColumnStretch(3, 1)
-            right.addWidget(self.offset_label, 0, 0)
-            right.addWidget(self.offset_edit, 0, 1)
-            right.addWidget(self.auto_offset_button, 0, 2)
-            right.addWidget(self.offset_formula_label, 0, 3)
-            right.setColumnStretch(4, 1)
-        # The formula is supporting help. Keep both pane toolbars on one track
-        # when narrow; its complete text remains on the offset field and label.
-        self.offset_formula_label.setVisible(not compact)
-        left.invalidate()
-        right.invalidate()
+        if hasattr(self, "source_tabs"):
+            self._layout_reference_tools()
 
     def _layout_action_controls(self, compact):
         if self._actions_compact == compact:
@@ -956,7 +910,7 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self._resize_rule_workbench()
 
     def _reflow_controls(self):
-        if not hasattr(self, "left_tools_layout"):
+        if self._close_requested or not hasattr(self, "left_tools_layout"):
             return
         for button in (self.export_button, self.cancel_button):
             button.setMinimumWidth(max(124, button.sizeHint().width()))
@@ -1046,7 +1000,7 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
             self.fix_non_seq_box.stateChanged,
         ):
             act.connect(self._queue_rule_preview)
-        self.dir_text_edit.textChanged.connect(self.make_dir_tree)
+        self.dir_text_edit.textChanged.connect(self._source_text_changed)
         self.offset_edit.textChanged.connect(self._update_preview_offset)
         self.pdf_path_edit.textChanged.connect(self._update_output_path)
         self.pdf_path_edit.editingFinished.connect(
@@ -1079,6 +1033,7 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self.paste_button.setEnabled(
             bool(self.app.clipboard().text()) and not self._has_active_task()
         )
+        self.import_paste_action.setEnabled(self.paste_button.isEnabled())
 
     def _update_history_buttons(self):
         write_running = self._has_active_task() and (
@@ -1588,6 +1543,8 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         )
         self._refresh_action_status()
 
+        self._sync_reference_workspace(has_pdf, write_running)
+
     def _has_active_task(self):
         """Cover the short start/finish gaps around the QThread lifecycle."""
         return self._worker_busy or bool(
@@ -1661,6 +1618,8 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self.open_result_action = self.file_menu.addAction("")
         self.open_result_action.triggered.connect(self._open_generated_pdf)
         self.open_result_action.setEnabled(False)
+        self.file_menu.addSeparator()
+        self.file_menu.addAction(self.read_exist_dir_action)
         self.home_page_action.triggered.connect(self._open_home_page)
         self.help_action.triggered.connect(self._open_help_page)
         self.update_action.triggered.connect(self._open_update_page)
@@ -1676,6 +1635,9 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self.file_menu.setTitle("File" if english else "文件")
         self.open_result_action.setText(
             "Open last generated PDF" if english else "打开上次生成的 PDF"
+        )
+        self.read_exist_dir_action.setText(
+            "Ask to import bookmarks when opening a PDF" if english else "打开 PDF 时询问导入书签"
         )
         static_text = {
             self.page_title_label: (
@@ -1913,16 +1875,17 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
             editor.setToolTip(editor.accessibleDescription())
         self._refresh_preview_hint()
         self._validate_regex_settings()
+        self._translate_reference_workspace()
         self._update_action_availability()
         self._update_preview_empty_state()
-        QtCore.QTimer.singleShot(0, self._reflow_controls)
+        self._layout_timer.start(0)
 
     def _update_tree_headers(self, compact=False):
         if self._language == "en":
             full_headers = ("Bookmark title", "Printed page", "PDF page")
             headers = ("Title", "Print", "PDF") if compact else full_headers
         else:
-            full_headers = ("书签标题", "标注页码", "PDF 页码")
+            full_headers = ("书签标题", "标注页", "PDF 页")
             headers = ("标题", "标页", "PDF 页") if compact else full_headers
         header_item = self.dir_tree_widget.headerItem()
         for index, (header, full_header) in enumerate(
@@ -2342,11 +2305,19 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         if self._rebuilding_tree:
             return
         self._preview_manually_adjusted = True
+        if self._rule_guarded and self._rule_baseline is not None:
+            tree = self.dir_tree_widget
+            self._rule_baseline.update(
+                items=tree._snapshot(), view=self._capture_rule_view(),
+                history=list(tree._history), history_index=tree._history_index,
+            )
         self._preview_validation_error = ""
         self._refresh_preview_hint()
         self._update_preview_empty_state()
         self._refresh_dirty_state()
         self._update_action_availability()
+
+        self._follow_bookmark_page(self.dir_tree_widget.currentItem())
 
     def _refresh_preview_hint(self):
         if self._compact_shell:
@@ -2613,6 +2584,12 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         self.dir_tree_widget.shift_page_offset(delta)
         self._refresh_dirty_state()
         self._update_action_availability()
+        if self.calibrate_button.isChecked() and self.printed_anchor.hasAcceptableInput():
+            page = int(self.printed_anchor.text()) + offset
+            self.pdf_anchor.setText(str(page))
+            self.pdf_reference.go_to_page(page)
+        else:
+            self._follow_bookmark_page(self.dir_tree_widget.currentItem())
 
     def make_dir_tree(self):
         if not hasattr(self, "preview_empty_label"):
@@ -2683,6 +2660,7 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
             self._restore_rule_view(view_state)
             self._rules_pending = False
             self._last_rule_values = self._rule_values()
+            self._last_source_text = self.dir_text
         finally:
             self.dir_tree_widget._history_paused = False
             self.dir_tree_widget.record_history()
@@ -3051,7 +3029,7 @@ class Main(RuleWorkbenchMixin, QtWidgets.QMainWindow, Ui_PDFdir, ControlButtonMi
         ):
             self._apply_type_scale()
             self._update_accessible_layout_constraints()
-            QtCore.QTimer.singleShot(0, self._reflow_controls)
+            self._layout_timer.start(0)
         super(Main, self).changeEvent(event)
 
     def pre_check(self, path, index_dict):
@@ -3283,6 +3261,8 @@ def _start_packaged_smoke_test(app, window):
     window.pdf_path_edit.setText(str(source_path))
     window.dir_text_edit.setPlainText("Packaged smoke bookmark 1")
     window.show()
+    window.source_tabs.setCurrentIndex(1)
+    window.dir_tree_widget.setCurrentItem(window.dir_tree_widget.topLevelItem(0))
     started_at = time.monotonic()
 
     def poll_result():
@@ -3296,6 +3276,8 @@ def _start_packaged_smoke_test(app, window):
                 valid = (
                     destination.title == "Packaged smoke bookmark"
                     and reader.get_destination_page_number(destination) == 0
+                    and window.pdf_reference._ready
+                    and window.pdf_reference.current_page == 1
                 )
             except Exception:
                 valid = False

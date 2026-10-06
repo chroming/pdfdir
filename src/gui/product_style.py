@@ -137,6 +137,21 @@ def stylesheet(app_font):
             color: #68707d; font-size: {metadata};
         }}
         QLabel#preview_empty_label {{ color: #7c8490; font-size: {body}; }}
+        QLabel#reference_message {{ color: #7c8490; padding: 24px; }}
+        QTabBar[variant="view-tabs"]::tab {{
+            background: transparent; color: #68707d; padding: 6px 8px;
+            border-bottom: 2px solid transparent; min-height: 18px;
+        }}
+        QTabBar[variant="view-tabs"]::tab:selected {{
+            color: #252a32; border-bottom-color: #387bd2; font-weight: 600;
+        }}
+        QTabBar[variant="view-tabs"]::tab:hover {{ background: #f2f5f9; }}
+        QTabBar[variant="view-tabs"]:focus {{ border: 1px solid #387bd2; }}
+        QToolButton[variant="menu"] {{ padding-right: 24px; }}
+        QToolButton[variant="menu"]::menu-indicator {{
+            image: url({arrow}); width: 12px; height: 12px;
+            subcontrol-origin: padding; subcontrol-position: center right; right: 6px;
+        }}
         QLabel#action_status_label {{ color: #68707d; font-size: {body}; }}
         QLabel#action_status_label[statusKind="working"] {{ color: #246ac2; }}
         QLabel#action_status_label[statusKind="success"] {{ color: #26734d; }}

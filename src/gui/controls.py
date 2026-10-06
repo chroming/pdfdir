@@ -35,6 +35,25 @@ class DetailButton(QtWidgets.QToolButton):
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
 
+class ViewTabs(QtWidgets.QTabBar):
+    """Peer views of the same object, with the shared underline treatment."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setProperty("variant", "view-tabs")
+        self.setExpanding(False)
+        self.setDrawBase(False)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+
+class MenuButton(QtWidgets.QToolButton):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setProperty("variant", "menu")
+        self.setPopupMode(QtWidgets.QToolButton.InstantPopup)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+
 class BookmarkItemDelegate(QtWidgets.QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         editor = QtWidgets.QLineEdit(parent)

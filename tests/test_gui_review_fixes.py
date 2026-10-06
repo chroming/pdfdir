@@ -106,6 +106,8 @@ def test_preview_rebuild_can_be_undone_and_offset_keeps_history_consistent(windo
     tree = window.dir_tree_widget
     tree.topLevelItem(0).setText(0, "Corrected")
     window.dir_text_edit.setPlainText("Replacement 2")
+    assert tree.topLevelItem(0).text(0) == "Corrected"
+    window.rules_accept_button.click()
     tree.undo()
     assert tree.topLevelItem(0).text(0) == "Corrected"
     window.offset_edit.setText("-")
@@ -128,14 +130,18 @@ def test_title_column_owns_remaining_space(window):
     assert tree.columnWidth(0) > tree.columnWidth(1) + tree.columnWidth(2)
 
 
-def test_english_minimum_keeps_offset_controls_grouped(window):
+def test_english_minimum_keeps_offset_controls_grouped(window, tmp_path):
+    source = tmp_path / "source.pdf"
+    _write_pdf(source)
+    window.pdf_path_edit.setText(str(source))
     window.to_english()
     window.resize(780, 560)
+    window.calibrate_button.click()
     window.app.processEvents()
     assert window.offset_edit.parentWidget() is window.auto_offset_button.parentWidget()
     gap = window.auto_offset_button.x() - (window.offset_edit.x() + window.offset_edit.width())
-    assert gap == window.right_tools_layout.horizontalSpacing()
-    assert window.offset_edit.parentWidget() is window.right_tools
+    assert gap >= window.calibration_direct.layout().spacing()
+    assert window.offset_edit.parentWidget() is window.calibration_direct
     assert window.level_mode_box.parentWidget() is window.left_tools
 
 
@@ -912,7 +918,7 @@ def test_large_font_preserves_core_workspaces_and_reflows_controls(
         assert "F2" in window.dir_tree_widget.toolTip()
         for control in (
             window.advanced_button,
-            window.auto_offset_button,
+            window.calibrate_button,
             window.export_button,
         ):
             assert control.width() >= control.sizeHint().width()
@@ -963,12 +969,12 @@ def test_large_font_preserves_core_workspaces_and_reflows_controls(
         qtbot.waitUntil(window.rules_scroll.isVisible)
         window.level_mode_box.setCurrentIndex(1)
         window.rules_options_button.click()
-        window.read_exist_dir_box.setFocus()
-        qtbot.waitUntil(window.read_exist_dir_box.hasFocus)
+        window.fix_non_seq_box.setFocus()
+        qtbot.waitUntil(window.fix_non_seq_box.hasFocus)
         qtbot.wait(10)
         option_rect = QtCore.QRect(
-            window.read_exist_dir_box.mapTo(window.rules_scroll.viewport(), QtCore.QPoint()),
-            window.read_exist_dir_box.size(),
+            window.fix_non_seq_box.mapTo(window.rules_scroll.viewport(), QtCore.QPoint()),
+            window.fix_non_seq_box.size(),
         )
         assert window.rules_scroll.viewport().rect().intersects(option_rect)
         assert window.dir_tree_widget.isVisible()

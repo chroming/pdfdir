@@ -243,6 +243,41 @@ class TreeWidget(MixinContextMenu):
             self._configure_all_items()
             self._notify_preview_changed()
 
+    def can_move_current_level(self, direction):
+        item = self.currentItem()
+        if not self.isEnabled() or item is None or len(self.selectedItems()) != 1:
+            return False
+        parent = item.parent() or self.invisibleRootItem()
+        return parent.indexOfChild(item) > 0 if direction > 0 else item.parent() is not None
+
+    def move_current_level(self, direction):
+        """One undoable move, preserving the whole subtree and source metadata."""
+        if not self.can_move_current_level(direction):
+            return
+        item = self.currentItem()
+        parent = item.parent() or self.invisibleRootItem()
+        index = parent.indexOfChild(item)
+        self.record_history()
+        self._history_paused = True
+        self._suppress_preview_changed = True
+        try:
+            if direction > 0:
+                destination = parent.child(index - 1)
+                parent.takeChild(index)
+                destination.addChild(item)
+                destination.setExpanded(True)
+            else:
+                destination = parent.parent() or self.invisibleRootItem()
+                position = destination.indexOfChild(parent) + 1
+                parent.takeChild(index)
+                destination.insertChild(position, item)
+            self.setCurrentItem(item)
+            self.scrollToItem(item)
+        finally:
+            self._suppress_preview_changed = False
+            self._history_paused = False
+        self._notify_preview_changed()
+
     def _perform_drop_event(self, event):
         super(TreeWidget, self).dropEvent(event)
 

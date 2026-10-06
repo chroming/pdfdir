@@ -74,8 +74,8 @@ def test_initial_rule_panel_leaves_most_small_window_for_source(window, qtbot):
 def test_collapsing_rules_returns_space_to_source(window, qtbot):
     window.advanced_button.click()
     qtbot.wait(30)
-    available = window.rule_splitter.height() - window.rule_splitter.handleWidth()
-    assert abs(window.dir_text_edit.height() + window.rules_section.height() - available) <= 2
+    assert not window.rules_section.isVisible()
+    assert abs(window.dir_text_edit.height() - window.rule_splitter.height()) <= 2
 
 
 def test_real_typing_debounces_without_blanking_preview(window, qtbot):
