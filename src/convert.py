@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-
 """Convert a directory text which from website to index dict"""
 
-import re
 import logging
+import re
+import unicodedata
 
 logger = logging.getLogger(__name__)
 
@@ -33,15 +32,39 @@ _PAGE_NUM_PATTERNS_RAW = [
 ]
 
 COMPILED_PAGE_NUM_PATTERNS = [
-    re.compile(r"(.*?)%s$" % pat) for pat in _PAGE_NUM_PATTERNS_RAW
+    re.compile(rf"(.*?){pat}$") for pat in _PAGE_NUM_PATTERNS_RAW
 ]
 
 PREFIX_SPACE_PATTERN = re.compile(r"\s*")
+GROUP_PAGE_MARKER = "—"
+GROUP_LINE_PATTERN = re.compile(rf"^(.*?)\s{{2,}}{re.escape(GROUP_PAGE_MARKER)}$")
+_ROMAN_SUFFIX = re.compile(r"(?:^|[\s.·…])([ivxlcdm]+|\([ivxlcdm]+\)|\[[ivxlcdm]+\])$", re.IGNORECASE)
+_ROMAN_NUMBER = re.compile(r"M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$")
+
+
+class AmbiguousPageLabelError(ValueError):
+    """A printed Roman label cannot safely use the Arabic page offset."""
+
+    def __init__(self, line_number, label):
+        self.line_number = line_number
+        self.label = label
+        super().__init__(
+            f"Line {line_number}: Roman page label '{label}' needs an explicit numeric page. "
+            "Use a number matching the current page offset, or append two spaces and — for a group."
+        )
+
+
+def is_group_line(text):
+    """Two spaces and an em dash explicitly denote a no-target outline node."""
+    return GROUP_LINE_PATTERN.fullmatch(text.rstrip()) is not None
 
 
 def split_page_num(text):
     """split between title and page number"""
-    con, num = "", 1
+    group = GROUP_LINE_PATTERN.fullmatch(text.rstrip())
+    if group:
+        return group.group(1), None
+    con, num = "", None
     for pat in COMPILED_PAGE_NUM_PATTERNS:
         res = pat.search(text)
         if res:
@@ -49,9 +72,7 @@ def split_page_num(text):
             break
     if con:
         con = con.rstrip(" .-")
-    if num == "":
-        num = 1
-    return con, int(num)
+    return con, int(num) if num else None
 
 
 def text_to_list(text):
@@ -147,22 +168,35 @@ def _convert_dir_text(
     level5=None,
     other=0,
     level_by_space=False,
-    fix_non_seq=False,
+    fix_non_seq=True,
 ):
     l0, l1, pagenum, index_dict = 0, 0, -float("inf"), {}
     l2, l3, l4 = 0, 0, 0
-    dir_list = text_to_list(dir_text)
+    # Blank lines are visual separators in the source editor, not bookmarks.
+    # Filter before numbering so parent indexes stay contiguous.
+    source_lines = [(number, line) for number, line in enumerate(text_to_list(dir_text), 1) if line.strip()]
+    dir_list = [line for _number, line in source_lines]
     if level_by_space:
         level0, level1, level2, level3, level4, level5 = (
             generate_level_pattern_by_prefix_space(dir_list)
         )
-    i = 0
-    for di in dir_list:
+    for i, di in enumerate(dir_list):
         di = di.rstrip()
         title, num = split_page_num(di)
-        if num > pagenum or not fix_non_seq:
-            pagenum = num
-        index_dict[i] = {"title": title, "real_num": pagenum + offset, "num": pagenum}
+        if is_group_line(di):
+            index_dict[i] = {
+                "title": title, "real_num": None, "num": None, "is_group": True,
+            }
+        else:
+            if num is None:
+                normalized = unicodedata.normalize("NFKC", di)
+                roman = _ROMAN_SUFFIX.search(normalized)
+                if roman and _ROMAN_NUMBER.fullmatch(roman.group(1).strip("()[]").upper()):
+                    raise AmbiguousPageLabelError(source_lines[i][0], roman.group(1))
+                num = pagenum if pagenum != -float("inf") else 1
+            if num > pagenum or not fix_non_seq:
+                pagenum = num
+            index_dict[i] = {"title": title, "real_num": pagenum + offset, "num": pagenum}
         level = check_level(
             title, level0, level1, level2, level3, level4, level5, other=other
         )
@@ -183,7 +217,6 @@ def _convert_dir_text(
         elif level == 0:
             l0 = i
         index_dict[i]["title"] = title.lstrip()
-        i += 1
     return index_dict
 
 
@@ -198,7 +231,7 @@ def convert_dir_text(
     level5=None,
     other=0,
     level_by_space=False,
-    fix_non_seq=False,
+    fix_non_seq=True,
 ):
     """
     convert directory text to dict.

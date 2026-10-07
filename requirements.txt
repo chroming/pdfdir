@@ -1,4 +1,4 @@
-requests~=2.32.3
-pypdf[crypto]~=3.17.0
-six~=1.16.0
-PyQt5~=5.15.7
+# Compatibility file for pip users. pyproject.toml is the canonical source.
+packaging>=24,<27
+pypdf[crypto]>=3.17,<7
+PySide6>=6.5,<7

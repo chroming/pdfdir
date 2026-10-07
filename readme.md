@@ -31,11 +31,13 @@ Windows/macOS/Ubuntu:
 
 ### 基本用法
 
-+ 选择文件：在 "PDF文件路径" 文本框中填入pdf文件路径（如D:/统计思维.pdf）或点击 "打开" 按钮通过文件管理器选择所需的pdf文件。
-+ 目录文本：将目录文本粘贴到“目录文本”框中。[如何获取目录文本](#获取目录文本)。对于已有目录页的文字版或扫描版 PDF，也可以点击“自动读取目录”从 PDF 前部目录页中识别并填充目录文本。
-+ 编辑写入目录（可选项）：根据目录文本自动生成的实际写入目录，可双击任一目录或页数进行编辑。同时支持拖动改变顺序/目录上下级关系。
-+ 编辑页差（可选项）：当目录中的标注页码与 PDF 实际页数不一致时，可在“页差”中填写差值，程序会在预览中换算出实际页数。也可以点击“自动填充页差”根据目录标题在 PDF 中的位置自动推断页差；文字版 PDF 可直接使用，扫描版 PDF 需要安装 OCR 可选依赖。
-+ 写入：点击右下角的“写入”按钮，稍等片刻，待状态栏提示"******* Finished!"表示写入成功，此时可在pdf目录下找到包含书签的 *原文件名\_new.pdf* 文件。
++ 选择文件：点击“选择 PDF…”或直接填写路径。选择后会立即显示输出文件位置。
++ 目录文本：粘贴“标题 + 页码”文本，或点击“从 PDF 识别目录”。识别结果仍可手工编辑，不会覆盖已切换到其他 PDF 的草稿。
++ 校对预览：右侧实时显示书签层级、标注页码和 PDF 页码。可双击或按 F2 编辑，拖动调整顺序与层级，按 Delete 删除；手工调整后再修改左侧目录或识别规则会明确提示预览已重建。
++ 调整页差：填写“PDF 页码 - 书上标注页码”，或点击“识别页差”。扫描版 PDF 需要安装 OCR 可选依赖。
++ 高级规则：日常使用默认按缩进识别层级；需要编号正则、乱序页码修复或已有书签导入策略时，打开“识别设置…”。
++ 生成与打开：点击“生成带书签的 PDF”。生成在后台执行并支持取消；生成成功后主按钮变为“打开生成的 PDF”。首次输出为 *原文件名\_new.pdf*，若已存在则自动递增编号，永不覆盖已有输出。
++ 草稿安全：切换 PDF 或关闭窗口前，未生成的目录和预览修改会要求确认；异步任务返回时若上下文已变化会自动丢弃过期结果。
 
 ###  获取目录文本
 
@@ -58,12 +60,12 @@ Windows/macOS/Ubuntu:
 
 ### 英文支持
 
-下载源码中的language/en.qm 放到程序同目录下 language/en.qm , 之后点击程序菜单栏中的 "语言 -- English" 即可切换为英文界面。
+点击菜单栏“语言 → English”即可切换完整英文界面，无需额外下载语言文件。
 
 ### 已知问题
 
-+ 一般图书非正文部分（如序言，目录等）没有标页码或使用另一套页码标记，本程序将这些目录默认链接到第一页，如需修正这些链接可手动修改。
-+ 有些正文中的目录没有标页码，程序会将该条目录链接到上一个有页码的标题页。
++ 一般图书非正文部分（如序言、目录等）可能没有标页码或使用另一套编号，请在右侧预览中手工校正。
++ 默认会沿用上一有效页码来修复缺失或倒退的页码；如需保留原始数字，可在高级规则中关闭此选项。
 
 
 ## 其他
@@ -72,12 +74,10 @@ Windows/macOS/Ubuntu:
 
 运行源码所需环境：
 
-+ Python2/3 均可，推荐Python3
-+ PyQt5
-+ PyPDF
-+ six
-
-*注意：Python2与Python3 不兼容，某些系统（如macOS）系统自带Python2，使用`python`命令调用，若自行安装Python3则可能需要通过`python3`来调用Python3，pip同理。本文不区分python/python3, pip/pip3，请用户按当前系统所安装版本使用对应命令。*
++ Python 3.9+
++ PySide6
++ pypdf
++ 推荐使用 [uv](https://docs.astral.sh/uv/)
 
 #### 获取代码
 
@@ -85,73 +85,66 @@ Windows/macOS/Ubuntu:
 
 #### 安装运行环境
 
-安装Python:
+安装 Python：
 
 https://www.python.org/downloads/
 
-安装依赖包:
+安装依赖包：
 
-进入项目目录，执行：
+进入项目目录后，推荐执行：
 
-`pip install -r requirements.txt`
+`uv sync`
 
-`pip install PyQt5`
+也可以使用 pip：
 
-如需为扫描版 PDF 自动读取目录或自动填充页差，还需要安装 OCR 可选依赖，并执行：
+`python -m pip install -r requirements.txt`
+
+如需为扫描版 PDF 自动读取目录或自动填充页差，还需要安装 OCR 可选依赖：
 
 `pip install -r requirements_ocr.txt`
 
-自动读取目录会优先使用 PaddleOCR 识别中文目录页；如果 PaddleOCR 不可用，会回退到 Tesseract OCR。自动填充页差仍使用 Tesseract OCR。
-使用 Tesseract 回退前，还需单独安装 Tesseract 程序及 `chi_sim`、`eng` 语言数据。
-
-若提示`No matching distribution found for pyqt5` 可参照[PyQt官方文档](http://pyqt.sourceforge.net/Docs/PyQt5/installation.html)进行安装。
+自动读取目录会优先使用 PaddleOCR 识别中文目录页；如果 PaddleOCR 不可用，会回退到 Tesseract OCR。使用 Tesseract 回退前需单独安装 Tesseract 程序及 `chi_sim`、`eng` 语言数据。
 
 环境装好之后进入源码目录，运行以下命令：
 
+`uv run pdfdir-gui`
+
+或者：
+
 `python run_gui.py`
-
-如果不需要GUI界面:
-
-`python run.py`
 
 #### 通过源码运行命令行接口
 
-可以通过程序的`run_cli.py` 在没有Qt的环境下运行.  
-通过cli运行接口支持最多6级目录, 目录文本通过文件输入更加容易编辑.
+可以通过程序的 `run_cli.py` 或安装后的 `pdfdir` 命令运行。
+通过 cli 运行接口支持最多 6 级目录，目录文本通过文件输入更加容易编辑。
 
 ```
-python run_cli.py --help                                                                                                                                                                                                                            myrepo/pdfdir
-usage: run_cli.py [-h] [--offset OFFSET] [--l0 L0] [--l1 L1] [--l2 L2] [--l3 L3] [--l4 L4] [--l5 L5] pdfPath tocPath
-
-Add content to PDF.
-
-positional arguments:
-  pdfPath          path of PDF
-  tocPath          path of contents file
-
-options:
-  -h, --help       show this help message and exit
-  --offset OFFSET  Page offset of contents
-  --l0 L0          Regular expression of level 0 of content
-  --l1 L1          Regular expression of level 1 of content
-  --l2 L2          Regular expression of level 2 of content
-  --l3 L3          Regular expression of level 3 of content
-  --l4 L4          Regular expression of level 4 of content
-  --l5 L5          Regular expression of level 5 of content
+uv run pdfdir --help
+usage: pdfdir [-h] [--offset OFFSET] [--l0 L0] [--l1 L1] [--l2 L2] [--l3 L3] [--l4 L4] [--l5 L5] pdf_path toc_path
 ```
 
 ### 打包源码
 
 如果你想在本机打包此程序：
 
-安装Pyinstaller
+同步打包依赖：
 
-`pip install pyinstaller`
+`uv sync --locked --group build`
 
-打包程序
+打包程序：
 
-`pyinstaller.py -F run_gui.py -n "PDFdir.exe"  --noconsole`
+`uv run pyinstaller -F run_gui.py -i pdf.ico --add-data "pdf.ico:src" --add-data "src/language:src/language" -n pdfdir --noconsole`
 
+### 测试
+
+运行完整测试及分支覆盖率检查：
+
+```bash
+uv run coverage run -m pytest -q
+uv run coverage report
+```
+
+测试覆盖 PDF 写入、目录转换性质、GUI 用户交互、Qt 绑定契约、后台任务、命令行接口、更新检查和打包资源。有效源码的覆盖率下限为 90%；生成的 `src/gui/main_ui.py` 不计入覆盖率。
 
 ### 目录文本格式
 

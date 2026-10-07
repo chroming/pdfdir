@@ -4,11 +4,14 @@ import pytest
 
 import src.pdf.page_offset as page_offset_module
 
+from src.pdf.cancellation import OperationCancelled
 from src.pdf.page_offset import (
     OcrCancelledError,
+    OcrUnavailableError,
     _render_matrix,
     _tesseract_config,
     extract_pdf_texts,
+    extract_pdf_texts_by_ocr,
     infer_page_offset_by_ocr,
     infer_page_offset_from_texts,
     normalize_page_text,
@@ -143,6 +146,58 @@ def test_render_matrix_limits_oversized_pdf_pages():
     assert matrix[1] == pytest.approx(0.1)
 
 
+def test_extract_pdf_texts_by_ocr_remains_importable_and_bounded(monkeypatch):
+    calls = []
+    progress = []
+
+    class FakePixmap(object):
+        def tobytes(self, image_format):
+            return b""
+
+    class FakePage(object):
+        def get_pixmap(self, matrix, alpha):
+            return FakePixmap()
+
+    class FakeDocument(object):
+        def __len__(self):
+            return 3
+
+        def load_page(self, page_index):
+            return FakePage()
+
+        def close(self):
+            pass
+
+    class FakeFitz(object):
+        Matrix = staticmethod(lambda x, y: object())
+        open = staticmethod(lambda pdf_path: FakeDocument())
+
+    class FakeTesseract(object):
+        def image_to_string(self, image, **kwargs):
+            calls.append(kwargs)
+            return "Page {}".format(len(calls))
+
+    class FakeImage(object):
+        open = staticmethod(lambda data: object())
+
+    monkeypatch.setattr(
+        page_offset_module,
+        "_load_ocr_dependencies",
+        lambda: (FakeFitz, FakeTesseract(), FakeImage),
+    )
+
+    texts = extract_pdf_texts_by_ocr(
+        "book.pdf",
+        max_pages=2,
+        timeout=7,
+        progress_callback=lambda current, total: progress.append((current, total)),
+    )
+
+    assert texts == ["Page 1", "Page 2"]
+    assert [call["timeout"] for call in calls] == [7, 7]
+    assert progress == [(1, 2), (2, 2)]
+
+
 def test_page_offset_ocr_skips_a_failed_page(monkeypatch):
     texts = iter([RuntimeError("timeout"), "Chapter One", "Chapter Two"])
 
@@ -193,7 +248,173 @@ def test_page_offset_ocr_skips_a_failed_page(monkeypatch):
     assert offset == 1
 
 
+def test_page_offset_ocr_closes_document_after_early_match(monkeypatch):
+    closed = []
+
+    class FakePixmap(object):
+        def tobytes(self, image_format):
+            return b""
+
+    class FakePage(object):
+        def get_pixmap(self, matrix, alpha):
+            return FakePixmap()
+
+    class FakeDocument(object):
+        def __len__(self):
+            return 4
+
+        def load_page(self, page_index):
+            return FakePage()
+
+        def close(self):
+            closed.append(True)
+
+    class FakeFitz(object):
+        Matrix = staticmethod(lambda x, y: object())
+        open = staticmethod(lambda pdf_path: FakeDocument())
+
+    class FakeTesseract(object):
+        texts = iter(["Chapter One", "Chapter Two", "", ""])
+
+        def image_to_string(self, image, **kwargs):
+            return next(self.texts)
+
+    class FakeImage(object):
+        open = staticmethod(lambda data: object())
+
+    monkeypatch.setattr(
+        page_offset_module,
+        "_load_ocr_dependencies",
+        lambda: (FakeFitz, FakeTesseract(), FakeImage),
+    )
+
+    assert infer_page_offset_by_ocr(
+        "book.pdf",
+        "Chapter One 1\nChapter Two 2",
+        max_pages=4,
+    ) == 0
+    assert closed == [True]
+
+
+def test_page_offset_ocr_skips_a_page_when_rendering_fails(monkeypatch):
+    class FakePixmap(object):
+        def tobytes(self, image_format):
+            return b""
+
+    class FakePage(object):
+        def __init__(self, page_index):
+            self.page_index = page_index
+
+        def get_pixmap(self, matrix, alpha):
+            if self.page_index == 0:
+                raise RuntimeError("render failed")
+            return FakePixmap()
+
+    class FakeDocument(object):
+        def __len__(self):
+            return 3
+
+        def load_page(self, page_index):
+            return FakePage(page_index)
+
+        def close(self):
+            pass
+
+    class FakeFitz(object):
+        Matrix = staticmethod(lambda x, y: object())
+        open = staticmethod(lambda pdf_path: FakeDocument())
+
+    class FakeTesseract(object):
+        texts = iter(["Chapter One", "Chapter Two"])
+
+        def image_to_string(self, image, **kwargs):
+            return next(self.texts)
+
+    class FakeImage(object):
+        open = staticmethod(lambda data: object())
+
+    monkeypatch.setattr(
+        page_offset_module,
+        "_load_ocr_dependencies",
+        lambda: (FakeFitz, FakeTesseract(), FakeImage),
+    )
+
+    offset = infer_page_offset_by_ocr(
+        "book.pdf",
+        "Chapter One 1\nChapter Two 2",
+        max_pages=3,
+    )
+
+    assert offset == 1
+
+
+def test_extract_pdf_texts_by_ocr_reports_when_all_pages_fail_to_render(
+    monkeypatch,
+):
+    class FakePage(object):
+        def get_pixmap(self, matrix, alpha):
+            raise RuntimeError("render failed")
+
+    class FakeDocument(object):
+        def __len__(self):
+            return 2
+
+        def load_page(self, page_index):
+            return FakePage()
+
+        def close(self):
+            pass
+
+    class FakeFitz(object):
+        Matrix = staticmethod(lambda x, y: object())
+        open = staticmethod(lambda pdf_path: FakeDocument())
+
+    monkeypatch.setattr(
+        page_offset_module,
+        "_load_ocr_dependencies",
+        lambda: (FakeFitz, object(), object()),
+    )
+
+    with pytest.raises(OcrUnavailableError, match="render failed"):
+        extract_pdf_texts_by_ocr("book.pdf", max_pages=2)
+
+
+def test_page_offset_ocr_does_not_downgrade_cancellation(monkeypatch):
+    class FakeDocument(object):
+        def __len__(self):
+            return 1
+
+        def load_page(self, page_index):
+            raise OperationCancelled("cancelled while rendering")
+
+        def close(self):
+            pass
+
+    class FakeFitz(object):
+        open = staticmethod(lambda pdf_path: FakeDocument())
+
+    monkeypatch.setattr(
+        page_offset_module,
+        "_load_ocr_dependencies",
+        lambda: (FakeFitz, object(), object()),
+    )
+
+    with pytest.raises(OperationCancelled, match="cancelled while rendering"):
+        extract_pdf_texts_by_ocr("book.pdf", max_pages=1)
+
+
+def test_page_offset_ocr_checks_cancellation_before_candidate_validation():
+    with pytest.raises(OcrCancelledError):
+        infer_page_offset_by_ocr(
+            "book.pdf",
+            "",
+            cancel_check=lambda: True,
+        )
+
+
 def test_extract_pdf_texts_respects_page_limit(monkeypatch, tmp_path):
+    progress = []
+
     class FakePage(object):
         def __init__(self, text):
             self.text = text
@@ -209,7 +430,12 @@ def test_extract_pdf_texts_respects_page_limit(monkeypatch, tmp_path):
     pdf_path = tmp_path / "book.pdf"
     pdf_path.write_bytes(b"pdf")
 
-    assert extract_pdf_texts(str(pdf_path), max_pages=2) == ["0", "1"]
+    assert extract_pdf_texts(
+        str(pdf_path),
+        2,
+        lambda current, total: progress.append((current, total)),
+    ) == ["0", "1"]
+    assert progress == [(1, 2), (2, 2)]
 
 
 def test_extract_pdf_texts_can_be_cancelled(monkeypatch, tmp_path):
@@ -223,3 +449,48 @@ def test_extract_pdf_texts_can_be_cancelled(monkeypatch, tmp_path):
 
     with pytest.raises(OcrCancelledError):
         extract_pdf_texts(str(pdf_path), cancel_callback=lambda: True)
+
+
+def test_extract_pdf_texts_supports_master_positional_cancel_callback(
+    monkeypatch, tmp_path
+):
+    class FakeReader(object):
+        def __init__(self, handle, strict=False):
+            self.pages = [object()]
+
+    monkeypatch.setattr(page_offset_module, "PdfReader", FakeReader)
+    pdf_path = tmp_path / "book.pdf"
+    pdf_path.write_bytes(b"pdf")
+
+    with pytest.raises(OcrCancelledError):
+        extract_pdf_texts(str(pdf_path), None, lambda: True)
+
+
+def test_extract_pdf_texts_supports_product_cancel_check(
+    monkeypatch, tmp_path
+):
+    extracted = []
+
+    class FakePage(object):
+        def __init__(self, index):
+            self.index = index
+
+        def extract_text(self):
+            extracted.append(self.index)
+            return str(self.index)
+
+    class FakeReader(object):
+        def __init__(self, handle, strict=False):
+            self.pages = [FakePage(index) for index in range(5)]
+
+    monkeypatch.setattr(page_offset_module, "PdfReader", FakeReader)
+    pdf_path = tmp_path / "book.pdf"
+    pdf_path.write_bytes(b"pdf")
+
+    with pytest.raises(OcrCancelledError):
+        extract_pdf_texts(
+            str(pdf_path),
+            cancel_check=lambda: len(extracted) >= 2,
+        )
+
+    assert extracted == [0, 1]

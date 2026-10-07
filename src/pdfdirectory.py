@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from src.convert import convert_dir_text
 from src.pdf.bookmark import add_bookmark
 
