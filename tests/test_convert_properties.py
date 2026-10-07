@@ -1,7 +1,7 @@
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from src.convert import convert_dir_text, is_in, split_page_num
+from src.convert import AmbiguousPageLabelError, convert_dir_text, is_in, split_page_num
 
 safe_title = st.text(
     alphabet=st.characters(
@@ -31,11 +31,13 @@ def test_converted_tree_always_has_valid_parent_indexes(entries):
         for indentation, title, page in entries
     ]
 
-    result = convert_dir_text(
-        "\n".join(lines),
-        level_by_space=True,
-        fix_non_seq=True,
-    )
+    try:
+        result = convert_dir_text(
+            "\n".join(lines), level_by_space=True, fix_non_seq=True,
+        )
+    except AmbiguousPageLabelError as exc:
+        assert 1 <= exc.line_number <= len("\n".join(lines).splitlines())
+        return
 
     assert list(result) == list(range(sum(bool(line.strip()) for line in lines)))
     assert [item["num"] for item in result.values()] == sorted(
@@ -63,8 +65,13 @@ def test_page_suffix_round_trips(title, page):
         max_size=200,
     )
 )
-def test_arbitrary_directory_text_does_not_crash(text):
-    result = convert_dir_text(text)
+def test_arbitrary_directory_text_returns_tree_or_explicit_page_label_error(text):
+    try:
+        result = convert_dir_text(text)
+    except AmbiguousPageLabelError as exc:
+        assert 1 <= exc.line_number <= len(text.splitlines())
+        assert exc.label
+        return
 
     assert list(result) == list(range(len(result)))
 

@@ -1,8 +1,11 @@
 """Source/reference views beside the one authoritative bookmark draft."""
 
+from pathlib import Path
+
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from src.gui.controls import DetailButton, DisclosureButton, MenuButton, ViewTabs, configure_command
+from src.convert import clean_clipboard_control_chars
+from src.gui.controls import DetailButton, DisclosureButton, InlineErrorLabel, MenuButton, ViewTabs, configure_command
 from src.gui.pdf_reference import PdfReferencePane
 
 
@@ -17,8 +20,10 @@ class ReferenceWorkspaceMixin:
         self.source_import_button.setMenu(import_menu)
         self.import_pdf_action = import_menu.addAction("")
         self.import_paste_action = import_menu.addAction("")
+        self.import_text_action = import_menu.addAction("")
         self.import_pdf_action.triggered.connect(self.auto_toc_button.click)
         self.import_paste_action.triggered.connect(self.paste_button.click)
+        self.import_text_action.triggered.connect(self._choose_toc_file)
         self.auto_toc_button.hide()
         self.paste_button.hide()
 
@@ -32,6 +37,9 @@ class ReferenceWorkspaceMixin:
         self.pdf_reference = PdfReferencePane(self.editor_pane)
         self.reference_stack.addWidget(self.pdf_reference)
         self.editor_layout.addWidget(self.reference_stack, 1)
+        self.source_error_label = InlineErrorLabel(self.editor_pane)
+        self.source_error_label.hide()
+        self.editor_layout.insertWidget(2, self.source_error_label)
         self.rules_section.hide()
         self.source_tabs.currentChanged.connect(self._reference_tab_changed)
 
@@ -117,6 +125,62 @@ class ReferenceWorkspaceMixin:
         self._layout_pane_headers()
         self._layout_tool_controls(False)
 
+    def _choose_toc_file(self):
+        if self._has_active_task():
+            return
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, self._t("text_import_title"), self.default_folder,
+            "Text (*.txt)",
+        )
+        if path:
+            self._import_toc_file(path)
+
+    def _confirm_text_import(self):
+        box, buttons = self._build_choice_box(
+            "text_import_title", "text_import_replace",
+            (("replace", "import_replace_action", QtWidgets.QMessageBox.AcceptRole),
+             ("cancel", "cancel_action", QtWidgets.QMessageBox.RejectRole)),
+            default_choice="cancel", escape_choice="cancel",
+        )
+        box.exec()
+        return box.clickedButton() is buttons["replace"]
+
+    def _import_toc_file(self, path):
+        if self._has_active_task():
+            return False
+        try:
+            # Bound actual bytes read, not only stat size (the file can change).
+            with Path(path).open("rb") as stream:
+                data = stream.read(2 * 1024 * 1024 + 1)
+            if len(data) > 2 * 1024 * 1024:
+                raise ValueError("2 MiB")
+            encoding = "utf-16" if data.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig"
+            text = data.decode(encoding)
+            if "\x00" in text or not text.strip():
+                raise ValueError("Empty or binary text" if self._language == "en" else "文本为空或包含二进制内容")
+            text = clean_clipboard_control_chars(text).replace("\r\n", "\n").replace("\r", "\n")
+            if not text.strip():
+                raise ValueError("Empty text" if self._language == "en" else "文本为空")
+        except (OSError, UnicodeError, ValueError) as exc:
+            self.alert_msg(self._t("text_import_failed", message=str(exc)), level="warn")
+            return False
+        if text == self.dir_text:
+            self.source_tabs.setCurrentIndex(0)
+            self.dir_text_edit.setFocus()
+            return True
+        if self.dir_text.strip() and not self._confirm_text_import():
+            return False
+        self.source_tabs.setCurrentIndex(0)
+        editor = self.dir_text_edit
+        cursor = editor.textCursor()
+        cursor.beginEditBlock()
+        cursor.select(QtGui.QTextCursor.Document)
+        cursor.insertText(text)
+        cursor.endEditBlock()
+        editor.setTextCursor(cursor)
+        editor.setFocus()
+        return True
+
     def _layout_reference_headers(self):
         for layout in (self.source_header_layout, self.preview_header_layout):
             self._clear_layout(layout)
@@ -159,6 +223,7 @@ class ReferenceWorkspaceMixin:
         self.reference_stack.setCurrentIndex(index)
         self.left_tools.setVisible(index == 0)
         self.source_import_button.setVisible(index == 0)
+        self.source_error_label.setVisible(index == 0 and self._source_parse_error is not None)
         if index == 1:
             self.pdf_reference.set_source(self.pdf_path.strip())
             self._follow_bookmark_page(self.dir_tree_widget.currentItem())
@@ -218,8 +283,11 @@ class ReferenceWorkspaceMixin:
         self.outdent_action.setEnabled(tree.can_move_current_level(-1))
 
     def _sync_reference_workspace(self, has_pdf, write_running):
+        self.source_error_label.setText(self._source_parse_message())
+        self.source_error_label.setVisible(self.source_tabs.currentIndex() == 0 and self._source_parse_error is not None)
         self.import_pdf_action.setEnabled(self.auto_toc_button.isEnabled())
         self.import_paste_action.setEnabled(self.paste_button.isEnabled())
+        self.import_text_action.setEnabled(not self._has_active_task())
         self.source_import_button.setEnabled(not self._has_active_task())
         if self._rule_guarded and self.calibrate_button.isChecked():
             self.calibrate_button.setChecked(False)
@@ -256,9 +324,16 @@ class ReferenceWorkspaceMixin:
         self.level_mode_label.setText("Parse" if english else "识别")
         self.import_pdf_action.setText("Recognize from PDF…" if english else "从 PDF 识别…")
         self.import_paste_action.setText("Paste text" if english else "粘贴文本")
+        self.import_text_action.setText("Import text file…" if english else "导入文本文件…")
         self.hierarchy_button.setText("Hierarchy" if english else "调整层级")
-        self.indent_action.setText("Indent bookmark" if english else "降低一级（缩进）")
-        self.outdent_action.setText("Outdent bookmark" if english else "提升一级（取消缩进）")
+        # Display the tree-local keys without registering a window-wide QAction
+        # shortcut that would steal Alt+arrows from a cell editor.
+        for action, label, sequence in (
+            (self.indent_action, "Indent bookmark" if english else "降低一级（缩进）", "Alt+Right"),
+            (self.outdent_action, "Outdent bookmark" if english else "提升一级（取消缩进）", "Alt+Left"),
+        ):
+            shortcut = QtGui.QKeySequence(sequence).toString(QtGui.QKeySequence.NativeText)
+            action.setText(f"{label}\t{shortcut}")
         self.calibrate_button.setText("Calibrate" if english else "校准页码")
         self.printed_anchor_label.setText("Printed page" if english else "书上标注页")
         self.pdf_anchor_label.setText("PDF page" if english else "对应 PDF 页")

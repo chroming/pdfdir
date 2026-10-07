@@ -263,6 +263,7 @@ class RuleWorkbenchMixin:
             "items": tree._snapshot(),
             "view": self._capture_rule_view(),
             "manual": self._preview_manually_adjusted,
+            "parse_error": self._source_parse_error,
             "history": list(tree._history), "history_index": tree._history_index,
         }
 
@@ -305,11 +306,18 @@ class RuleWorkbenchMixin:
         self._update_rule_feedback()
 
     def _accept_rule_trial(self):
+        was_manual = self._preview_manually_adjusted
         self._rule_guarded = False
         self._preview_manually_adjusted = False
         self.rules_guard_label.hide()
         self.rules_accept_button.hide()
         self._apply_rule_preview()
+        if self._source_parse_error and was_manual:
+            self._preview_manually_adjusted = True
+            self._rule_guarded = True
+            self.rules_guard_label.show()
+            self.rules_accept_button.show()
+            self._update_action_availability()
 
     def _apply_rule_preview(self):
         if self._close_requested or self._rule_guarded:
@@ -354,6 +362,7 @@ class RuleWorkbenchMixin:
         tree.page_offset = self._preview_offset
         self._preview_manually_adjusted = state["manual"]
         self._preview_validation_error = ""
+        self._source_parse_error = state.get("parse_error")
         self._rule_restore_running = False
         self._clear_rule_trial()
         self._last_rule_values = self._rule_values()
@@ -474,6 +483,10 @@ class RuleWorkbenchMixin:
 
     def _link_rule_source(self, item, _previous):
         if self._rebuilding_tree or item is None:
+            return
+        if self._rules_pending:
+            # The preserved tree still owns the previous source-line mapping.
+            self.dir_text_edit.setExtraSelections([])
             return
         number = item.data(0, SOURCE_ROLE)
         if number is None:

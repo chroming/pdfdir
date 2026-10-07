@@ -119,3 +119,16 @@ def test_cli_rejects_non_utf8_toc(tmp_path):
 
     assert result.returncode != 0
     assert not (tmp_path / "source_new.pdf").exists()
+
+
+def test_cli_rejects_ambiguous_roman_page_without_writing(tmp_path):
+    source = tmp_path / "source.pdf"
+    toc = tmp_path / "toc.txt"
+    _write_pdf(source)
+    before = source.read_bytes()
+    toc.write_text("Preface iii\nChapter 1", encoding="utf-8")
+    result = _run_cli(source, toc)
+    assert result.returncode != 0
+    assert "Roman page label" in result.stderr
+    assert not (tmp_path / "source_new.pdf").exists()
+    assert source.read_bytes() == before

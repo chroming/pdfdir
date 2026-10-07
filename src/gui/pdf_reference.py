@@ -104,6 +104,15 @@ class PdfReferencePane(QtWidgets.QWidget):
                 self.go_to_page(1)
         self._sync_controls()
 
+    def close_document(self):
+        """Release native file ownership without leaving a stale source cache."""
+        self._ready = False
+        self._source_key = None
+        if self.document:
+            self.document.close()
+        self._show_message("empty")
+        self._sync_controls()
+
     def go_to_page(self, page):
         if not self._ready:
             return

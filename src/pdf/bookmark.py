@@ -111,17 +111,17 @@ def add_bookmark(
     :param path: pdf file path.
     :param index_dict: bookmarks dict, like {0:{'title':'A', 'pagenum':1}, 1:{'title':'B', pagenum:2, parent: 0} ......}
     """
-    pdf = Pdf(
+    with Pdf(
         path,
         keep_outline=keep_exist_dir,
         output_path=output_path,
-    )
-    _add_bookmark(pdf, index_dict, cancel_check=cancel_check)
-    return pdf.save_pdf(
-        cancel_check=cancel_check,
-        expected_output_fingerprint=expected_output_fingerprint,
-        enforce_output_fingerprint=enforce_output_fingerprint,
-    )
+    ) as pdf:
+        _add_bookmark(pdf, index_dict, cancel_check=cancel_check)
+        return pdf.save_pdf(
+            cancel_check=cancel_check,
+            expected_output_fingerprint=expected_output_fingerprint,
+            enforce_output_fingerprint=enforce_output_fingerprint,
+        )
 
 
 def get_bookmarks(path):
@@ -149,11 +149,8 @@ class PdfDocumentInfo:
 
 def read_document_info(path):
     """Read outline and page count from the same parser, propagating failures."""
-    pdf = Pdf(path)
-    try:
+    with Pdf(path) as pdf:
         return PdfDocumentInfo(pdf.exist_bookmarks(), len(pdf.reader.pages))
-    finally:
-        pdf.reader.stream.close()
 
 
 def _validate_bookmark_structure(index_dict):
@@ -179,10 +176,10 @@ def check_bookmarks(path, index_dict, keep_exist_dir=False):
     _validate_bookmark_structure(index_dict)
     if not index_dict:
         return
-    pdf = Pdf(path, keep_outline=keep_exist_dir)
     # Validation must stay read-only and cheap; building the writer copies the
     # entire document and belongs in the background write worker.
-    max_page_num = len(pdf.reader.pages)
+    with Pdf(path, keep_outline=keep_exist_dir) as pdf:
+        max_page_num = len(pdf.reader.pages)
     page_numbers = [
         v.get("real_num", 1) for v in index_dict.values()
         if v.get("is_group") is not True

@@ -23,6 +23,7 @@ from pypdf import PdfReader
 
 from src.config import CONFIG
 from src.convert import (
+    AmbiguousPageLabelError,
     GROUP_PAGE_MARKER,
     clean_clipboard_control_chars,
     convert_dir_text,
@@ -37,6 +38,7 @@ from src.gui.rule_workbench import RuleWorkbenchMixin
 from src.gui.reference_workspace import ReferenceWorkspaceMixin
 from src.updater import check_for_update
 from src.pdf.bookmark import (
+    _validate_bookmark_structure,
     BookmarkPageError,
     add_bookmark,
     check_bookmarks,
@@ -228,7 +230,14 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "offset_empty": "无法识别页差",
             "offset_done": "已识别页差：{value}",
             "offset_error": "页差识别失败：{message}",
-            "ocr_unavailable": "当前环境未安装扫描版 OCR 可选依赖。文字版 PDF 仍可直接识别；如需识别扫描版，请在终端执行：pip install -r requirements_ocr.txt",
+            "ocr_unavailable": "扫描版 OCR 不可用，文字版 PDF 仍可识别。在源码项目目录中执行 uv pip install -r requirements_ocr.txt，然后用 uv run run_gui.py 重启；Tesseract 后端还需单独安装 Tesseract 和对应语言包。",
+            "ocr_unavailable_packaged": "此应用的扫描版 OCR 不可用，文字版 PDF 仍可识别。终端安装 Python 包不会修改打包应用；请改用配置好 OCR 的源码环境，或在其他工具识别后导入目录文本。",
+            "text_import_title": "导入目录文本",
+            "text_import_replace": "导入将替换目录原文，可在文本编辑器中撤销。手工校对的书签会保留，直到你确认重新生成。PDF 文件不会改变。",
+            "text_import_failed": "无法导入文本：{message}。请选择有效的 UTF-8 或带 BOM 的 UTF-16 文本文件（不超过 2 MiB）。",
+            "roman_page_label": "第 {row} 行“{label}”可能是罗马页码。请改为数字（PDF 页减去页差）；分组用两个空格和 — 标记。",
+            "invalid_source_tree": "目录结构无效，旧书签已保留，暂不能生成：{message}",
+            "source_needs_review": "请检查目录原文中的页码或结构，生成已暂停。",
             "offset_progress": "正在 OCR 识别页差：{current}/{total} 页",
             "toc_discarded": "文档已更改，已丢弃旧的目录结果",
             "toc_failed": "目录识别失败",
@@ -316,7 +325,14 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "offset_empty": "Could not detect a page offset",
             "offset_done": "Page offset detected: {value}",
             "offset_error": "Page offset detection failed: {message}",
-            "ocr_unavailable": "This environment does not have the optional OCR dependencies installed. Text PDFs still work; for scans, install them via: pip install -r requirements_ocr.txt",
+            "ocr_unavailable": "Scan OCR is unavailable; text PDFs still work. From the source project directory, run uv pip install -r requirements_ocr.txt, then restart with uv run run_gui.py. The Tesseract backend also needs Tesseract and its language data installed separately.",
+            "ocr_unavailable_packaged": "Scan OCR is unavailable in this app; text PDFs still work. Installing Python packages in a terminal does not modify a packaged app. Use a source environment with OCR configured, or recognize the TOC elsewhere and import the text.",
+            "text_import_title": "Import TOC text",
+            "text_import_replace": "Import replaces the TOC text and can be undone in the text editor. Manual bookmark edits are preserved until you choose to rebuild. No PDF file is changed.",
+            "text_import_failed": "Cannot import text: {message}. Choose a valid UTF-8 or BOM-marked UTF-16 text file (up to 2 MiB).",
+            "roman_page_label": "Line {row}: Roman label '{label}'. Use a number (PDF page minus offset), or two spaces and — for a group.",
+            "invalid_source_tree": "Invalid TOC structure. Previous bookmarks are preserved; generation is blocked: {message}",
+            "source_needs_review": "Review the pages or structure in the TOC text before generating.",
             "offset_progress": "Detecting page offset with OCR: {current}/{total} pages",
             "toc_discarded": "The document changed; the old TOC result was discarded",
             "toc_failed": "TOC recognition failed",
@@ -387,6 +403,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self._draft_imported_from_source = False
         self._preview_manually_adjusted = False
         self._preview_validation_error = ""
+        self._source_parse_error = None
         self._regex_validation_error = ""
         self._rebuilding_tree = False
         self._dirty_baseline = None
@@ -478,6 +495,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self._result_timer.timeout.connect(self._refresh_external_result)
         self._result_timer.start()
         self.dir_text_edit.installEventFilter(self)
+        self.dir_text_edit.viewport().installEventFilter(self)
         self.dir_tree_widget.viewport().installEventFilter(self)
         for editor in (self.dir_text_edit, self.dir_tree_widget):
             policy = editor.sizePolicy()
@@ -1575,6 +1593,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self.close()
 
     def _validate_preview_tree(self):
+        if self._source_parse_error:
+            return self._source_parse_message()
         if self._regex_validation_error:
             return self._regex_validation_error
         if self._rules_pending:
@@ -2086,7 +2106,9 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             and source_path.is_file()
             and source_path.suffix.lower() == ".pdf"
         )
-        if self._rules_pending:
+        if self._source_parse_error:
+            self._set_action_status(self._t("source_needs_review"), "error")
+        elif self._rules_pending:
             self._set_action_status(
                 ("Fix rules to update preview" if self._regex_validation_error else "Rule preview is not updated")
                 if self._language == "en" else
@@ -2207,6 +2229,14 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         return self.read_exist_dir_box.isChecked()
 
     def eventFilter(self, watched, event):
+        if watched is self.dir_text_edit.viewport() and event.type() in (
+            QtCore.QEvent.DragEnter, QtCore.QEvent.DragMove, QtCore.QEvent.Drop,
+        ) and event.mimeData().hasUrls():
+            handler = {QtCore.QEvent.DragEnter: self.dragEnterEvent,
+                       QtCore.QEvent.DragMove: self.dragMoveEvent,
+                       QtCore.QEvent.Drop: self.dropEvent}[event.type()]
+            handler(event)
+            return True
         if (
             watched is getattr(self, "document_name_label", None)
             and event.type() in (QtCore.QEvent.Resize, QtCore.QEvent.FontChange)
@@ -2603,6 +2633,25 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self._update_action_availability()
             return
         self._rules_timer.stop()
+        # Parse and validate before touching the last good tree or its history.
+        try:
+            index_dict = convert_dir_text(
+                self.dir_text, self.offset_num,
+                self.level0_text, self.level1_text, self.level2_text,
+                self.level3_text, self.level4_text, self.level5_text,
+                other=self.other_level_index, level_by_space=self.level_by_space,
+                fix_non_seq=self.fix_non_seq,
+            )
+            _validate_bookmark_structure(index_dict)
+        except ValueError as exc:
+            self._source_parse_error = exc
+            self._rules_pending = True
+            self.dir_text_edit.setExtraSelections([])
+            self._refresh_dirty_state()
+            self._update_action_availability()
+            self._update_rule_feedback()
+            return
+        self._source_parse_error = None
         view_state = self._capture_rule_view()
         had_manual_adjustments = self._preview_manually_adjusted
         self._rebuilding_tree = True
@@ -2613,19 +2662,6 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self._preview_validation_error = ""
         try:
             self.dir_tree_widget.clear()
-            index_dict = convert_dir_text(
-                self.dir_text,
-                self.offset_num,
-                self.level0_text,
-                self.level1_text,
-                self.level2_text,
-                self.level3_text,
-                self.level4_text,
-                self.level5_text,
-                other=self.other_level_index,
-                level_by_space=self.level_by_space,
-                fix_non_seq=self.fix_non_seq,
-            )
             top_idx = 0
             inserted_items = {}
             children = {}
@@ -2635,7 +2671,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
                         "empty_title",
                         row=i + 1,
                     )
-                if "parent" in con:
+                if con.get("parent") is not None:
                     children[i] = con
                 else:
                     tree_item = self._tree_item_from_record(con)
@@ -2673,6 +2709,12 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self._highlight_rule_matches()
         if had_manual_adjustments:
             self.show_status(self._t("preview_reset"), 4000)
+
+    def _source_parse_message(self):
+        error = self._source_parse_error
+        if isinstance(error, AmbiguousPageLabelError):
+            return self._t("roman_page_label", row=error.line_number, label=error.label)
+        return self._t("invalid_source_tree", message=str(error)) if error else ""
 
     def _tree_item_from_record(self, record):
         item = QtWidgets.QTreeWidgetItem(
@@ -2861,7 +2903,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
                 "pymupdf",
             )
         ):
-            return self._t("ocr_unavailable")
+            return self._t("ocr_unavailable_packaged" if getattr(sys, "frozen", False)
+                           else "ocr_unavailable")
         return str(message)
 
     def _toc_progress(self, current, total):
@@ -2919,7 +2962,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             return
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
-                if url.toLocalFile().lower().endswith(".pdf"):
+                if url.isLocalFile() and url.toLocalFile().lower().endswith((".pdf", ".txt")):
                     event.acceptProposedAction()
                     return
         super().dragEnterEvent(event)
@@ -2930,7 +2973,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             return
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
-                if url.toLocalFile().lower().endswith(".pdf"):
+                if url.isLocalFile() and url.toLocalFile().lower().endswith((".pdf", ".txt")):
                     event.acceptProposedAction()
                     return
         super().dragMoveEvent(event)
@@ -2942,6 +2985,12 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
                 file_path = url.toLocalFile()
+                if url.isLocalFile() and file_path.lower().endswith(".txt"):
+                    if self._import_toc_file(file_path):
+                        event.acceptProposedAction()
+                    else:
+                        event.ignore()
+                    return
                 if file_path.lower().endswith(".pdf"):
                     if self._activate_document(file_path):
                         event.acceptProposedAction()
@@ -2949,6 +2998,11 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
                         event.ignore()
                     return
         super().dropEvent(event)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # A closed-but-not-destroyed window may be shown again by its owner.
+        self._reference_tab_changed(self.source_tabs.currentIndex())
 
     def closeEvent(self, event):
         task_running = self._has_active_task()
@@ -2962,12 +3016,14 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self._close_requested = False
         if self._allow_close_once:
             self._allow_close_once = False
+            self.pdf_reference.close_document()
             event.accept()
             return
         if self._is_dirty():
             event.ignore()
             self._show_dirty_close_prompt()
             return
+        self.pdf_reference.close_document()
         event.accept()
 
     def _show_dirty_close_prompt(self):

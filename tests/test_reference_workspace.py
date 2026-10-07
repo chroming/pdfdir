@@ -7,7 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 from pypdf import PdfReader, PdfWriter
-from PySide6 import QtCore, QtGui
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from src.gui.main import Main
 from src.gui.controls import MenuButton, ViewTabs
@@ -246,6 +246,233 @@ def test_explicit_rule_add_and_preferences_are_separate(window):
     assert not window.level5_edit.isVisible()
     assert not window.read_exist_dir_box.isVisible()
     assert window.read_exist_dir_action in window.file_menu.actions()
+
+
+def test_ambiguous_source_preserves_tree_and_blocks_even_after_manual_edit(window):
+    tree = window.dir_tree_widget
+    before = tree._snapshot()
+    window.dir_text_edit.setPlainText("\nPreface iii\nChapter 1")
+    assert tree._snapshot() == before
+    assert not window.export_button.isEnabled()
+    assert "第 2 行" in window._validate_preview_tree()
+    tree.topLevelItem(0).setText(0, "Manual correction")
+    assert not window.export_button.isEnabled()
+    window.to_english()
+    assert "Roman" in window._validate_preview_tree()
+
+
+def test_source_error_recovers_when_corrected(window):
+    window.dir_text_edit.setPlainText("Preface iii")
+    assert not window.export_button.isEnabled()
+    window.dir_text_edit.setPlainText("Preface 3")
+    assert window.export_button.isEnabled()
+    assert window.dir_tree_widget.topLevelItem(0).text(2) == "3"
+
+
+def test_stale_tree_does_not_jump_to_an_unrelated_source_line(window):
+    window.dir_text_edit.setPlainText("Preface iii\n\nCompletely different source")
+    cursor = window.dir_text_edit.textCursor()
+    cursor.movePosition(QtGui.QTextCursor.End)
+    window.dir_text_edit.setTextCursor(cursor)
+    position = cursor.position()
+    window.dir_tree_widget.setCurrentItem(window.dir_tree_widget.topLevelItem(1))
+    assert window.dir_text_edit.textCursor().position() == position
+    assert not window.dir_text_edit.extraSelections()
+
+
+def test_invalid_parent_is_rejected_before_clearing_preview(window, monkeypatch):
+    from src.gui import main
+    before = window.dir_tree_widget._snapshot()
+    monkeypatch.setattr(main, "convert_dir_text", lambda *a, **kw: {
+        0: {"title": "Orphan", "real_num": 1, "parent": 99},
+    })
+    window.make_dir_tree()
+    assert window.dir_tree_widget._snapshot() == before
+    assert not window.export_button.isEnabled()
+
+
+def test_explicit_null_parent_is_a_root_not_a_dropped_child(window, monkeypatch):
+    from src.gui import main
+    monkeypatch.setattr(main, "convert_dir_text", lambda *a, **kw: {
+        0: {"title": "Root", "num": 1, "real_num": 1, "parent": None},
+    })
+    window.make_dir_tree()
+    assert window.dir_tree_widget.topLevelItem(0).text(0) == "Root"
+    assert window.export_button.isEnabled()
+
+
+def test_hierarchy_shortcuts_preserve_tab_and_undo(window, qtbot):
+    tree = window.dir_tree_widget
+    tree.setCurrentItem(tree.topLevelItem(1))
+    tree.setFocus()
+    before = tree._snapshot()
+    qtbot.keyClick(tree, QtCore.Qt.Key_Right, QtCore.Qt.AltModifier)
+    assert tree.currentItem().parent() is tree.topLevelItem(0)
+    qtbot.keyClick(tree, QtCore.Qt.Key_Left, QtCore.Qt.AltModifier)
+    assert tree._snapshot() == before
+    tree.undo()
+    assert tree.topLevelItemCount() == 1
+    qtbot.keyClick(tree, QtCore.Qt.Key_Tab)
+    assert not tree.hasFocus()
+    assert tree.topLevelItemCount() == 1
+
+
+def test_hierarchy_shortcut_does_not_move_row_while_editing(window, qtbot):
+    tree = window.dir_tree_widget
+    tree.setCurrentItem(tree.topLevelItem(1))
+    tree.editItem(tree.currentItem(), 0)
+    editor = tree.findChild(QtWidgets.QLineEdit)
+    assert editor is not None
+    qtbot.keyClick(editor, QtCore.Qt.Key_Right, QtCore.Qt.AltModifier)
+    assert tree.topLevelItemCount() == 2
+
+
+@pytest.mark.parametrize("encoding", ["utf-8-sig", "utf-16"])
+def test_text_import_is_one_undoable_edit_and_preserves_manual_tree(window, tmp_path, monkeypatch, encoding):
+    path = tmp_path / "目录.txt"
+    path.write_text("新目录 3\n  子章节 4", encoding=encoding)
+    before = window.dir_text
+    tree = window.dir_tree_widget
+    tree.topLevelItem(0).setText(0, "Corrected")
+    snapshot = tree._snapshot()
+    monkeypatch.setattr(window, "_confirm_text_import", lambda: True)
+    assert window._import_toc_file(str(path))
+    assert window.dir_text == "新目录 3\n  子章节 4"
+    assert tree._snapshot() == snapshot
+    assert window._rule_guarded
+    window.dir_text_edit.undo()
+    assert window.dir_text == before
+    window.source_restore_button.click()
+    assert tree._snapshot() == snapshot
+
+
+def test_cancelled_and_invalid_text_import_leave_draft_unchanged(window, tmp_path, monkeypatch):
+    path = tmp_path / "toc.txt"
+    before = window._current_draft_signature()
+    path.write_text("Replacement 1", encoding="utf-8")
+    monkeypatch.setattr(window, "_confirm_text_import", lambda: False)
+    assert not window._import_toc_file(str(path))
+    errors = []
+    monkeypatch.setattr(window, "alert_msg", lambda message, **kw: errors.append(message))
+    path.write_bytes(b"\xffinvalid")
+    assert not window._import_toc_file(str(path))
+    assert errors
+    assert window._current_draft_signature() == before
+
+
+def test_accepted_close_releases_pdf_and_allows_reload(window):
+    window.source_tabs.setCurrentIndex(1)
+    pane = window.pdf_reference
+    assert pane.page_count == 12
+    window._allow_close_once = True
+    window.close()
+    assert pane.document.pageCount() == 0
+    assert pane._source_key is None
+    assert not pane._ready
+    window.show()
+    assert pane.page_count == 12
+
+
+def test_dirty_close_keeps_reference_loaded_until_confirmed(window, monkeypatch):
+    window.source_tabs.setCurrentIndex(1)
+    monkeypatch.setattr(window, "_show_dirty_close_prompt", lambda: None)
+    window.close()
+    assert window.isVisible()
+    assert window.pdf_reference.page_count == 12
+
+
+def test_text_file_drop_on_editor_loads_content_not_url(window, tmp_path, monkeypatch, qapp):
+    path = tmp_path / "toc.txt"
+    path.write_text("Dropped chapter 4", encoding="utf-8")
+    monkeypatch.setattr(window, "_confirm_text_import", lambda: True)
+    mime = QtCore.QMimeData()
+    mime.setUrls([QtCore.QUrl.fromLocalFile(str(path))])
+    viewport = window.dir_text_edit.viewport()
+    enter = QtGui.QDragEnterEvent(QtCore.QPoint(10, 10), QtCore.Qt.CopyAction,
+                                 mime, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier)
+    qapp.sendEvent(viewport, enter)
+    assert enter.isAccepted()
+    drop = QtGui.QDropEvent(QtCore.QPointF(10, 10), QtCore.Qt.CopyAction,
+                           mime, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier)
+    qapp.sendEvent(viewport, drop)
+    assert drop.isAccepted()
+    assert window.dir_text == "Dropped chapter 4"
+    assert window.dir_tree_widget.topLevelItem(0).text(2) == "4"
+
+
+def test_text_import_menu_and_busy_guard(window, tmp_path, monkeypatch):
+    path = tmp_path / "toc.txt"
+    path.write_text("Imported chapter 4", encoding="utf-8")
+    monkeypatch.setattr(window, "_confirm_text_import", lambda: True)
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName",
+                        lambda *a, **kw: (str(path), "Text (*.txt)"))
+    window.import_text_action.trigger()
+    assert window.dir_text == "Imported chapter 4"
+    monkeypatch.setattr(window, "_has_active_task", lambda: True)
+    path.write_text("Busy replacement 5", encoding="utf-8")
+    assert not window._import_toc_file(str(path))
+    assert window.dir_text == "Imported chapter 4"
+    monkeypatch.undo()
+
+
+def test_failed_rebuild_keeps_manual_restore_point(window):
+    tree = window.dir_tree_widget
+    original = window.dir_text
+    tree.topLevelItem(0).setText(0, "Manual correction")
+    before = tree._snapshot()
+    window.dir_text_edit.setPlainText("Preface iii")
+    window.rules_accept_button.click()
+    assert tree._snapshot() == before
+    assert window._preview_manually_adjusted
+    assert window._rule_guarded
+    assert not window.export_button.isEnabled()
+    window.source_restore_button.click()
+    assert tree._snapshot() == before
+    assert window.dir_text == original
+    assert window.export_button.isEnabled()
+
+
+def test_text_replacement_dialog_cancel_is_safe_default(window, qtbot):
+    def reject_dialog():
+        box = window.findChild(QtWidgets.QMessageBox)
+        assert box.defaultButton() is box.escapeButton()
+        qtbot.keyClick(box, QtCore.Qt.Key_Escape)
+    QtCore.QTimer.singleShot(0, reject_dialog)
+    assert not window._confirm_text_import()
+
+
+def test_source_error_remains_readable_with_large_text(window, qapp, qtbot):
+    original = qapp.font()
+    font = QtGui.QFont(original)
+    font.setPointSize(24)
+    try:
+        qapp.setFont(font)
+        window.to_english()
+        window.resize(window.minimumSize())
+        window.dir_text_edit.setPlainText("Preface iii")
+        qtbot.wait(50)
+        label = window.source_error_label
+        assert label.height() >= label.heightForWidth(label.width())
+        assert window.dir_text_edit.viewport().height() >= 72
+    finally:
+        qapp.setFont(original)
+
+
+def test_source_error_height_shrinks_again_after_widening(window, qtbot):
+    window.to_english()
+    window.resize(780, 560)
+    window.dir_text_edit.setPlainText("Preface iii")
+    qtbot.wait(30)
+    initial = window.source_error_label.height()
+    window.resize(1440, 900)
+    qtbot.wait(30)
+    label = window.source_error_label
+    probe = QtWidgets.QLabel(window)
+    probe.setFont(label.font())
+    probe.setWordWrap(True)
+    probe.setText(label.text())
+    assert label.height() <= probe.heightForWidth(label.width()) + 2
+    assert label.height() < initial
 
 
 @pytest.mark.parametrize("english", [False, True])

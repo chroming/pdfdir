@@ -186,11 +186,11 @@ def test_empty_bookmark_validation_does_not_open_pdf():
 
 
 def test_save_pdf_rejects_existing_output_before_writing(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, managed_pdf
 ):
     source_path = tmp_path / "source.pdf"
     _write_pdf(source_path)
-    pdf = Pdf(str(source_path))
+    pdf = managed_pdf(str(source_path))
     output_path = tmp_path / "source_new.pdf"
     output_path.write_bytes(b"previous output")
 

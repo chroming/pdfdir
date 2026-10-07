@@ -10,7 +10,7 @@ from src.pdf.pdf import Pdf
 from src.pdf.pdf import OutputTargetChangedError
 
 
-def test_deep_link_graph_preserves_complete_document_and_recursion_budget(tmp_path):
+def test_deep_link_graph_preserves_complete_document_and_recursion_budget(tmp_path, managed_pdf):
     from pypdf.generic import DictionaryObject, NameObject, NumberObject
     writer = PdfWriter()
     writer.add_blank_page(width=72, height=72)
@@ -26,7 +26,7 @@ def test_deep_link_graph_preserves_complete_document_and_recursion_budget(tmp_pa
     writer.write(source)
     original = source.read_bytes()
     budget = sys.getrecursionlimit()
-    pdf = Pdf(str(source))
+    pdf = managed_pdf(str(source))
     pdf.save_pdf()
     assert sys.getrecursionlimit() == budget
     reader = PdfReader(tmp_path / "deep_new.pdf")
@@ -47,12 +47,12 @@ def _write_blank_pdf(path):
 
 
 def test_copy_failure_does_not_fall_back_to_lossy_page_copy(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, managed_pdf
 ):
     source_path = tmp_path / "source.pdf"
     output_path = tmp_path / "source_new.pdf"
     _write_blank_pdf(source_path)
-    pdf = Pdf(str(source_path))
+    pdf = managed_pdf(str(source_path))
     copy_attempts = []
 
     def fail_lossless_copy(_writer, _reader, **_kwargs):
@@ -90,11 +90,8 @@ def test_concurrent_clones_share_budget_and_restore_it(tmp_path):
     original_limit = sys.getrecursionlimit()
 
     def clone(index):
-        pdf = Pdf(str(source), output_path=str(tmp_path / f"output-{index}.pdf"))
-        try:
+        with Pdf(str(source), output_path=str(tmp_path / f"output-{index}.pdf")) as pdf:
             return pdf.save_pdf()
-        finally:
-            pdf.reader.stream.close()
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         outputs = list(pool.map(clone, range(8)))
@@ -102,7 +99,7 @@ def test_concurrent_clones_share_budget_and_restore_it(tmp_path):
     assert sys.getrecursionlimit() == original_limit
 
 
-def test_existing_output_is_never_replaced(tmp_path):
+def test_existing_output_is_never_replaced(tmp_path, managed_pdf):
     source_path = tmp_path / "source.pdf"
     output_path = tmp_path / "source_new.pdf"
     _write_blank_pdf(source_path)
@@ -110,17 +107,17 @@ def test_existing_output_is_never_replaced(tmp_path):
     output_path.write_bytes(previous_output)
 
     with pytest.raises(OSError, match="already exists"):
-        Pdf(str(source_path)).save_pdf()
+        managed_pdf(str(source_path)).save_pdf()
 
     assert output_path.read_bytes() == previous_output
     assert not list(tmp_path.glob(".source_new.*.tmp"))
 
 
-def test_concurrent_output_creation_is_not_overwritten(tmp_path, monkeypatch):
+def test_concurrent_output_creation_is_not_overwritten(tmp_path, monkeypatch, managed_pdf):
     source_path = tmp_path / "source.pdf"
     output_path = tmp_path / "source_new.pdf"
     _write_blank_pdf(source_path)
-    pdf = Pdf(str(source_path))
+    pdf = managed_pdf(str(source_path))
     original_write = PdfWriter.write
     concurrent_output = b"created by another process"
 
@@ -139,13 +136,13 @@ def test_concurrent_output_creation_is_not_overwritten(tmp_path, monkeypatch):
 
 
 def test_output_created_at_atomic_commit_is_not_overwritten(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, managed_pdf
 ):
     source_path = tmp_path / "source.pdf"
     output_path = tmp_path / "source_new.pdf"
     _write_blank_pdf(source_path)
     concurrent_output = b"created at the final commit boundary"
-    pdf = Pdf(str(source_path))
+    pdf = managed_pdf(str(source_path))
     original_link = pdf_module.os.link
 
     def create_target_before_link(source, destination):
@@ -162,7 +159,7 @@ def test_output_created_at_atomic_commit_is_not_overwritten(
 
 
 def test_generated_pdf_must_preserve_new_bookmark_structure(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, managed_pdf
 ):
     source_path = tmp_path / "source.pdf"
     output_path = tmp_path / "source_new.pdf"
@@ -171,7 +168,7 @@ def test_generated_pdf_must_preserve_new_bookmark_structure(
     writer.add_blank_page(width=72, height=72)
     with source_path.open("wb") as handle:
         writer.write(handle)
-    pdf = Pdf(str(source_path))
+    pdf = managed_pdf(str(source_path))
     parent = pdf.add_bookmark("Parent", 0)
     pdf.add_bookmark("Child", 1, parent=parent)
     original_write = PdfWriter.write
@@ -194,7 +191,7 @@ def test_generated_pdf_must_preserve_new_bookmark_structure(
 
 
 def test_generated_pdf_must_preserve_new_bookmark_page_targets(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, managed_pdf
 ):
     source_path = tmp_path / "source.pdf"
     output_path = tmp_path / "source_new.pdf"
@@ -204,7 +201,7 @@ def test_generated_pdf_must_preserve_new_bookmark_page_targets(
     with source_path.open("wb") as handle:
         writer.write(handle)
 
-    pdf = Pdf(str(source_path))
+    pdf = managed_pdf(str(source_path))
     parent = pdf.add_bookmark("Parent", 0)
     pdf.add_bookmark("Child", 1, parent=parent)
     original_write = PdfWriter.write
@@ -315,7 +312,7 @@ def test_successful_copy_preserves_embedded_files_and_metadata(tmp_path):
 
 
 def test_candidate_validation_rejects_lost_embedded_files(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, managed_pdf
 ):
     source_path = tmp_path / "with-attachment.pdf"
     output_path = tmp_path / "with-attachment_new.pdf"
@@ -324,7 +321,7 @@ def test_candidate_validation_rejects_lost_embedded_files(
     writer.add_attachment("note.txt", b"source attachment payload")
     with source_path.open("wb") as handle:
         writer.write(handle)
-    pdf = Pdf(str(source_path))
+    pdf = managed_pdf(str(source_path))
     pdf.add_bookmark("Chapter", 0)
     original_write = PdfWriter.write
 
@@ -365,11 +362,11 @@ def test_public_writer_rejects_page_outside_source_pdf(tmp_path):
         )
 
 
-def test_cancel_before_atomic_commit_creates_no_output(tmp_path):
+def test_cancel_before_atomic_commit_creates_no_output(tmp_path, managed_pdf):
     source_path = tmp_path / "source.pdf"
     output_path = tmp_path / "source_new.pdf"
     _write_blank_pdf(source_path)
-    pdf = Pdf(str(source_path))
+    pdf = managed_pdf(str(source_path))
     checks = []
 
     def cancel_after_write():
@@ -382,7 +379,7 @@ def test_cancel_before_atomic_commit_creates_no_output(tmp_path):
     assert not output_path.exists()
 
 
-def test_output_created_before_generation_is_not_replaced(tmp_path):
+def test_output_created_before_generation_is_not_replaced(tmp_path, managed_pdf):
     source_path = tmp_path / "source.pdf"
     output_path = tmp_path / "source_new.pdf"
     _write_blank_pdf(source_path)
@@ -393,7 +390,7 @@ def test_output_created_before_generation_is_not_replaced(tmp_path):
         OutputTargetChangedError,
         match="already exists",
     ):
-        Pdf(str(source_path)).save_pdf(
+        managed_pdf(str(source_path)).save_pdf(
             expected_output_fingerprint=expected_fingerprint,
             enforce_output_fingerprint=True,
         )

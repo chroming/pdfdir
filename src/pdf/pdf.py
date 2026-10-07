@@ -54,6 +54,7 @@ class Pdf(object):
 
     save pdf:
     >>> p.save_pdf()
+    >>> p.close()
 
     the new pdf file will save to save directory with '1_new.pdf'
 
@@ -61,13 +62,29 @@ class Pdf(object):
 
     def __init__(self, path, keep_outline=False, output_path=None):
         self.path = path
-        self.reader = PdfReader(open(path, "rb"), strict=False)
-        self.pages_num = self._get_pages_num(self.reader.pages)
+        self._source_stream = open(path, "rb")
+        try:
+            self.reader = PdfReader(self._source_stream, strict=False)
+            self.pages_num = self._get_pages_num(self.reader.pages)
+        except BaseException:
+            # __exit__ is not entered when construction itself fails.
+            self._source_stream.close()
+            raise
         self._writer = None
         self._added_bookmarks = []
         self._added_bookmark_indices = {}
         self.keep_outline = keep_outline
         self.output_path = output_path
+
+    def close(self):
+        """Release the source owned by this object; safe to call repeatedly."""
+        self._source_stream.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
 
     @property
     def _new_path(self):

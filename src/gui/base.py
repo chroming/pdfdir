@@ -292,6 +292,11 @@ class TreeWidget(MixinContextMenu):
             return
         key = event.key()
         modifiers = event.modifiers()
+        if (modifiers == Qt.AltModifier and key in (Qt.Key_Left, Qt.Key_Right)
+                and self.state() != QAbstractItemView.State.EditingState):
+            self.move_current_level(1 if key == Qt.Key_Right else -1)
+            event.accept()
+            return
         if key == Qt.Key_F2 and self.currentItem():
             item = self.currentItem()
             self._configure_item(item)

@@ -2,6 +2,7 @@
 
 import logging
 import re
+import unicodedata
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,20 @@ COMPILED_PAGE_NUM_PATTERNS = [
 PREFIX_SPACE_PATTERN = re.compile(r"\s*")
 GROUP_PAGE_MARKER = "—"
 GROUP_LINE_PATTERN = re.compile(rf"^(.*?)\s{{2,}}{re.escape(GROUP_PAGE_MARKER)}$")
+_ROMAN_SUFFIX = re.compile(r"(?:^|[\s.·…])([ivxlcdm]+|\([ivxlcdm]+\)|\[[ivxlcdm]+\])$", re.IGNORECASE)
+_ROMAN_NUMBER = re.compile(r"M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$")
+
+
+class AmbiguousPageLabelError(ValueError):
+    """A printed Roman label cannot safely use the Arabic page offset."""
+
+    def __init__(self, line_number, label):
+        self.line_number = line_number
+        self.label = label
+        super().__init__(
+            f"Line {line_number}: Roman page label '{label}' needs an explicit numeric page. "
+            "Use a number matching the current page offset, or append two spaces and — for a group."
+        )
 
 
 def is_group_line(text):
@@ -159,7 +174,8 @@ def _convert_dir_text(
     l2, l3, l4 = 0, 0, 0
     # Blank lines are visual separators in the source editor, not bookmarks.
     # Filter before numbering so parent indexes stay contiguous.
-    dir_list = [line for line in text_to_list(dir_text) if line.strip()]
+    source_lines = [(number, line) for number, line in enumerate(text_to_list(dir_text), 1) if line.strip()]
+    dir_list = [line for _number, line in source_lines]
     if level_by_space:
         level0, level1, level2, level3, level4, level5 = (
             generate_level_pattern_by_prefix_space(dir_list)
@@ -173,6 +189,10 @@ def _convert_dir_text(
             }
         else:
             if num is None:
+                normalized = unicodedata.normalize("NFKC", di)
+                roman = _ROMAN_SUFFIX.search(normalized)
+                if roman and _ROMAN_NUMBER.fullmatch(roman.group(1).strip("()[]").upper()):
+                    raise AmbiguousPageLabelError(source_lines[i][0], roman.group(1))
                 num = pagenum if pagenum != -float("inf") else 1
             if num > pagenum or not fix_non_seq:
                 pagenum = num

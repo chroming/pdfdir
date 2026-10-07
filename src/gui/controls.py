@@ -11,6 +11,38 @@ def configure_command(button):
     button.setFocusPolicy(QtCore.Qt.StrongFocus)
 
 
+class InlineErrorLabel(QtWidgets.QLabel):
+    """Keep recovery text readable beside a vertically stretching editor."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("regex_error_label")
+        self.setWordWrap(True)
+        self.setTextFormat(QtCore.Qt.PlainText)
+        self.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+
+    def _sync_height(self):
+        # QLabel's ordinary minimumSizeHint only reserves a single line.
+        # Clear the old constraint before measuring: heightForWidth otherwise
+        # retains the minimum from an earlier, narrower or larger-font state.
+        self.setMinimumHeight(0)
+        self.setMaximumHeight(16777215)  # Qt's QWIDGETSIZE_MAX.
+        self.setFixedHeight(max(0, self.heightForWidth(self.width())))
+
+    def setText(self, text):
+        super().setText(text)
+        self._sync_height()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._sync_height()
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() in (QtCore.QEvent.FontChange, QtCore.QEvent.StyleChange):
+            self._sync_height()
+
+
 class DisclosureButton(QtWidgets.QToolButton):
     def __init__(self, parent=None):
         super().__init__(parent)
