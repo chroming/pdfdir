@@ -137,6 +137,7 @@ def test_english_minimum_keeps_offset_controls_grouped(window, tmp_path):
     window.to_english()
     window.resize(780, 560)
     window.calibrate_button.click()
+    window.calibration_more_button.click()
     window.app.processEvents()
     assert window.offset_edit.parentWidget() is window.auto_offset_button.parentWidget()
     gap = window.auto_offset_button.x() - (window.offset_edit.x() + window.offset_edit.width())
@@ -949,11 +950,9 @@ def test_large_font_preserves_core_workspaces_and_reflows_controls(
         )
         window._render_action_status()
         status_lines = window.action_status_label.text().splitlines()
-        assert len(status_lines) == 2
-        assert window.action_status_label.minimumHeight() >= (
-            line_height * 2 + 8
-        )
+        assert status_lines == ["Generating PDF…"]
         assert long_name in window.action_status_label.toolTip()
+        assert long_name in window.action_status_label.accessibleDescription()
         for line in status_lines:
             assert (
                 window.action_status_label.fontMetrics().horizontalAdvance(

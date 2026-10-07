@@ -11,6 +11,23 @@ def configure_command(button):
     button.setFocusPolicy(QtCore.Qt.StrongFocus)
 
 
+def reserve_command_width(buttons, labels):
+    """One command slot keeps its geometry through working/result states."""
+    width = 124
+    for button in buttons:
+        button.setMinimumWidth(0)
+        button.setMaximumWidth(16777215)
+        option = QtWidgets.QStyleOptionButton()
+        option.initFrom(button)
+        for label in labels:
+            text_size = QtCore.QSize(button.fontMetrics().horizontalAdvance(label),
+                                    button.fontMetrics().height())
+            width = max(width, button.style().sizeFromContents(
+                QtWidgets.QStyle.CT_PushButton, option, text_size, button).width())
+    for button in buttons:
+        button.setFixedWidth(width)
+
+
 class InlineErrorLabel(QtWidgets.QLabel):
     """Keep recovery text readable beside a vertically stretching editor."""
 
@@ -43,10 +60,37 @@ class InlineErrorLabel(QtWidgets.QLabel):
             self._sync_height()
 
 
-class DisclosureButton(QtWidgets.QToolButton):
-    def __init__(self, parent=None):
+class KeyboardFocusMixin:
+    """Mouse activation is not a persistent selection/focus decoration."""
+
+    def _set_keyboard_focus(self, visible):
+        self.setProperty("keyboardFocus", visible)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
+
+    def focusInEvent(self, event):
+        super().focusInEvent(event)
+        self._set_keyboard_focus(event.reason() != QtCore.Qt.MouseFocusReason)
+
+    def focusOutEvent(self, event):
+        super().focusOutEvent(event)
+        self._set_keyboard_focus(False)
+
+    def mousePressEvent(self, event):
+        self._set_keyboard_focus(False)
+        super().mousePressEvent(event)
+
+    def keyPressEvent(self, event):
+        self._set_keyboard_focus(True)
+        super().keyPressEvent(event)
+
+
+class DisclosureButton(KeyboardFocusMixin, QtWidgets.QToolButton):
+    def __init__(self, parent=None, *, compact=False):
         super().__init__(parent)
         self.setProperty("variant", "disclosure")
+        self.setProperty("density", "compact" if compact else "regular")
         self.setCheckable(True)
         self.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.setIconSize(QtCore.QSize(16, 16))
@@ -58,7 +102,7 @@ class DisclosureButton(QtWidgets.QToolButton):
         self.setIcon(icon("chevron-down" if expanded else "chevron-right"))
 
 
-class DetailButton(QtWidgets.QToolButton):
+class DetailButton(KeyboardFocusMixin, QtWidgets.QToolButton):
     def __init__(self, parent=None, *, compact=False):
         super().__init__(parent)
         self.setProperty("variant", "detail")
@@ -67,7 +111,7 @@ class DetailButton(QtWidgets.QToolButton):
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
 
-class ViewTabs(QtWidgets.QTabBar):
+class ViewTabs(KeyboardFocusMixin, QtWidgets.QTabBar):
     """Peer views of the same object, with the shared underline treatment."""
 
     def __init__(self, parent=None):

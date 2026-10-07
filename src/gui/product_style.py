@@ -113,7 +113,7 @@ def stylesheet(app_font):
     heading = f"{size if large else 15:g}{unit}"
     content = f"{size if large else 14:g}{unit}"
     height = control_height(app_font) - 2
-    row = QtGui.QFontMetrics(app_font).height() + 6 if large else 24
+    row = QtGui.QFontMetrics(app_font).height() + 6 if large else 20
     arrow = ":/pdfdir/chevron-down.svg"
     return f"""
         QWidget {{ font-family: "{app_font.family()}"; font-size: {body}; color: #252a32; }}
@@ -140,13 +140,15 @@ def stylesheet(app_font):
         QLabel#reference_message {{ color: #7c8490; padding: 24px; }}
         QTabBar[variant="view-tabs"]::tab {{
             background: transparent; color: #68707d; padding: 6px 8px;
-            border-bottom: 2px solid transparent; min-height: 18px;
+            border-bottom: 2px solid transparent; min-height: 18px; font-weight: 500;
         }}
         QTabBar[variant="view-tabs"]::tab:selected {{
-            color: #252a32; border-bottom-color: #387bd2; font-weight: 600;
+            color: #252a32; border-bottom-color: #387bd2;
         }}
         QTabBar[variant="view-tabs"]::tab:hover {{ background: #f2f5f9; }}
-        QTabBar[variant="view-tabs"]:focus {{ border: 1px solid #387bd2; }}
+        QTabBar[variant="view-tabs"][keyboardFocus="true"]::tab:selected {{
+            background: #e4efff;
+        }}
         QToolButton[variant="menu"] {{ padding-right: 24px; }}
         QToolButton[variant="menu"]::menu-indicator {{
             image: url({arrow}); width: 12px; height: 12px;
@@ -206,13 +208,19 @@ def stylesheet(app_font):
         QToolButton[variant="disclosure"]:hover, QToolButton[variant="detail"]:hover {{
             background: #edf0f4;
         }}
+        QToolButton[variant="disclosure"]:checked {{ background: #edf2f8; }}
         QToolButton[variant="disclosure"]:focus, QToolButton[variant="detail"]:focus {{
+            border-color: transparent;
+        }}
+        QToolButton[variant="disclosure"][keyboardFocus="true"],
+        QToolButton[variant="detail"][keyboardFocus="true"] {{
             border-color: #4385d7;
         }}
         QToolButton[variant="disclosure"]:disabled, QToolButton[variant="detail"]:disabled {{
             color: #a2a9b4; background: transparent; border-color: transparent;
         }}
-        QToolButton[variant="detail"][density="compact"] {{
+        QToolButton[variant="detail"][density="compact"],
+        QToolButton[variant="disclosure"][density="compact"] {{
             font-size: {metadata};
             min-height: {height if large else 20}px; max-height: {height if large else 20}px;
         }}
@@ -262,7 +270,7 @@ def stylesheet(app_font):
         QScrollArea#rules_scroll, QWidget#advanced_widget,
         QScrollArea#rules_scroll > QWidget > QWidget {{ background: #ffffff; }}
         QGroupBox#sub_dir_group {{ border: 0; margin: 0; padding: 0; }}
-        QSplitter#rule_splitter::handle {{ background: #ffffff; }}
+        QSplitter#rule_splitter::handle {{ background: #e4e7ec; }}
         QSplitter#rule_splitter::handle:hover {{ background: #dfe7f1; }}
         QScrollBar:vertical {{ background: transparent; width: 8px; margin: 0; border: 0; }}
         QScrollBar::handle:vertical {{ background: #a3a9b2; min-height: 24px; border-radius: 4px; }}

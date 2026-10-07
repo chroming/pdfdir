@@ -75,6 +75,74 @@ def test_file_entry_starts_header_and_workspaces_share_reading_size(window):
     )
 
 
+def test_mouse_and_keyboard_focus_are_distinct_from_view_selection(window, qtbot):
+    tabs = window.source_tabs
+    window.dir_text_edit.setFocus()
+    qtbot.mouseClick(tabs, QtCore.Qt.LeftButton, pos=tabs.tabRect(1).center())
+    assert tabs.currentIndex() == 1
+    assert not tabs.property("keyboardFocus")
+    before = tabs.geometry()
+    window.dir_tree_widget.setFocus()
+    tabs.setFocus(QtCore.Qt.TabFocusReason)
+    assert tabs.property("keyboardFocus")
+    assert tabs.geometry() == before
+    qtbot.keyClick(tabs, QtCore.Qt.Key_Left)
+    assert tabs.currentIndex() == 0
+    assert tabs.geometry() == before
+    qtbot.mouseClick(window.advanced_button, QtCore.Qt.LeftButton)
+    assert window.advanced_button.isChecked()
+    assert not window.advanced_button.property("keyboardFocus")
+
+
+@pytest.mark.parametrize("english", [False, True])
+def test_peer_tab_labels_do_not_shift_when_selected(window, qtbot, english):
+    if english:
+        window.to_english()
+    tabs = window.source_tabs
+    qtbot.wait(20)
+    before = [tabs.tabRect(i) for i in range(tabs.count())]
+    for index in (1, 0, 1, 0):
+        qtbot.mouseClick(tabs, QtCore.Qt.LeftButton, pos=tabs.tabRect(index).center())
+        qtbot.wait(10)
+        assert [tabs.tabRect(i) for i in range(tabs.count())] == before
+
+
+@pytest.mark.parametrize("english", [False, True])
+def test_narrow_tools_prioritize_content_and_keep_page_meanings(window, qtbot, english):
+    if english:
+        window.to_english()
+    window.resize(window.minimumSize())
+    qtbot.wait(30)
+    assert window._tools_compact
+    assert not window.level_mode_label.isVisible()
+    headers = window.dir_tree_widget.headerItem()
+    assert headers.toolTip(1) == ("Printed page" if english else "标注页")
+    assert window.dir_tree_widget.columnWidth(0) > window.dir_tree_widget.viewport().width() * .6
+
+
+def test_result_label_does_not_move_primary_slot_or_output_field(window, qtbot):
+    for english in (False, True):
+        (window.to_english if english else window.to_chinese)()
+        window.resize(window.minimumSize())
+        window._reflow_controls()
+        qtbot.wait(20)
+        before = [control.geometry() for control in (window.export_button, window.output_name_edit, window.action_frame)]
+        window.export_button.setText(window._t("open_generated"))
+        window._reflow_controls()
+        qtbot.wait(20)
+        assert [control.geometry() for control in (window.export_button, window.output_name_edit, window.action_frame)] == before
+
+
+def test_status_does_not_recursively_shrink_to_its_elided_text(window, qtbot):
+    window.to_english()
+    window.resize(window.minimumSize())
+    window._set_action_status(window._t("dirty"))
+    for _ in range(8):
+        window._reflow_controls()
+        qtbot.wait(10)
+    assert window.action_status_label.text() == window._t("dirty")
+
+
 def test_fields_and_commands_share_a_control_track(window):
     for size in (window.size(), window.minimumSize()):
         window.resize(size)

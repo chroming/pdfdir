@@ -62,6 +62,7 @@ class ReferenceWorkspaceMixin:
 
         self.calibration_panel = QtWidgets.QWidget(self.preview_pane)
         calibration = QtWidgets.QGridLayout(self.calibration_panel)
+        self.calibration_layout = calibration
         calibration.setContentsMargins(0, 0, 0, 8)
         calibration.setSpacing(8)
         self.printed_anchor = QtWidgets.QLineEdit("1", self.calibration_panel)
@@ -84,9 +85,7 @@ class ReferenceWorkspaceMixin:
         self.calibration_apply_button.clicked.connect(self._apply_calibration)
         calibration.addWidget(self.calibration_apply_button, 1, 2, QtCore.Qt.AlignLeft)
         calibration.setColumnStretch(2, 1)
-        self.calibration_error = QtWidgets.QLabel(self.calibration_panel)
-        self.calibration_error.setObjectName("regex_error_label")
-        self.calibration_error.setWordWrap(True)
+        self.calibration_error = InlineErrorLabel(self.calibration_panel)
         calibration.addWidget(self.calibration_error, 2, 0, 1, 3)
         self.calibration_direct = QtWidgets.QWidget(self.calibration_panel)
         direct = QtWidgets.QHBoxLayout(self.calibration_direct)
@@ -97,6 +96,10 @@ class ReferenceWorkspaceMixin:
         direct.addStretch(1)
         direct.addWidget(self.auto_offset_button)
         calibration.addWidget(self.calibration_direct, 3, 0, 1, 3)
+        self.calibration_more_button = DisclosureButton(self.calibration_panel, compact=True)
+        self.calibration_more_button.toggled.connect(self._toggle_direct_calibration)
+        calibration.addWidget(self.calibration_more_button, 4, 0, 1, 3, QtCore.Qt.AlignLeft)
+        self.calibration_direct.hide()
         self.offset_formula_label.hide()
         self.preview_layout.insertWidget(2, self.calibration_panel)
         self.calibration_panel.hide()
@@ -195,14 +198,15 @@ class ReferenceWorkspaceMixin:
         self.preview_header_layout.addWidget(self.undo_button, 0, 3)
         self.preview_header_layout.addWidget(self.redo_button, 0, 4)
 
-    def _layout_reference_tools(self):
+    def _layout_reference_tools(self, compact=False):
         large = self._large_text_mode()
-        self._tools_compact = large
+        compact = compact or large
+        self._tools_compact = compact
         for layout in (self.left_tools_layout, self.right_tools_layout):
             self._clear_layout(layout)
             for column in range(5):
                 layout.setColumnStretch(column, 0)
-        self.level_mode_label.setVisible(not large)
+        self.level_mode_label.setVisible(not compact)
         self.left_tools_layout.addWidget(self.level_mode_label, 0, 0)
         self.left_tools_layout.addWidget(self.level_mode_box, 0, 1)
         self.left_tools_layout.addWidget(self.advanced_button, 0, 2)
@@ -217,7 +221,30 @@ class ReferenceWorkspaceMixin:
         self.pdf_anchor_label.setText(("PDF" if large else "PDF page") if english else "对应 PDF 页")
         self.calibration_apply_button.setText(("Apply" if large else "Apply mapping") if english else "应用对应关系")
         self.pdf_reference.reflow(large)
-        self.calibration_panel.setMinimumHeight(self.calibration_panel.layout().sizeHint().height())
+        self._layout_calibration()
+
+    def _layout_calibration(self):
+        # One mapping is the common task. Direct offsets remain available, but
+        # do not take a second permanent form row away from the bookmark list.
+        layout = self.calibration_layout
+        self._clear_layout(layout)
+        layout.addWidget(self.printed_anchor_label, 0, 0)
+        layout.addWidget(self.pdf_anchor_label, 0, 1)
+        layout.addWidget(self.printed_anchor, 1, 0)
+        layout.addWidget(self.pdf_anchor, 1, 1)
+        layout.addWidget(self.calibration_apply_button, 1, 2, QtCore.Qt.AlignLeft)
+        layout.addWidget(self.calibration_error, 2, 0, 1, 3)
+        layout.addWidget(self.calibration_more_button, 0, 2, QtCore.Qt.AlignLeft)
+        layout.addWidget(self.calibration_direct, 4, 0, 1, 3)
+        self._resize_calibration()
+
+    def _resize_calibration(self):
+        self.calibration_layout.invalidate()
+        self.calibration_panel.setMinimumHeight(self.calibration_layout.sizeHint().height())
+
+    def _toggle_direct_calibration(self, expanded):
+        self.calibration_direct.setVisible(expanded)
+        self._layout_calibration()
 
     def _reference_tab_changed(self, index):
         self.reference_stack.setCurrentIndex(index)
@@ -239,6 +266,7 @@ class ReferenceWorkspaceMixin:
     def _toggle_calibration(self, expanded):
         self.calibration_panel.setVisible(expanded)
         if expanded:
+            self._calibration_reference_before = self.source_tabs.currentIndex()
             self.source_tabs.setCurrentIndex(1)
             item = self.dir_tree_widget.currentItem()
             try:
@@ -248,8 +276,12 @@ class ReferenceWorkspaceMixin:
             self.printed_anchor.setText(str(printed))
             self.pdf_anchor.setText(str(max(1, printed + self.offset_num)))
             self._validate_calibration()
+            self.printed_anchor.setFocus()
+            self.printed_anchor.selectAll()
         else:
-            self.calibrate_button.setFocus()
+            if self.source_tabs.currentIndex() == 1:
+                self.source_tabs.setCurrentIndex(getattr(self, "_calibration_reference_before", 1))
+            self.calibrate_button.setFocus(QtCore.Qt.OtherFocusReason)
 
     def _calibration_page_changed(self, page):
         if self.calibrate_button.isChecked():
@@ -267,6 +299,7 @@ class ReferenceWorkspaceMixin:
             if not in_range else ""
         )
         self.calibration_error.setVisible(not in_range)
+        self._resize_calibration()
 
     def _apply_calibration(self):
         self._validate_calibration()
@@ -335,6 +368,8 @@ class ReferenceWorkspaceMixin:
             shortcut = QtGui.QKeySequence(sequence).toString(QtGui.QKeySequence.NativeText)
             action.setText(f"{label}\t{shortcut}")
         self.calibrate_button.setText("Calibrate" if english else "校准页码")
+        self.calibration_more_button.setText("Other methods" if english else "其他方式")
+        self.calibration_more_button.setToolTip("Set the offset directly or detect it from the PDF." if english else "直接输入页差，或从 PDF 自动识别页差。")
         self.printed_anchor_label.setText("Printed page" if english else "书上标注页")
         self.pdf_anchor_label.setText("PDF page" if english else "对应 PDF 页")
         self.calibration_apply_button.setText("Apply mapping" if english else "应用对应关系")

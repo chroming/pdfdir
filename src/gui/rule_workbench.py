@@ -19,7 +19,7 @@ class RuleWorkbenchMixin:
         self._active_rule = None
         self._last_rule_values = None
         self._last_source_text = ""
-        self._rule_panel_ratio = 0.4
+        self._rule_panel_ratio = None  # Only a user's splitter drag owns a ratio.
         self._rules_timer = QtCore.QTimer(self)
         self._rules_timer.setSingleShot(True)
         self._rules_timer.setInterval(250)
@@ -31,11 +31,12 @@ class RuleWorkbenchMixin:
         self.rule_splitter.setObjectName("rule_splitter")
         self.rule_splitter.setChildrenCollapsible(False)
         self.rule_splitter.setHandleWidth(5)
+        self.rule_splitter.splitterMoved.connect(self._remember_rule_panel_size)
         self.rule_splitter.addWidget(self.dir_text_edit)
         self.rules_section = QtWidgets.QWidget(self.rule_splitter)
         section = QtWidgets.QVBoxLayout(self.rules_section)
         section.setContentsMargins(0, 0, 0, 0)
-        section.setSpacing(8)
+        section.setSpacing(4)
         section.addWidget(self.left_tools)
         self.rules_scroll = QtWidgets.QScrollArea(self.rules_section)
         self.rules_scroll.setObjectName("rules_scroll")
@@ -97,9 +98,14 @@ class RuleWorkbenchMixin:
 
         while self.advanced_options_layout.count():
             self.advanced_options_layout.takeAt(0)
-        self.rules_options_button = DisclosureButton(self.advanced_widget)
+        self.advanced_layout.removeItem(self.advanced_options_layout)
+        self.rules_options_button = DisclosureButton(self.advanced_widget, compact=True)
         self.rules_options_button.toggled.connect(self._toggle_rule_options)
-        self.advanced_layout.addWidget(self.rules_options_button, 0, QtCore.Qt.AlignLeft)
+        self.rules_commands = QtWidgets.QWidget(self.advanced_widget)
+        commands = QtWidgets.QHBoxLayout(self.rules_commands)
+        commands.setContentsMargins(0, 0, 0, 0)
+        commands.setSpacing(8)
+        self.advanced_layout.addWidget(self.rules_commands)
         self.rules_options = QtWidgets.QWidget(self.advanced_widget)
         options = QtWidgets.QVBoxLayout(self.rules_options)
         options.setContentsMargins(0, 0, 0, 0)
@@ -109,12 +115,11 @@ class RuleWorkbenchMixin:
         self.read_exist_dir_box.hide()  # Owned by the existing preferences menu.
         self.advanced_layout.addWidget(self.rules_options)
         self.rules_options.hide()
-        self.rules_unmatched_button = DetailButton(self.advanced_widget)
+        self.rules_unmatched_button = DetailButton(self.advanced_widget, compact=True)
         self.rules_unmatched_button.clicked.connect(lambda: self._show_rule_matches(-1))
         self.advanced_layout.addStretch(1)
 
-        self.rules_restore_button = QtWidgets.QToolButton(self.rules_section)
-        configure_command(self.rules_restore_button)
+        self.rules_restore_button = DetailButton(self.rules_section, compact=True)
         self.rules_restore_button.clicked.connect(self._restore_rule_trial)
         self.rules_footer = QtWidgets.QWidget(self.rules_section)
         footer = QtWidgets.QHBoxLayout(self.rules_footer)
@@ -125,10 +130,11 @@ class RuleWorkbenchMixin:
         section.addWidget(self.rules_footer)
         self.rules_footer.hide()
         self.rules_restore_button.hide()
-        self.add_rule_button = DetailButton(self.advanced_widget)
+        self.add_rule_button = DetailButton(self.advanced_widget, compact=True)
         self.add_rule_button.clicked.connect(self._show_add_rule_menu)
-        self.advanced_layout.insertWidget(self.advanced_layout.indexOf(self.sub_dir_group) + 1,
-                                         self.add_rule_button, 0, QtCore.Qt.AlignLeft)
+        commands.addWidget(self.add_rule_button)
+        commands.addStretch(1)
+        commands.addWidget(self.rules_options_button)
         self._rules_escape = QtGui.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Escape), self.rules_section)
         self._rules_escape.setContext(QtCore.Qt.WidgetWithChildrenShortcut)
         self._rules_escape.activated.connect(
@@ -174,6 +180,9 @@ class RuleWorkbenchMixin:
         self.rules_options.setVisible(expanded)
         self._update_rule_rows()
         self.advanced_widget.layout().activate()
+        self._resize_rule_workbench()
+        if expanded:
+            QtCore.QTimer.singleShot(0, lambda: self.rules_scroll.ensureWidgetVisible(self.rules_options))
 
     def _update_rule_rows(self):
         for i, count in enumerate(self.rule_counts):
@@ -183,6 +192,13 @@ class RuleWorkbenchMixin:
                 control.setVisible(visible)
         self.add_rule_button.setVisible(not self.level_by_space)
         self.add_rule_button.setEnabled(any(not getattr(self, f"level{i}_box").isChecked() for i in range(6)))
+        if hasattr(self, "rules_restore_button"):
+            self._resize_rule_workbench()
+
+    def _remember_rule_panel_size(self, _position, _index):
+        sizes = self.rule_splitter.sizes()
+        if self.advanced_button.isChecked() and sum(sizes):
+            self._rule_panel_ratio = sizes[1] / sum(sizes)
 
     def _show_add_rule_menu(self):
         menu = QtWidgets.QMenu(self.add_rule_button)
@@ -203,10 +219,6 @@ class RuleWorkbenchMixin:
     def _toggle_rule_workbench(self):
         """Show tools beside their live result, without changing the main shell."""
         expanded = self.advanced_button.isChecked()
-        if not expanded:
-            sizes = self.rule_splitter.sizes()
-            if sum(sizes):
-                self._rule_panel_ratio = sizes[1] / sum(sizes)
         if expanded and self._rule_baseline is None:
             self._capture_rule_trial()
         self.rules_scroll.setVisible(expanded)
@@ -215,11 +227,7 @@ class RuleWorkbenchMixin:
         self.rules_section.setVisible(expanded)
         self._resize_rule_workbench()
         self._translate_rule_workbench()
-        if expanded:
-            total = self.rule_splitter.height() - self.rule_splitter.handleWidth()
-            height = round(total * self._rule_panel_ratio)
-            self.rule_splitter.setSizes([total - height, height])
-        else:
+        if not expanded:
             # QSplitter retains its allocation when only the child's maximum
             # height changes; explicitly return the hidden tools' space.
             total = self.rule_splitter.height() - self.rule_splitter.handleWidth()
@@ -236,8 +244,7 @@ class RuleWorkbenchMixin:
         self.dir_text_edit.setMinimumHeight(
             self.dir_text_edit.fontMetrics().lineSpacing() * 3 + 12
         )
-        line = self.rules_restore_button.sizeHint().height()
-        self.rules_section.setMinimumHeight(line * 3 + 16 if expanded else 0)
+        self.rules_section.setMinimumHeight(0)
         self.rules_section.setMaximumHeight(
             16777215 if expanded else 0
         )
@@ -247,6 +254,21 @@ class RuleWorkbenchMixin:
         layout.addWidget(self.unknown_level_box, 1 if self._large_text_mode() else 0,
                          0 if self._large_text_mode() else 1)
         layout.setColumnStretch(2, 1)
+        if expanded:
+            self.advanced_layout.activate()
+            total = self.rule_splitter.height() - self.rule_splitter.handleWidth()
+            footer = self.rules_footer.sizeHint().height() + self.rules_section.layout().spacing()
+            # Size the ordinary case to its contents, not a fixed percentage.
+            # Three active rules and recovery must be usable beside the source;
+            # longer rule sets/options scroll in the same bounded inspector.
+            content = self.advanced_widget.sizeHint().height()
+            source_min = self.dir_text_edit.fontMetrics().lineSpacing() * 6 + 16
+            available = max(0, total - source_min)
+            desired = content + footer
+            if self._rule_panel_ratio is not None:
+                desired = round(total * self._rule_panel_ratio)
+            height = min(desired, available)
+            self.rule_splitter.setSizes([total - height, height])
 
     def _rule_values(self):
         return (

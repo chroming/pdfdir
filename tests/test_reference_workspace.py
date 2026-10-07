@@ -181,6 +181,38 @@ def test_calibration_escape_returns_focus_without_changing_offset(window, qtbot)
     assert window.offset_num == 0
 
 
+@pytest.mark.parametrize("english", [False, True])
+def test_calibration_budgets_space_for_bookmark_comparison(window, qtbot, english):
+    if english:
+        window.to_english()
+    window.resize(window.minimumSize())
+    qtbot.wait(30)
+    before = window.dir_tree_widget.height()
+    window.calibrate_button.click()
+    qtbot.wait(30)
+    assert window.dir_tree_widget.height() >= before * .75
+    assert not window.calibration_direct.isVisible()
+    assert window.calibration_more_button.isVisible()
+    window.calibration_more_button.click()
+    assert window.offset_edit.isVisible()
+    assert window.auto_offset_button.isVisible()
+    window.offset_edit.setText("2")
+    window.calibration_more_button.click()
+    assert window.offset_num == 2
+    window.calibrate_button.click()
+    assert window.source_tabs.currentIndex() == 0
+
+
+def test_calibration_returns_to_the_view_it_was_entered_from(window):
+    for index in (0, 1):
+        window.source_tabs.setCurrentIndex(index)
+        before = window._current_draft_signature()
+        window.calibrate_button.click()
+        window.calibrate_button.click()
+        assert window.source_tabs.currentIndex() == index
+        assert window._current_draft_signature() == before
+
+
 def test_large_text_calibration_never_clips_its_fields(window, qapp, qtbot):
     original = qapp.font()
     font = QtGui.QFont(original)
@@ -193,6 +225,7 @@ def test_large_text_calibration_never_clips_its_fields(window, qapp, qtbot):
         window.dir_text_edit.appendPlainText("Appendix 4")
         window.rules_accept_button.click()
         window.calibrate_button.click()
+        window.calibration_more_button.click()
         qtbot.wait(30)
         for control in (window.printed_anchor, window.pdf_anchor, window.calibration_apply_button,
                         window.offset_edit, window.auto_offset_button):
@@ -200,6 +233,10 @@ def test_large_text_calibration_never_clips_its_fields(window, qapp, qtbot):
             assert window.calibration_panel.rect().contains(rect), (control, rect)
             assert control.height() >= control.sizeHint().height()
         assert window.dir_tree_widget.viewport().height() >= window.fontMetrics().height() * 2
+        capture_dir = os.environ.get("PDFDIR_UI_CAPTURE_DIR")
+        if capture_dir:
+            Path(capture_dir).mkdir(parents=True, exist_ok=True)
+            window.grab().save(str(Path(capture_dir) / "large-font-calibration.png"))
     finally:
         qapp.setFont(original)
 

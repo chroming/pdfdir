@@ -53,6 +53,7 @@ def test_rule_panel_remembers_user_size_across_disclosure(window, qtbot):
     window.resize(1040, 720)
     qtbot.wait(30)
     window.rule_splitter.setSizes([400, 175])
+    window.rule_splitter.splitterMoved.emit(window.rule_splitter.sizes()[0], 1)
     qtbot.wait(30)
     before = window.rule_splitter.sizes()
     window.advanced_button.click()
@@ -61,14 +62,17 @@ def test_rule_panel_remembers_user_size_across_disclosure(window, qtbot):
     assert abs(window.rule_splitter.sizes()[1] - before[1]) <= 2
 
 
-def test_initial_rule_panel_leaves_most_small_window_for_source(window, qtbot):
+def test_initial_rule_panel_keeps_source_and_active_rules_readable(window, qtbot):
     window.advanced_button.click()
     window.resize(780, 560)
     qtbot.wait(30)
     window.advanced_button.click()
     qtbot.wait(30)
     source, rules = window.rule_splitter.sizes()
-    assert source >= rules
+    assert source >= window.dir_text_edit.fontMetrics().lineSpacing() * 6
+    for editor in (window.level0_edit, window.level1_edit):
+        rect = QtCore.QRect(editor.mapTo(window.rules_scroll.viewport(), QtCore.QPoint()), editor.size())
+        assert window.rules_scroll.viewport().rect().contains(rect)
 
 
 def test_collapsing_rules_returns_space_to_source(window, qtbot):
@@ -201,3 +205,44 @@ def test_restoring_trial_does_not_write_source_pdf(window):
     window.level0_edit.setText("^Appendix")
     window.rules_restore_button.click()
     assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("english", [False, True])
+def test_three_rules_and_recovery_fit_without_scrolling_at_minimum(window, qtbot, english):
+    if english:
+        window.to_english()
+    window._add_rule_level(2)
+    window.resize(window.minimumSize())
+    qtbot.wait(40)
+    viewport = window.rules_scroll.viewport()
+    for index in range(3):
+        editor = getattr(window, f"level{index}_edit")
+        rect = QtCore.QRect(editor.mapTo(viewport, QtCore.QPoint()), editor.size())
+        assert viewport.rect().contains(rect)
+    assert window.dir_text_edit.viewport().height() >= window.dir_text_edit.fontMetrics().lineSpacing() * 6
+    assert window.rules_restore_button.isVisible()
+    assert window.rules_unmatched_button.isVisible()
+
+
+def test_indentation_tools_do_not_keep_empty_numbering_space(window, qtbot):
+    window._add_rule_level(2)
+    window.resize(window.minimumSize())
+    qtbot.wait(30)
+    numbered_height = window.rules_section.height()
+    window.level_mode_box.setCurrentIndex(0)
+    qtbot.wait(30)
+    assert window.rules_section.height() < numbered_height
+    assert window.dir_text_edit.height() > window.rules_section.height()
+
+
+def test_options_disclosure_reveals_controls_and_keeps_recovery_visible(window, qtbot):
+    window._add_rule_level(2)
+    window.resize(window.minimumSize())
+    window.rules_options_button.click()
+    qtbot.wait(30)
+    assert window.rules_options.isVisible()
+    assert window.rules_restore_button.isVisible()
+    viewport = window.rules_scroll.viewport()
+    control = window.unknown_level_box
+    rect = QtCore.QRect(control.mapTo(viewport, QtCore.QPoint()), control.size())
+    assert viewport.rect().intersects(rect)

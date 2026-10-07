@@ -31,7 +31,7 @@ from src.convert import (
 from src.gui.base import TreeWidget
 from src.gui.main_ui import Ui_PDFdir
 from src.gui.product_style import ERROR_COLOR, configure_select
-from src.gui.controls import DetailButton, DisclosureButton, configure_command
+from src.gui.controls import DetailButton, DisclosureButton, configure_command, reserve_command_width
 from src.gui.product_style import icon as product_icon
 from src.gui.product_style import stylesheet as product_stylesheet
 from src.gui.rule_workbench import RuleWorkbenchMixin
@@ -270,7 +270,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "keep_source_bookmarks": "保留源 PDF 书签",
             "keep_source_description": "在新书签之外保留源 PDF 中原有的书签。",
             "imported_keep_disabled": "已有书签已导入为草稿；再次保留会产生重复书签。",
-            "generated_task": "正在生成 {source}\n→ {output}",
+            "generated_task": "正在生成 {source} → {output}",
             "no_bookmarks": "没有可生成的有效书签",
             "page_below_minimum": "书签页码 {page} 小于 1，请在预览中修正",
             "page_above_maximum": "书签页码 {page} 超出 PDF 总页数 {total}，请在预览中修正",
@@ -345,7 +345,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "ready_select_pdf": "Select a PDF, then enter or recognize its TOC.",
             "ready_enter_toc": "Enter TOC text or recognize it from the current PDF.",
             "ready_generate": "Ready to generate {count} bookmarks.",
-            "dirty": "There are ungenerated changes.",
+            "dirty": "Ungenerated changes.",
             "preview_title": "Bookmark preview",
             "preview_title_with_count": "Bookmark preview ({count})",
             "preview_empty": "Enter or recognize a TOC, then verify bookmark titles, hierarchy, and pages here.",
@@ -365,7 +365,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "keep_source_bookmarks": "Keep source PDF bookmarks",
             "keep_source_description": "Keep the source PDF's existing bookmarks in addition to the new bookmarks.",
             "imported_keep_disabled": "Existing bookmarks were imported as the draft; keeping them again would create duplicates.",
-            "generated_task": "Generating {source}\n→ {output}",
+            "generated_task": "Generating {source} → {output}",
             "no_bookmarks": "There are no valid bookmarks to generate",
             "page_below_minimum": "Bookmark page {page} is below 1; correct it in the preview",
             "page_above_maximum": "Bookmark page {page} exceeds the PDF's {total} pages; correct it in the preview",
@@ -651,7 +651,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self.document_frame = QtWidgets.QFrame(self.main_widget)
         self.document_frame.setObjectName("document_frame")
         document_layout = QtWidgets.QHBoxLayout(self.document_frame)
-        document_layout.setContentsMargins(20, 12, 20, 12)
+        document_layout.setContentsMargins(16, 8, 16, 8)
         document_layout.setSpacing(12)
         self.file_layout.removeWidget(self.open_button)
         self.open_button.setIcon(product_icon("folder"))
@@ -690,8 +690,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self.editor_hint_label.setVisible(False)
         self.preview_hint_label.setVisible(False)
         self.workspace_splitter.setHandleWidth(1)
-        self.editor_layout.setContentsMargins(20, 12, 20, 12)
-        self.preview_layout.setContentsMargins(20, 12, 20, 12)
+        self.editor_layout.setContentsMargins(16, 8, 16, 8)
+        self.preview_layout.setContentsMargins(16, 8, 16, 8)
         self.paste_button = QtWidgets.QPushButton(self.editor_pane)
         self.paste_button.setObjectName("paste_button")
         for button in (self.auto_toc_button, self.paste_button, self.auto_offset_button,
@@ -761,7 +761,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self.action_frame = QtWidgets.QFrame(self.main_widget)
         self.action_frame.setObjectName("action_frame")
         action_layout = QtWidgets.QVBoxLayout(self.action_frame)
-        action_layout.setContentsMargins(20, 12, 20, 10)
+        action_layout.setContentsMargins(16, 8, 16, 8)
         action_layout.setSpacing(4)
         self.action_status_label = QtWidgets.QLabel(self.action_frame)
         self.action_status_label.setObjectName("action_status_label")
@@ -836,7 +836,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
 
     def _layout_tool_controls(self, compact):
         if hasattr(self, "source_tabs"):
-            self._layout_reference_tools()
+            self._layout_reference_tools(compact)
 
     def _layout_action_controls(self, compact):
         if self._actions_compact == compact:
@@ -879,8 +879,9 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             layout.addWidget(self.export_button, 0, 4)
             layout.addWidget(self.output_feedback_stack, 1, 1, 1, 2)
             layout.addWidget(self.keep_exist_dir_box, 2, 1, 1, 2)
-            layout.addWidget(self.action_status_label, 1, 3, 1, 2, QtCore.Qt.AlignRight)
+            layout.addWidget(self.action_status_label, 1, 3, 1, 2)
         self._action_status_full_width = False
+        self.action_status_label.setAlignment(QtCore.Qt.AlignLeft if compact else QtCore.Qt.AlignRight)
         self._position_action_status()
         layout.invalidate()
 
@@ -893,6 +894,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         layout = self.action_controls_layout
         layout.removeWidget(self.action_status_label)
         if full_width:
+            self.action_status_label.setAlignment(QtCore.Qt.AlignLeft)
             layout.addWidget(
                 self.action_status_label,
                 4 if self._actions_compact else 3,
@@ -901,10 +903,12 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
                 6,
             )
         elif self._actions_compact:
+            self.action_status_label.setAlignment(QtCore.Qt.AlignLeft)
             layout.addWidget(self.action_status_label, 3, 0, 1, 3)
         else:
+            self.action_status_label.setAlignment(QtCore.Qt.AlignRight)
             layout.addWidget(
-                self.action_status_label, 1, 3, 1, 2, QtCore.Qt.AlignRight
+                self.action_status_label, 1, 3, 1, 2
             )
         self._action_status_full_width = full_width
         layout.invalidate()
@@ -930,17 +934,20 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
     def _reflow_controls(self):
         if self._close_requested or not hasattr(self, "left_tools_layout"):
             return
-        for button in (self.export_button, self.cancel_button):
-            button.setMinimumWidth(max(124, button.sizeHint().width()))
+        reserve_command_width(
+            (self.export_button, self.cancel_button),
+            (self._t("open_generated"), self.cancel_button.text(),
+             "Generate PDF" if self._language == "en" else "生成 PDF"),
+        )
         action_controls = (
             self.output_label,
             self.output_name_edit,
             self.output_folder_button,
-            self.cancel_button,
             self.export_button,
         )
         action_width = sum(
-            widget.sizeHint().width() for widget in action_controls
+            (widget.width() if widget is self.export_button else widget.sizeHint().width())
+            for widget in action_controls
         )
         large_font = self._large_text_mode()
         self._layout_pane_headers()
@@ -959,11 +966,13 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self._layout_action_controls(
             large_font or self.action_frame.width() < action_width + 80
         )
-        self._update_tree_headers(compact=large_font)
+        self._update_tree_headers(compact=large_font or self.preview_pane.width() < 510)
         self.root_layout.invalidate()
         self.root_layout.activate()
         self.left_tools_layout.activate()
         self.right_tools_layout.activate()
+        self.action_controls_layout.invalidate()
+        self.action_controls_layout.activate()
         self._render_action_status()
 
     def _apply_product_style(self):
@@ -1598,7 +1607,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         if self._regex_validation_error:
             return self._regex_validation_error
         if self._rules_pending:
-            return "Rule preview is not updated" if self._language == "en" else "规则预览尚未更新"
+            return "Preview needs update" if self._language == "en" else "规则预览尚未更新"
         first_error = ""
         # Presentation is derived, not a tree edit or an undoable mutation.
         with QtCore.QSignalBlocker(self.dir_tree_widget):
@@ -1903,10 +1912,10 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
     def _update_tree_headers(self, compact=False):
         if self._language == "en":
             full_headers = ("Bookmark title", "Printed page", "PDF page")
-            headers = ("Title", "Print", "PDF") if compact else full_headers
+            headers = ("Title", "Printed", "PDF") if compact else full_headers
         else:
             full_headers = ("书签标题", "标注页", "PDF 页")
-            headers = ("标题", "标页", "PDF 页") if compact else full_headers
+            headers = ("标题", "标注页", "PDF 页") if compact else full_headers
         header_item = self.dir_tree_widget.headerItem()
         for index, (header, full_header) in enumerate(
             zip(headers, full_headers)
@@ -2050,6 +2059,11 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         if not hasattr(self, "action_status_label"):
             return
         message = self._action_status_message
+        display_message = message
+        if self._has_active_task() and (self._task_context or {}).get("kind") == "write":
+            # Source and destination already have stable fields in the shell;
+            # keep full task details accessible without growing the footer.
+            display_message = "Generating PDF…" if self._language == "en" else "正在生成 PDF…"
         metrics = self.action_status_label.fontMetrics()
         available_width = self.action_status_label.contentsRect().width()
         if available_width < 120 and hasattr(self, "action_frame"):
@@ -2060,7 +2074,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
                 QtCore.Qt.ElideRight,
                 available_width,
             )
-            for line in message.splitlines() or [""]
+            for line in display_message.splitlines() or [""]
         ]
         rendered = "\n".join(rendered_lines)
         self.action_status_label.setText(rendered)
@@ -2110,7 +2124,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self._set_action_status(self._t("source_needs_review"), "error")
         elif self._rules_pending:
             self._set_action_status(
-                ("Fix rules to update preview" if self._regex_validation_error else "Rule preview is not updated")
+                ("Fix rules to update preview" if self._regex_validation_error else "Preview needs update")
                 if self._language == "en" else
                 ("请修正规则以更新预览" if self._regex_validation_error else "规则预览尚未更新"),
                 "normal",
