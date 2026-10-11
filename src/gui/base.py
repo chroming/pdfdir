@@ -79,8 +79,9 @@ class TreeWidget(MixinContextMenu):
 
     def fix_column(self):
         header = self.header()
-        # Only resize first column
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        # The workspace owns a bounded title lane; page columns stay close to
+        # their titles even when the containing window is very wide.
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
         header.setStretchLastSection(False)
         for column in (1, 2):
             header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
@@ -350,6 +351,9 @@ class TreeWidget(MixinContextMenu):
         self._suppress_preview_changed = True
         try:
             item.setFlags(item.flags() | Qt.ItemIsEditable)
+            for column in (1, 2):
+                if column < self.columnCount():
+                    item.setTextAlignment(column, Qt.AlignRight | Qt.AlignVCenter)
             self._refresh_item_tooltips(item)
         finally:
             self._suppress_preview_changed = previous

@@ -43,10 +43,23 @@ def test_invalid_rule_retains_last_good_tree_and_blocks_stale_export(window, qtb
     assert window._tree_snapshot() == before
     assert window._rules_pending
     assert not window.export_button.isEnabled()
-    assert window.preview_count_label.text() == "尚未更新"
+    assert window.preview_count_label.text() == "4 条"
+    assert window.regex_error_label.isVisible()
     window.level0_edit.setText(r"^\d+\.")
     qtbot.waitUntil(lambda: not window._rules_pending)
     assert window.export_button.isEnabled()
+
+
+def test_collapsed_rule_error_has_one_visible_recovery_message(window):
+    window.level0_edit.setText("[")
+    assert window.action_status_label.text() == ""
+    window.advanced_button.click()
+    assert not window.rules_section.isVisible()
+    assert window._regex_validation_error in window.action_status_label.toolTip()
+    assert not window.export_button.isEnabled()
+    window.advanced_button.click()
+    assert window.regex_error_label.isVisible()
+    assert window.action_status_label.text() == ""
 
 
 def test_rule_panel_remembers_user_size_across_disclosure(window, qtbot):
@@ -68,7 +81,7 @@ def test_initial_rule_panel_keeps_source_and_active_rules_readable(window, qtbot
     qtbot.wait(30)
     window.advanced_button.click()
     qtbot.wait(30)
-    source, rules = window.rule_splitter.sizes()
+    rules, source = window.rule_splitter.sizes()
     assert source >= window.dir_text_edit.fontMetrics().lineSpacing() * 6
     for editor in (window.level0_edit, window.level1_edit):
         rect = QtCore.QRect(editor.mapTo(window.rules_scroll.viewport(), QtCore.QPoint()), editor.size())
@@ -178,8 +191,8 @@ def test_manual_edit_during_debounce_is_not_overwritten(window, qtbot):
 
 
 def test_escape_from_disclosure_closes_inline_tools(window, qtbot):
-    window.rules_options_button.setFocus()
-    qtbot.keyClick(window.rules_options_button, QtCore.Qt.Key_Escape)
+    window.rules_header.close_button.setFocus()
+    qtbot.keyClick(window.rules_header.close_button, QtCore.Qt.Key_Escape)
     assert not window.rules_scroll.isVisible()
     assert window.advanced_button.hasFocus()
 
@@ -238,11 +251,52 @@ def test_indentation_tools_do_not_keep_empty_numbering_space(window, qtbot):
 def test_options_disclosure_reveals_controls_and_keeps_recovery_visible(window, qtbot):
     window._add_rule_level(2)
     window.resize(window.minimumSize())
-    window.rules_options_button.click()
     qtbot.wait(30)
     assert window.rules_options.isVisible()
-    assert window.rules_restore_button.isVisible()
+    assert not window.rules_options_button.isVisible()
     viewport = window.rules_scroll.viewport()
     control = window.unknown_level_box
     rect = QtCore.QRect(control.mapTo(viewport, QtCore.QPoint()), control.size())
+    window.rules_scroll.ensureWidgetVisible(control)
+    qtbot.wait(20)
+    rect = QtCore.QRect(control.mapTo(viewport, QtCore.QPoint()), control.size())
     assert viewport.rect().intersects(rect)
+
+
+def test_fresh_numbering_has_enabled_defaults_and_preserves_children(qapp, qtbot):
+    fresh = track_main_window(qtbot, qapp, Main(qapp, QtCore.QTranslator()))
+    fresh.dir_text_edit.setPlainText("1. Chapter 1\n  1.1 Section 2\n2. Chapter 3")
+    fresh.level_mode_box.setCurrentIndex(1)
+    assert fresh.level0_box.isChecked() and fresh.level1_box.isChecked()
+    assert fresh.dir_tree_widget.topLevelItem(0).childCount() == 1
+    assert not fresh._rules_pending
+
+
+def test_disabled_rule_stays_reachable_and_zero_rules_preserve_last_tree(window):
+    before = window._tree_snapshot()
+    window.level1_box.setChecked(False)
+    assert window.level1_box.isVisible()
+    window.level0_box.setChecked(False)
+    last_valid = window._tree_snapshot()
+    assert window._rules_pending
+    assert window.level0_box.isVisible()
+    assert not window.export_button.isEnabled()
+    assert "至少一条" in window.regex_error_label.text()
+    assert window._tree_snapshot() == last_valid
+    window.level1_box.setChecked(True)
+    window.level0_box.setChecked(True)
+    assert window._tree_snapshot() == before
+    window.level_mode_box.setCurrentIndex(0)
+    window.level_mode_box.setCurrentIndex(1)
+    assert window.level0_box.isChecked() and window.level1_box.isChecked()
+
+
+def test_zero_rules_cannot_replace_manual_corrections(window):
+    window.dir_tree_widget.topLevelItem(0).setText(0, "Corrected manually")
+    before = window._tree_snapshot()
+    window.level0_box.setChecked(False)
+    window.level1_box.setChecked(False)
+    window.rules_accept_button.click()
+    assert window._tree_snapshot() == before
+    assert window._rule_guarded and window._preview_manually_adjusted
+    assert not window.export_button.isEnabled()

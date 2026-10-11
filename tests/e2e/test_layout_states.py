@@ -15,7 +15,7 @@ from PySide6 import QtCore, QtGui
 from pypdf import PdfReader
 
 import src.gui.main as main_module
-from tests.gui_test_utils import track_main_window
+from tests.gui_test_utils import track_main_window, edit_output_settings
 
 
 @pytest.mark.e2e
@@ -39,6 +39,9 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
     track_main_window(qtbot, qapp, window)
     (window.to_english if language == "en" else window.to_chinese)()
     window.show()
+    window.raise_()
+    window.activateWindow()
+    qtbot.waitUntil(window.isActiveWindow)
     window.resize(*size)
     window.read_exist_dir_box.setChecked(False)
     assert window._activate_document(str(source))
@@ -59,6 +62,7 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
         if settle:
             qtbot.wait(35)
         assert window.size() == QtCore.QSize(*size)
+        assert window.dir_tree_widget.horizontalScrollBar().maximum() == 0
         command = window.cancel_button if window.cancel_button.isVisible() else window.export_button
         for widget in (command, window.action_status_label, window.dir_tree_widget):
             rect = QtCore.QRect(widget.mapTo(window, QtCore.QPoint()), widget.size())
@@ -83,14 +87,26 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
     qtbot.mouseClick(window.advanced_button, QtCore.Qt.LeftButton)
     capture("indent-rules")
     window.level_mode_box.setCurrentIndex(1)
+    assert window.level0_box.isChecked() and window.level1_box.isChecked()
+    capture("numbering-defaults")
     for index, pattern in enumerate((r"^第\d+章", r"^\s*\d+\.\d+\s", r"^\s*\d+\.\d+\.\d+\s")):
         window._add_rule_level(index)
         getattr(window, f"level{index}_edit").setText(pattern)
     qtbot.waitUntil(lambda: not window._rules_pending)
     capture("three-rules")
-    window.rules_options_button.click()
-    capture("rules-options")
-    window.rules_options_button.click()
+    assert window.rules_options.isVisible()
+    window.level1_box.setChecked(False)
+    capture("disabled-rule")
+    assert window.level1_box.isVisible()
+    for index in (0, 2):
+        getattr(window, f"level{index}_box").setChecked(False)
+    before = window._tree_snapshot()
+    capture("no-rules")
+    assert not window.export_button.isEnabled()
+    assert window._tree_snapshot() == before
+    for index in range(3):
+        getattr(window, f"level{index}_box").setChecked(True)
+    qtbot.waitUntil(lambda: not window._rules_pending)
     window.level0_edit.setText("[")
     capture("rule-error")
     window.level0_edit.setText(r"^第\d+章")
@@ -99,14 +115,16 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
     capture("rules-closed")
     window.calibrate_button.click()
     capture("calibration")
-    window.calibration_more_button.click()
-    capture("direct-offset")
-    window.calibration_more_button.click()
+    signature = window._current_draft_signature()
+    window.calibration_offset.setText("2")
+    capture("offset-candidate")
+    assert window._current_draft_signature() == signature
     window.pdf_anchor.setText("999")
     capture("calibration-error")
     qtbot.keyClick(window.pdf_anchor, QtCore.Qt.Key_Escape)
     capture("calibration-closed")
     assert window.source_tabs.currentIndex() == 0
+    assert window._current_draft_signature() == signature
     window.dir_tree_widget.topLevelItem(0).setText(0, "手工校对的标题 / Corrected title")
     window.dir_text_edit.appendPlainText("附录 31")
     capture("manual-edit-guard")
@@ -126,6 +144,12 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
         window.advanced_button.click()
     assert window._current_draft_signature() == signature
     capture("ready")
+    def inspect_output(dialog):
+        if folder:
+            assert dialog.grab().save(str(folder / "output-settings.png"))
+        assert dialog.apply_button.isEnabled()
+    edit_output_settings(window, qtbot, name="cancelled.pdf", accept=False, inspect=inspect_output)
+    assert window._current_draft_signature() == signature
     window.export_button.click()
     window._reflow_controls()
     capture("working", settle=False)
@@ -134,8 +158,8 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
     assert states["ready"]["footer"] == states["working"]["footer"] == states["result"]["footer"]
     assert PdfReader(window.output_path_edit.text()).outline
     assert source.read_bytes() == original
-    required = {"source", "pdf-pointer", "source-keyboard", "indent-rules", "three-rules",
-                "rules-options", "rule-error", "rules-closed", "calibration", "direct-offset",
+    required = {"source", "pdf-pointer", "source-keyboard", "indent-rules", "numbering-defaults", "three-rules",
+                "disabled-rule", "no-rules", "rule-error", "rules-closed", "calibration", "offset-candidate",
                 "calibration-error", "calibration-closed", "manual-edit-guard", "source-error",
                 "ready", "working", "result"}
     assert set(states) == required

@@ -9,6 +9,23 @@ def configure_command(button):
     """Keep Designer-owned commands on the same secondary action grammar."""
     button.setProperty("variant", "secondary")
     button.setFocusPolicy(QtCore.Qt.StrongFocus)
+    if not hasattr(button, "_keyboard_focus_filter"):
+        button._keyboard_focus_filter = CommandFocusFilter(button)
+        button.installEventFilter(button._keyboard_focus_filter)
+
+
+class CommandFocusFilter(QtCore.QObject):
+    def eventFilter(self, widget, event):
+        kind = event.type()
+        if kind in (QtCore.QEvent.FocusIn, QtCore.QEvent.FocusOut,
+                    QtCore.QEvent.MouseButtonPress, QtCore.QEvent.KeyPress):
+            visible = kind == QtCore.QEvent.KeyPress or (
+                kind == QtCore.QEvent.FocusIn and event.reason() in (
+                    QtCore.Qt.TabFocusReason, QtCore.Qt.BacktabFocusReason, QtCore.Qt.ShortcutFocusReason))
+            widget.setProperty("keyboardFocus", visible)
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+        return False
 
 
 def reserve_command_width(buttons, labels):
@@ -122,12 +139,98 @@ class ViewTabs(KeyboardFocusMixin, QtWidgets.QTabBar):
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
 
-class MenuButton(QtWidgets.QToolButton):
+class MenuButton(KeyboardFocusMixin, QtWidgets.QToolButton):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setProperty("variant", "menu")
         self.setPopupMode(QtWidgets.QToolButton.InstantPopup)
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+
+class InspectorHeader(QtWidgets.QWidget):
+    """The same title and close affordance for the two inline tools."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.title = QtWidgets.QLabel(self)
+        self.title.setObjectName("inspector_title")
+        layout.addWidget(self.title)
+        layout.addStretch(1)
+        self.close_button = DetailButton(self, compact=True)
+        self.close_button.setText("×")
+        self.close_button.setProperty("variant", "utility")
+        layout.addWidget(self.close_button)
+
+
+class OutputSettingsDialog(QtWidgets.QDialog):
+    """Output edits are a cancellable transaction, not a permanent form."""
+
+    def __init__(self, parent, name, folder, validate, english=False):
+        super().__init__(parent)
+        self.setWindowTitle("Output settings" if english else "输出设置")
+        self.setWindowModality(QtCore.Qt.WindowModal)
+        layout = QtWidgets.QVBoxLayout(self)
+        form = QtWidgets.QFormLayout()
+        self.name_edit = QtWidgets.QLineEdit(name, self)
+        form.addRow("Filename" if english else "文件名", self.name_edit)
+        directory = QtWidgets.QWidget(self)
+        row = QtWidgets.QHBoxLayout(directory)
+        row.setContentsMargins(0, 0, 0, 0)
+        self.folder_edit = QtWidgets.QLineEdit(folder, self)
+        self.folder_edit.setReadOnly(True)
+        row.addWidget(self.folder_edit, 1)
+        self.folder_button = QtWidgets.QPushButton("Choose…" if english else "选择…", self)
+        configure_command(self.folder_button)
+        row.addWidget(self.folder_button)
+        self.folder_button.clicked.connect(lambda: self._choose_folder(english))
+        form.addRow("Folder" if english else "保存到", directory)
+        layout.addLayout(form)
+        self.path_label = QtWidgets.QLabel(self)
+        self.path_label.setTextFormat(QtCore.Qt.PlainText)
+        self.path_label.setWordWrap(True)
+        self.path_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        layout.addWidget(self.path_label)
+        layout.addWidget(QtWidgets.QLabel(
+            "Creates a new PDF. The source remains unchanged." if english
+            else "生成一份新 PDF，原文件保持不变。", self))
+        self.error_label = InlineErrorLabel(self)
+        layout.addWidget(self.error_label)
+        buttons = QtWidgets.QDialogButtonBox(self)
+        cancel = buttons.addButton("Cancel" if english else "取消", QtWidgets.QDialogButtonBox.RejectRole)
+        self.apply_button = buttons.addButton("Apply" if english else "应用", QtWidgets.QDialogButtonBox.AcceptRole)
+        for button in (cancel, self.apply_button):
+            configure_command(button)
+        self.apply_button.setProperty("variant", "primary")
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self._validate = validate
+        self.name_edit.textChanged.connect(self._refresh)
+        self.folder_edit.textChanged.connect(self._refresh)
+        # Top-level dialogs need the same resolved control roles as the shell,
+        # including properties assigned after QDialogButtonBox creates buttons.
+        self.setStyleSheet(parent.styleSheet())
+        self.resize(540, self.sizeHint().height())
+        self._refresh()
+        self.name_edit.selectAll()
+
+    def _choose_folder(self, english):
+        folder = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Choose output folder" if english else "选择输出文件夹",
+            self.folder_edit.text())
+        if folder:
+            self.folder_edit.setText(folder)
+
+    def _refresh(self):
+        from pathlib import Path
+        target = str(Path(self.folder_edit.text()) / self.name_edit.text())
+        self.path_label.setText(target)
+        error = self._validate(target, self.name_edit.text())
+        self.error_label.setText(error)
+        self.error_label.setVisible(bool(error))
+        self.apply_button.setEnabled(not error)
 
 
 class BookmarkItemDelegate(QtWidgets.QStyledItemDelegate):

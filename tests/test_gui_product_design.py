@@ -9,7 +9,7 @@ from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 from src.gui.main import Main
-from tests.gui_test_utils import track_main_window
+from tests.gui_test_utils import edit_output_settings, track_main_window
 
 
 def _write_blank_pdf(path):
@@ -38,10 +38,11 @@ def test_primary_workspace_has_readable_default_geometry(window):
     assert window.workspace_frame.isVisible()
     assert not window.dir_tree_widget.alternatingRowColors()
     assert not window.pdf_path_edit.isVisible()
-    assert window.output_name_edit.isVisible()
+    assert window.output_summary_label.isVisible()
+    assert not window.output_name_edit.isVisible()
     assert window.dir_text_edit.line_number_area_width() > 0
     assert window.level_mode_box.parentWidget() is window.left_tools
-    assert window.offset_edit.parentWidget() is window.calibration_direct
+    assert window.calibration_offset.parentWidget() is window.calibration_direct
     assert not window.calibration_panel.isVisible()
 
 
@@ -51,26 +52,22 @@ def test_related_controls_stay_grouped_at_default_and_minimum_width(window):
         window.app.processEvents()
         window._reflow_controls()
 
-        hierarchy = window.level_mode_box.geometry()
-        rules = window.advanced_button.geometry()
-        assert rules.center().y() == hierarchy.center().y()
-        assert 0 <= rules.left() - hierarchy.right() <= 16
-        assert window.calibrate_button.parentWidget() is window.right_tools
-        assert window.offset_summary.parentWidget() is window.right_tools
+        y = lambda control: control.mapTo(window, control.rect().center()).y()
+        assert y(window.advanced_button) == y(window.calibrate_button)
+        assert not window.level_mode_box.isVisible()
+        assert not window.right_tools.isVisible()
 
     window.to_english()
     window.app.processEvents()
     window._reflow_controls()
-    assert window.advanced_button.geometry().center().y() == (
-        window.level_mode_box.geometry().center().y()
-    )
+    assert y(window.advanced_button) == y(window.calibrate_button)
 
 
-def test_file_entry_starts_header_and_workspaces_share_reading_size(window):
+def test_file_entry_starts_header_and_source_is_secondary(window):
     assert window.open_button.geometry().right() < (
         window.document_name_label.geometry().left()
     )
-    assert window.dir_text_edit.fontMetrics().height() == (
+    assert window.dir_text_edit.fontMetrics().height() < (
         window.dir_tree_widget.fontMetrics().height()
     )
 
@@ -126,11 +123,11 @@ def test_result_label_does_not_move_primary_slot_or_output_field(window, qtbot):
         window.resize(window.minimumSize())
         window._reflow_controls()
         qtbot.wait(20)
-        before = [control.geometry() for control in (window.export_button, window.output_name_edit, window.action_frame)]
+        before = [control.geometry() for control in (window.export_button, window.output_summary_label, window.action_frame)]
         window.export_button.setText(window._t("open_generated"))
         window._reflow_controls()
         qtbot.wait(20)
-        assert [control.geometry() for control in (window.export_button, window.output_name_edit, window.action_frame)] == before
+        assert [control.geometry() for control in (window.export_button, window.output_summary_label, window.action_frame)] == before
 
 
 def test_status_does_not_recursively_shrink_to_its_elided_text(window, qtbot):
@@ -148,14 +145,13 @@ def test_fields_and_commands_share_a_control_track(window):
         window.resize(size)
         window.app.processEvents()
         controls = (
-            window.open_button, window.level_mode_box, window.advanced_button,
-            window.calibrate_button, window.hierarchy_button,
-            window.output_name_edit, window.output_folder_button,
+            window.open_button, window.advanced_button,
+            window.calibrate_button,
             window.export_button,
         )
         assert len({control.height() for control in controls}) == 1
-        assert window.level_mode_box.mapTo(
-            window, window.level_mode_box.rect().center()
+        assert window.advanced_button.mapTo(
+            window, window.advanced_button.rect().center()
         ).y() == window.calibrate_button.mapTo(
             window, window.calibrate_button.rect().center()
         ).y()
@@ -186,7 +182,7 @@ def test_select_popup_shows_current_option_and_supports_keyboard(window, qtbot, 
 
 
 def test_output_destination_details_align_with_filename_at_minimum_width(
-    window, tmp_path
+    window, tmp_path, qtbot
 ):
     source = tmp_path / "source.pdf"
     _write_blank_pdf(source)
@@ -196,16 +192,14 @@ def test_output_destination_details_align_with_filename_at_minimum_width(
 
     assert window.output_feedback_stack.currentWidget() is window.output_location_widget
     assert window.output_location_label.text()
-    assert window.output_location_button.text() == "查看路径"
-    assert window.output_location_widget.mapTo(
-        window.action_frame, QtCore.QPoint()
-    ).x() == window.output_name_edit.mapTo(
-        window.action_frame, QtCore.QPoint()
-    ).x()
+    assert window.output_location_button.text() == "修改…"
+    assert window.output_summary_label.text() == "source_new.pdf"
+    qtbot.waitUntil(lambda: window.output_summary_label.geometry().right()
+                   < window.output_location_button.geometry().left())
 
     window.to_english()
     window.app.processEvents()
-    assert window.output_location_button.text() == "View path"
+    assert window.output_location_button.text() == "Modify…"
     assert window.output_location_label.text().startswith("Source folder")
 
     destination = tmp_path / ("destination-" + "long-name-" * 8)
@@ -213,12 +207,10 @@ def test_output_destination_details_align_with_filename_at_minimum_width(
     window._output_directory_override = str(destination)
     window._update_action_availability()
     window.app.processEvents()
-    location = window.output_location_button.mapTo(
-        window.output_feedback_stack, QtCore.QPoint()
-    )
+    location = window.output_location_button.mapTo(window.action_frame, QtCore.QPoint())
     assert "…" in window.output_location_label.text()
     assert location.x() + window.output_location_button.width() <= (
-        window.output_feedback_stack.width()
+        window.action_frame.width()
     )
     assert window.output_location_label.toolTip() == window.output_path_edit.text()
 
@@ -322,7 +314,7 @@ def test_recognition_rules_expand_inline_without_moving_preview_or_output(
     assert window.advanced_widget.isVisible()
     assert window.advanced_widget.window() is window
     assert not window.level0_edit.isVisible()
-    assert not window.fix_non_seq_box.isVisible()
+    assert window.fix_non_seq_box.isVisible()
     assert window.sub_dir_group.isHidden()
     assert window.size() == shell_size
     assert window.export_button.mapToGlobal(QtCore.QPoint()) == action_position
@@ -422,16 +414,14 @@ def test_output_name_and_folder_are_editable_without_overwriting(window, tmp_pat
     window.pdf_path_edit.setText(str(source))
     window.dir_text_edit.setPlainText("Chapter 1")
 
-    window.output_name_edit.setFocus()
-    window.output_name_edit.selectAll()
-    qtbot.keyClicks(window.output_name_edit, "reviewed.pdf")
+    edit_output_settings(window, qtbot, name="reviewed.pdf")
     assert window.output_path_edit.text() == str(tmp_path / "reviewed.pdf")
 
     monkeypatch.setattr(
         QtWidgets.QFileDialog, "getExistingDirectory",
         lambda *_args, **_kwargs: str(folder),
     )
-    window.output_folder_button.click()
+    edit_output_settings(window, qtbot, folder=str(folder))
     assert window.output_path_edit.text() == str(folder / "reviewed.pdf")
     assert window.export_button.isEnabled()
 
@@ -442,14 +432,74 @@ def test_output_name_and_folder_are_editable_without_overwriting(window, tmp_pat
     assert "已存在" in window.output_error_label.text()
     assert "已存在" in window.output_name_edit.accessibleDescription()
 
-    window.output_name_edit.selectAll()
-    qtbot.keyClicks(window.output_name_edit, "source.pdf")
+    edit_output_settings(window, qtbot, name="source.pdf")
     assert window.export_button.isEnabled()  # Different output folder is safe.
     window._output_directory_override = ""
     window._update_action_availability()
     assert not window.export_button.isEnabled()
     assert "不能覆盖" in window.output_error_label.text()
     assert "不能覆盖" in window.output_name_edit.accessibleDescription()
+
+
+def test_cancelling_output_settings_preserves_name_folder_and_draft(window, tmp_path, qtbot, monkeypatch):
+    source = tmp_path / "source.pdf"
+    _write_blank_pdf(source)
+    folder = tmp_path / "alternative"
+    folder.mkdir()
+    window.pdf_path_edit.setText(str(source))
+    window.dir_text_edit.setPlainText("Chapter 1")
+    before = (window.output_path_edit.text(), window._current_draft_signature(),
+              window._output_name_override, window._output_directory_override)
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getExistingDirectory", lambda *_a, **_k: str(folder))
+    edit_output_settings(window, qtbot, name="cancelled.pdf", folder=str(folder), accept=False)
+    assert (window.output_path_edit.text(), window._current_draft_signature(),
+            window._output_name_override, window._output_directory_override) == before
+    assert not (folder / "cancelled.pdf").exists()
+
+
+def test_output_summary_displays_filename_as_literal_text(window, tmp_path, qtbot):
+    source = tmp_path / "source.pdf"
+    _write_blank_pdf(source)
+    window.pdf_path_edit.setText(str(source))
+    edit_output_settings(window, qtbot, name="<b>reviewed.pdf")
+    assert window.output_summary_label.textFormat() == QtCore.Qt.PlainText
+    assert window.output_summary_label.text() == "<b>reviewed.pdf"
+    assert window.output_summary_label.toolTip() == str(tmp_path / "<b>reviewed.pdf")
+
+
+@pytest.mark.parametrize("english", [False, True])
+def test_output_dialog_fits_large_text_without_changing_draft(window, tmp_path, qtbot, qapp, english):
+    import os
+    from pathlib import Path
+    source = tmp_path / "source.pdf"
+    _write_blank_pdf(source)
+    window.pdf_path_edit.setText(str(source))
+    before = window.output_path_edit.text()
+    original = qapp.font()
+    try:
+        font = QtGui.QFont(original)
+        font.setPointSize(24)
+        qapp.setFont(font)
+        (window.to_english if english else window.to_chinese)()
+        window.resize(window.minimumSize())
+        def inspect(dialog):
+            qtbot.wait(20)
+            assert dialog.styleSheet() == window.styleSheet()
+            assert dialog.width() <= window.width()
+            assert dialog.height() <= window.height()
+            for widget in (dialog.name_edit, dialog.folder_edit, dialog.folder_button, dialog.apply_button):
+                rect = QtCore.QRect(widget.mapTo(dialog, QtCore.QPoint()), widget.size())
+                assert dialog.rect().contains(rect)
+                assert widget.height() >= widget.sizeHint().height()
+            capture_dir = os.environ.get("PDFDIR_UI_CAPTURE_DIR")
+            if capture_dir:
+                path = Path(capture_dir) / ("large-font-output-en.png" if english else "large-font-output-zh.png")
+                path.parent.mkdir(parents=True, exist_ok=True)
+                assert dialog.grab().save(str(path))
+        edit_output_settings(window, qtbot, name="reviewed-" * 6 + ".pdf", accept=False, inspect=inspect)
+        assert window.output_path_edit.text() == before
+    finally:
+        qapp.setFont(original)
 
 
 def test_output_error_is_complete_beside_field_at_english_minimum(
@@ -460,20 +510,17 @@ def test_output_error_is_complete_beside_field_at_english_minimum(
     window.pdf_path_edit.setText(str(source))
     window.to_english()
     window.resize(window.minimumSize())
-    window.output_name_edit.setFocus()
-    window.output_name_edit.selectAll()
-    qtbot.keyClicks(window.output_name_edit, "bad.txt")
-    window.app.processEvents()
+    before = window.output_path_edit.text()
 
-    assert window.output_error_label.isVisible()
-    assert window.output_error_label.text() == "The output filename must end in .pdf."
-    assert window.output_error_label.buddy() is window.output_name_edit
-    assert ".pdf" in window.output_name_edit.accessibleDescription()
-    assert not window.export_button.isEnabled()
-    assert not window.action_status_label.text()
+    def inspect(dialog):
+        assert dialog.error_label.isVisible()
+        assert dialog.error_label.text() == "The output filename must end in .pdf."
+        assert not dialog.apply_button.isEnabled()
+        assert window.output_path_edit.text() == before
 
-    window.output_name_edit.selectAll()
-    qtbot.keyClicks(window.output_name_edit, "good.pdf")
+    edit_output_settings(window, qtbot, name="bad.txt", accept=False, inspect=inspect)
+    assert window.output_path_edit.text() == before
+    edit_output_settings(window, qtbot, name="good.pdf")
     assert window.output_feedback_stack.currentWidget() is window.output_location_widget
     assert window.output_name_edit.accessibleDescription() == ""
 
@@ -587,14 +634,11 @@ def test_tab_order_follows_visible_bookmark_workflow(
         expected = (
             window.source_tabs,
             window.source_import_button,
-            window.level_mode_box,
             window.advanced_button,
             window.dir_text_edit,
             window.hierarchy_button,
             window.calibrate_button,
             window.dir_tree_widget,
-            window.output_name_edit,
-            window.output_folder_button,
             window.output_location_button,
             window.export_button,
             window.document_info_button,
@@ -681,12 +725,12 @@ def test_bookmark_count_in_preview_title_updates_dynamically(window, qapp):
     assert window.preview_count_label.text() == "2 条"
 
     window.to_english()
-    assert window.preview_count_label.text() == "2 items"
+    assert window.preview_count_label.text() == "2"
 
     window.dir_text_edit.clear()
     qapp.processEvents()
     assert window.preview_label.text() == "Bookmarks"
-    assert window.preview_count_label.text() == "0 items"
+    assert window.preview_count_label.text() == "0"
 
 
 def test_save_shortcut_triggers_generation(window, tmp_path, monkeypatch):

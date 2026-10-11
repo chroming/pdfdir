@@ -7,6 +7,35 @@ from PySide6 import QtTest
 from PySide6 import QtWidgets
 
 
+def edit_output_settings(window, qtbot, name=None, folder=None, accept=True, inspect=None):
+    """Exercise the visible output editor, including its transaction boundary."""
+    from src.gui.controls import OutputSettingsDialog
+
+    def interact():
+        dialog = QtWidgets.QApplication.activeModalWidget()
+        try:
+            assert isinstance(dialog, OutputSettingsDialog)
+            if name is not None:
+                dialog.name_edit.selectAll()
+                qtbot.keyClicks(dialog.name_edit, name)
+            if folder is not None:
+                dialog.folder_button.click()
+            if inspect:
+                inspect(dialog)
+            if accept:
+                assert dialog.apply_button.isEnabled()
+                dialog.apply_button.click()
+            else:
+                dialog.reject()
+        except BaseException:
+            if dialog:
+                dialog.reject()
+            raise
+
+    QtCore.QTimer.singleShot(0, interact)
+    window.output_location_button.click()
+
+
 def track_main_window(qtbot, qapp, window):
     """Let pytest-qt own one safe close without leaking native dialogs."""
 

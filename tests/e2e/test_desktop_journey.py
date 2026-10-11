@@ -7,7 +7,7 @@ from pypdf import PdfReader, PdfWriter
 from PySide6 import QtCore, QtWidgets
 
 from src.gui.main import Main
-from tests.gui_test_utils import track_main_window
+from tests.gui_test_utils import track_main_window, edit_output_settings
 
 
 def _write_blank_pdf(path, page_count):
@@ -89,14 +89,11 @@ def test_user_can_choose_output_folder_and_filename(qtbot, qapp, tmp_path, monke
     window.show()
     assert window._activate_document(str(source))
     window.dir_text_edit.setPlainText("Chapter 1")
-    window.output_name_edit.setFocus()
-    window.output_name_edit.selectAll()
-    qtbot.keyClicks(window.output_name_edit, "reviewed.pdf")
     monkeypatch.setattr(
         QtWidgets.QFileDialog, "getExistingDirectory",
         lambda *_args, **_kwargs: str(destination),
     )
-    window.output_folder_button.click()
+    edit_output_settings(window, qtbot, name="reviewed.pdf", folder=str(destination))
 
     assert window.output_path_edit.text() == str(output)
     window.export_button.click()

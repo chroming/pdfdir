@@ -58,7 +58,7 @@ class PdfReferencePane(QtWidgets.QWidget):
         if self.view:
             self.view.setDocument(self.document)
             self.view.setPageMode(QPdfView.PageMode.SinglePage)
-            self.view.setZoomMode(QPdfView.ZoomMode.FitInView)
+            self._zoom_changed(0)
             self.stack.addWidget(self.view)
             self.view.pageNavigator().currentPageChanged.connect(self._page_changed)
         layout.addWidget(self.stack, 1)
@@ -148,10 +148,17 @@ class PdfReferencePane(QtWidgets.QWidget):
     def _zoom_changed(self, index):
         if not self.view:
             return
+        # Stop automatic fitting before changing its viewport. AsNeeded bars
+        # can oscillate with styled scrollbar sizes at fit-page thresholds.
+        self.view.setZoomMode(QPdfView.ZoomMode.Custom)
         if index < 2:
+            self.view.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+            self.view.setVerticalScrollBarPolicy(
+                QtCore.Qt.ScrollBarAlwaysOff if index == 0 else QtCore.Qt.ScrollBarAlwaysOn)
             self.view.setZoomMode(QPdfView.ZoomMode.FitInView if index == 0 else QPdfView.ZoomMode.FitToWidth)
         else:
-            self.view.setZoomMode(QPdfView.ZoomMode.Custom)
+            self.view.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+            self.view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
             self.view.setZoomFactor(1.0 if index == 2 else 1.5)
 
     def _sync_controls(self):

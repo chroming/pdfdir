@@ -5,7 +5,7 @@ from pathlib import Path
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from src.convert import clean_clipboard_control_chars
-from src.gui.controls import DetailButton, DisclosureButton, InlineErrorLabel, MenuButton, ViewTabs, configure_command
+from src.gui.controls import DetailButton, DisclosureButton, InlineErrorLabel, InspectorHeader, MenuButton, ViewTabs, configure_command
 from src.gui.pdf_reference import PdfReferencePane
 
 
@@ -14,6 +14,8 @@ class ReferenceWorkspaceMixin:
         self.source_tabs = ViewTabs(self.editor_pane)
         self.source_tabs.addTab("")
         self.source_tabs.addTab("")
+        self.source_tabs.setElideMode(QtCore.Qt.ElideNone)
+        self.source_tabs.setUsesScrollButtons(False)
         self.dir_text_label.hide()
         self.source_import_button = MenuButton(self.editor_pane)
         import_menu = QtWidgets.QMenu(self.source_import_button)
@@ -27,10 +29,8 @@ class ReferenceWorkspaceMixin:
         self.auto_toc_button.hide()
         self.paste_button.hide()
 
-        self.rules_section.layout().removeWidget(self.left_tools)
         self.left_tools_layout.setContentsMargins(0, 0, 0, 0)
         self.left_tools.setObjectName("context_tools")
-        self.editor_layout.insertWidget(1, self.left_tools)
         self.editor_layout.removeWidget(self.rule_splitter)
         self.reference_stack = QtWidgets.QStackedWidget(self.editor_pane)
         self.reference_stack.addWidget(self.rule_splitter)
@@ -46,8 +46,9 @@ class ReferenceWorkspaceMixin:
         self.preview_layout.removeWidget(self.right_tools)
         self.right_tools.setObjectName("context_tools")
         self.right_tools_layout.setContentsMargins(0, 0, 0, 0)
-        self.preview_layout.insertWidget(1, self.right_tools)
+        self.right_tools.hide()
         self.calibrate_button = DisclosureButton(self.preview_pane)
+        self._calibration_trial_serial = 0
         self.calibrate_button.toggled.connect(self._toggle_calibration)
         self.offset_summary = QtWidgets.QLabel(self.preview_pane)
         self.offset_summary.setObjectName("offset_formula_label")
@@ -63,23 +64,30 @@ class ReferenceWorkspaceMixin:
         self.calibration_panel = QtWidgets.QWidget(self.preview_pane)
         calibration = QtWidgets.QGridLayout(self.calibration_panel)
         self.calibration_layout = calibration
-        calibration.setContentsMargins(0, 0, 0, 8)
-        calibration.setSpacing(8)
+        calibration.setContentsMargins(0, 0, 0, 4)
+        calibration.setSpacing(6)
+        self.calibration_header = InspectorHeader(self.calibration_panel)
+        self.calibration_header.close_button.clicked.connect(lambda: self.calibrate_button.setChecked(False))
         self.printed_anchor = QtWidgets.QLineEdit("1", self.calibration_panel)
         self.pdf_anchor = QtWidgets.QLineEdit("1", self.calibration_panel)
         for field in (self.printed_anchor, self.pdf_anchor):
             field.setValidator(QtGui.QIntValidator(1, 2147483647, field))
             field.setMinimumWidth(56)
             field.setMaximumWidth(96)
-            field.textChanged.connect(self._validate_calibration)
+            field.setProperty("density", "compact")
+            field.textChanged.connect(lambda _text: self._validate_calibration())
         self.printed_anchor_label = QtWidgets.QLabel(self.calibration_panel)
         self.pdf_anchor_label = QtWidgets.QLabel(self.calibration_panel)
         self.printed_anchor_label.setBuddy(self.printed_anchor)
         self.pdf_anchor_label.setBuddy(self.pdf_anchor)
-        calibration.addWidget(self.printed_anchor_label, 0, 0)
-        calibration.addWidget(self.pdf_anchor_label, 0, 1)
-        calibration.addWidget(self.printed_anchor, 1, 0)
-        calibration.addWidget(self.pdf_anchor, 1, 1)
+        self.calibration_mapping = QtWidgets.QWidget(self.calibration_panel)
+        mapping = QtWidgets.QHBoxLayout(self.calibration_mapping)
+        mapping.setContentsMargins(0, 0, 0, 0)
+        mapping.setSpacing(6)
+        for widget in (self.printed_anchor_label, self.printed_anchor,
+                       self.pdf_anchor_label, self.pdf_anchor):
+            mapping.addWidget(widget)
+        mapping.addStretch(1)
         self.calibration_apply_button = QtWidgets.QPushButton(self.calibration_panel)
         configure_command(self.calibration_apply_button)
         self.calibration_apply_button.clicked.connect(self._apply_calibration)
@@ -91,15 +99,20 @@ class ReferenceWorkspaceMixin:
         direct = QtWidgets.QHBoxLayout(self.calibration_direct)
         direct.setContentsMargins(0, 0, 0, 0)
         direct.setSpacing(8)
+        self.calibration_offset = QtWidgets.QLineEdit("0", self.calibration_direct)
+        self.calibration_offset.setValidator(QtGui.QIntValidator(-99999, 99999, self.calibration_offset))
+        self.calibration_offset.setMaximumWidth(96)
+        self.calibration_offset.setProperty("density", "compact")
+        self.calibration_offset.textChanged.connect(self._direct_calibration_changed)
         direct.addWidget(self.offset_label)
-        direct.addWidget(self.offset_edit)
-        direct.addStretch(1)
+        direct.addWidget(self.calibration_offset)
         direct.addWidget(self.auto_offset_button)
+        direct.addStretch(1)
         calibration.addWidget(self.calibration_direct, 3, 0, 1, 3)
         self.calibration_more_button = DisclosureButton(self.calibration_panel, compact=True)
-        self.calibration_more_button.toggled.connect(self._toggle_direct_calibration)
-        calibration.addWidget(self.calibration_more_button, 4, 0, 1, 3, QtCore.Qt.AlignLeft)
-        self.calibration_direct.hide()
+        self.calibration_more_button.hide()
+        self.calibration_direct.show()
+        self.offset_edit.hide()
         self.offset_formula_label.hide()
         self.preview_layout.insertWidget(2, self.calibration_panel)
         self.calibration_panel.hide()
@@ -187,21 +200,55 @@ class ReferenceWorkspaceMixin:
     def _layout_reference_headers(self):
         for layout in (self.source_header_layout, self.preview_header_layout):
             self._clear_layout(layout)
-            for column in range(5):
+            for column in range(6):
                 layout.setColumnStretch(column, 0)
-        self.source_header_layout.addWidget(self.source_tabs, 0, 0)
-        self.source_header_layout.setColumnStretch(1, 1)
-        self.source_header_layout.addWidget(self.source_import_button, 0, 2)
         self.preview_header_layout.addWidget(self.preview_label, 0, 0)
         self.preview_header_layout.addWidget(self.preview_count_label, 0, 1)
         self.preview_header_layout.setColumnStretch(2, 1)
-        self.preview_header_layout.addWidget(self.undo_button, 0, 3)
-        self.preview_header_layout.addWidget(self.redo_button, 0, 4)
+        if self._large_text_mode():
+            # Accessibility text gets a symmetric second command row, rather
+            # than squeezing labels or raising the normal window minimum.
+            self.source_header_layout.addWidget(self.source_tabs, 0, 0, 1, 3)
+            self.source_header_layout.addWidget(self.source_import_button, 1, 0)
+            self.source_header_layout.addWidget(self.advanced_button, 1, 1)
+            self.source_header_layout.setColumnStretch(2, 1)
+            self.preview_header_layout.addWidget(self.undo_button, 0, 3)
+            self.preview_header_layout.addWidget(self.redo_button, 0, 4)
+            self.preview_header_layout.addWidget(self.calibrate_button, 1, 0, 1, 2, QtCore.Qt.AlignLeft)
+        else:
+            self.source_header_layout.addWidget(self.source_tabs, 0, 0)
+            self.source_header_layout.setColumnStretch(1, 1)
+            self.source_header_layout.addWidget(self.source_import_button, 0, 2)
+            self.source_header_layout.addWidget(self.advanced_button, 0, 3)
+            self.preview_header_layout.addWidget(self.calibrate_button, 0, 3)
+            self.preview_header_layout.addWidget(self.undo_button, 0, 4)
+            self.preview_header_layout.addWidget(self.redo_button, 0, 5)
+        self.hierarchy_button.setParent(self.dir_tree_widget)
+        self.hierarchy_button.show()
+        self._position_hierarchy_menu()
+
+    def _position_hierarchy_menu(self):
+        # Row editing lives in the title-column header, beside the rows it affects.
+        header = self.dir_tree_widget.header()
+        width = self.hierarchy_button.sizeHint().width()
+        tree = self.dir_tree_widget
+        available = tree.viewport().width() - tree.columnWidth(1) - tree.columnWidth(2)
+        ceiling = tree.fontMetrics().horizontalAdvance("M") * 42
+        preferred = max(320, min(ceiling, tree.sizeHintForColumn(0) + width + 16))
+        tree.setColumnWidth(0, max(80, min(available, preferred)))
+        self.hierarchy_button.resize(width, header.height())
+        self.hierarchy_button.move(max(0, header.sectionSize(0) - width - 8), header.y())
 
     def _layout_reference_tools(self, compact=False):
         large = self._large_text_mode()
         compact = compact or large
         self._tools_compact = compact
+        english = self._language == "en"
+        self.source_tabs.setTabText(0, ("TOC" if compact else "TOC text") if english else ("原文" if compact else "目录原文"))
+        self.source_tabs.setTabText(1, ("PDF" if compact else "PDF pages") if english else ("PDF" if compact else "PDF 页面"))
+        self.source_tabs.setTabToolTip(0, "Editable TOC text" if english else "可编辑的目录原文")
+        self.source_tabs.setTabToolTip(1, "PDF page reference" if english else "PDF 页面参考")
+        self.source_tabs.setMinimumWidth(self.source_tabs.sizeHint().width())
         for layout in (self.left_tools_layout, self.right_tools_layout):
             self._clear_layout(layout)
             for column in range(5):
@@ -209,17 +256,13 @@ class ReferenceWorkspaceMixin:
         self.level_mode_label.setVisible(not compact)
         self.left_tools_layout.addWidget(self.level_mode_label, 0, 0)
         self.left_tools_layout.addWidget(self.level_mode_box, 0, 1)
-        self.left_tools_layout.addWidget(self.advanced_button, 0, 2)
-        self.left_tools_layout.setColumnStretch(3, 1)
-        self.right_tools_layout.addWidget(self.hierarchy_button, 0, 0)
-        self.right_tools_layout.setColumnStretch(1, 1)
-        self.right_tools_layout.addWidget(self.offset_summary, 0, 2)
-        self.right_tools_layout.addWidget(self.calibrate_button, 0, 3)
-        self.offset_summary.setVisible(not large)
+        self.left_tools_layout.setColumnStretch(2, 1)
+        self.offset_summary.hide()
         english = self._language == "en"
-        self.printed_anchor_label.setText(("Printed" if large else "Printed page") if english else "书上标注页")
-        self.pdf_anchor_label.setText(("PDF" if large else "PDF page") if english else "对应 PDF 页")
-        self.calibration_apply_button.setText(("Apply" if large else "Apply mapping") if english else "应用对应关系")
+        self.printed_anchor_label.setText("Printed" if english else "标注页")
+        self.pdf_anchor_label.setText("PDF" if english else "PDF 页")
+        self.offset_label.setText("Offset" if english else "页差")
+        self.calibration_apply_button.setText("Apply offset" if english else "应用页差")
         self.pdf_reference.reflow(large)
         self._layout_calibration()
 
@@ -228,14 +271,12 @@ class ReferenceWorkspaceMixin:
         # do not take a second permanent form row away from the bookmark list.
         layout = self.calibration_layout
         self._clear_layout(layout)
-        layout.addWidget(self.printed_anchor_label, 0, 0)
-        layout.addWidget(self.pdf_anchor_label, 0, 1)
-        layout.addWidget(self.printed_anchor, 1, 0)
-        layout.addWidget(self.pdf_anchor, 1, 1)
-        layout.addWidget(self.calibration_apply_button, 1, 2, QtCore.Qt.AlignLeft)
-        layout.addWidget(self.calibration_error, 2, 0, 1, 3)
-        layout.addWidget(self.calibration_more_button, 0, 2, QtCore.Qt.AlignLeft)
-        layout.addWidget(self.calibration_direct, 4, 0, 1, 3)
+        layout.addWidget(self.calibration_header, 0, 0, 1, 3)
+        layout.addWidget(self.calibration_mapping, 1, 0, 1, 3)
+        large = self._large_text_mode()
+        layout.addWidget(self.calibration_direct, 2, 0, 1, 3 if large else 2)
+        layout.addWidget(self.calibration_apply_button, 3 if large else 2, 2, QtCore.Qt.AlignRight)
+        layout.addWidget(self.calibration_error, 4 if large else 3, 0, 1, 3)
         self._resize_calibration()
 
     def _resize_calibration(self):
@@ -243,17 +284,23 @@ class ReferenceWorkspaceMixin:
         self.calibration_panel.setMinimumHeight(self.calibration_layout.sizeHint().height())
 
     def _toggle_direct_calibration(self, expanded):
-        self.calibration_direct.setVisible(expanded)
-        self._layout_calibration()
+        self.calibration_direct.show()
+
+    def _direct_calibration_changed(self):
+        if self.calibration_offset.hasAcceptableInput() and self.printed_anchor.hasAcceptableInput():
+            with QtCore.QSignalBlocker(self.pdf_anchor):
+                self.pdf_anchor.setText(str(int(self.printed_anchor.text()) + int(self.calibration_offset.text())))
+        self._validate_calibration(sync_offset=False)
 
     def _reference_tab_changed(self, index):
         self.reference_stack.setCurrentIndex(index)
-        self.left_tools.setVisible(index == 0)
         self.source_import_button.setVisible(index == 0)
+        self.advanced_button.setVisible(index == 0)
         self.source_error_label.setVisible(index == 0 and self._source_parse_error is not None)
         if index == 1:
             self.pdf_reference.set_source(self.pdf_path.strip())
             self._follow_bookmark_page(self.dir_tree_widget.currentItem())
+        self._refresh_action_status()
 
     def _follow_bookmark_page(self, item, _previous=None):
         if self.source_tabs.currentIndex() != 1 or item is None:
@@ -266,6 +313,7 @@ class ReferenceWorkspaceMixin:
     def _toggle_calibration(self, expanded):
         self.calibration_panel.setVisible(expanded)
         if expanded:
+            self._calibration_trial_serial += 1
             self._calibration_reference_before = self.source_tabs.currentIndex()
             self.source_tabs.setCurrentIndex(1)
             item = self.dir_tree_widget.currentItem()
@@ -287,10 +335,18 @@ class ReferenceWorkspaceMixin:
         if self.calibrate_button.isChecked():
             self.pdf_anchor.setText(str(page))
 
-    def _validate_calibration(self):
+    def _calibration_draft_signature(self):
+        return (self._calibration_trial_serial, self.printed_anchor.text(),
+                self.pdf_anchor.text(), self.calibration_offset.text())
+
+    def _validate_calibration(self, *, sync_offset=True):
         if not hasattr(self, "calibration_error"):
             return
         valid = self.printed_anchor.hasAcceptableInput() and self.pdf_anchor.hasAcceptableInput()
+        if valid and sync_offset:
+            with QtCore.QSignalBlocker(self.calibration_offset):
+                self.calibration_offset.setText(str(int(self.pdf_anchor.text()) - int(self.printed_anchor.text())))
+        valid = valid and self.calibration_offset.hasAcceptableInput()
         count = self._document_page_count
         in_range = valid and (not count or int(self.pdf_anchor.text()) <= count)
         self.calibration_apply_button.setEnabled(bool(in_range) and not self._has_active_task())
@@ -331,8 +387,8 @@ class ReferenceWorkspaceMixin:
         self.guard_panel.setVisible(bool(self._rule_guarded or manual_trial))
         if self._rule_guarded:
             self.rules_guard_label.setText(
-                "Source or rules changed. Your bookmark edits are preserved until you rebuild."
-                if self._language == "en" else "原文或规则已变化。重新生成前，手工校对的书签会保留。"
+                "Source or rules changed. Rebuilding replaces your manual bookmark edits; it does not write the PDF."
+                if self._language == "en" else "原文或规则已变化。重建将替换手工书签修改，尚不会写入 PDF。"
             )
         elif manual_trial:
             self.rules_guard_label.hide()
@@ -342,23 +398,26 @@ class ReferenceWorkspaceMixin:
         )
         self.guard_panel.setEnabled(not write_running)
         self.source_restore_button.setEnabled(not self._has_active_task())
-        self.offset_summary.setText(("Offset {:+d}" if self._language == "en" else "页差 {:+d}").format(self.offset_num))
+        self.calibrate_button.setText(("Offset {:+d}" if self._language == "en" else "校准 {:+d}").format(self.offset_num))
         self.offset_summary.setToolTip(self.offset_edit.toolTip())
+        if self.calibrate_button.isChecked():
+            self._validate_calibration(sync_offset=False)
         if self.source_tabs.currentIndex() == 1:
             self.pdf_reference.set_source(self.pdf_path.strip() if has_pdf else "")
-        self._validate_calibration()
+        self._position_hierarchy_menu()
 
     def _translate_reference_workspace(self):
         english = self._language == "en"
         self.source_tabs.setTabText(0, "TOC text" if english else "目录原文")
         self.source_tabs.setTabText(1, "PDF pages" if english else "PDF 页面")
         self.source_tabs.setAccessibleName("Reference view" if english else "参考视图")
-        self.source_import_button.setText("Import" if english else "导入目录")
+        self.source_import_button.setText("Import" if english else "导入")
         self.level_mode_label.setText("Parse" if english else "识别")
         self.import_pdf_action.setText("Recognize from PDF…" if english else "从 PDF 识别…")
         self.import_paste_action.setText("Paste text" if english else "粘贴文本")
         self.import_text_action.setText("Import text file…" if english else "导入文本文件…")
-        self.hierarchy_button.setText("Hierarchy" if english else "调整层级")
+        self.hierarchy_button.setText("Edit" if english else "编辑")
+        self.hierarchy_button.setToolTip("Edit selected bookmark hierarchy" if english else "调整选中书签的层级")
         # Display the tree-local keys without registering a window-wide QAction
         # shortcut that would steal Alt+arrows from a cell editor.
         for action, label, sequence in (
@@ -372,6 +431,8 @@ class ReferenceWorkspaceMixin:
         self.calibration_more_button.setToolTip("Set the offset directly or detect it from the PDF." if english else "直接输入页差，或从 PDF 自动识别页差。")
         self.printed_anchor_label.setText("Printed page" if english else "书上标注页")
         self.pdf_anchor_label.setText("PDF page" if english else "对应 PDF 页")
-        self.calibration_apply_button.setText("Apply mapping" if english else "应用对应关系")
-        self.source_restore_button.setText("Restore changes" if english else "恢复修改前")
+        self.calibration_header.title.setText("Page calibration" if english else "页码校准")
+        self.calibration_header.close_button.setAccessibleName("Close calibration" if english else "收起校准")
+        self.calibration_apply_button.setText("Apply offset" if english else "应用页差")
+        self.source_restore_button.setText("Restore previous draft" if english else "恢复修改前草稿")
         self.pdf_reference.set_language(self._language)

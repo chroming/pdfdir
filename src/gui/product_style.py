@@ -149,7 +149,9 @@ def stylesheet(app_font):
         QTabBar[variant="view-tabs"][keyboardFocus="true"]::tab:selected {{
             background: #e4efff;
         }}
-        QToolButton[variant="menu"] {{ padding-right: 24px; }}
+        QToolButton[variant="menu"] {{ padding-right: 24px; background: transparent; border-color: transparent; }}
+        QToolButton[variant="menu"]:focus {{ border-color: transparent; }}
+        QToolButton[variant="menu"][keyboardFocus="true"] {{ border-color: #4385d7; }}
         QToolButton[variant="menu"]::menu-indicator {{
             image: url({arrow}); width: 12px; height: 12px;
             subcontrol-origin: padding; subcontrol-position: center right; right: 6px;
@@ -176,6 +178,7 @@ def stylesheet(app_font):
         QPushButton:focus, QToolButton:focus, QLineEdit:focus, QComboBox:focus {{
             border-color: #4385d7;
         }}
+        QPushButton[keyboardFocus="false"]:focus {{ border-color: #d3d8e0; }}
         QPushButton:disabled, QToolButton:disabled, QLineEdit:disabled, QComboBox:disabled {{
             color: #a2a9b4; background: #f3f5f7; border-color: #e1e5eb;
         }}
@@ -191,6 +194,7 @@ def stylesheet(app_font):
         QPushButton[variant="icon"]:focus, QToolButton[variant="icon"]:focus {{
             border-color: #4385d7;
         }}
+        QPushButton[variant="quiet"][keyboardFocus="false"]:focus {{ border-color: transparent; }}
         QPushButton[variant="icon"], QToolButton[variant="icon"] {{
             min-width: {height}px; max-width: {height}px; padding: 0;
         }}
@@ -201,10 +205,18 @@ def stylesheet(app_font):
         QPushButton[variant="primary"]:hover {{ background: #1e66c0; border-color: #1e66c0; }}
         QPushButton[variant="primary"]:pressed {{ background: #1958a8; border-color: #1958a8; }}
         QPushButton[variant="primary"]:disabled {{ background: #e6eaf0; border-color: #e6eaf0; color: #929eaf; }}
+        QPushButton[variant="primary"][keyboardFocus="false"]:focus {{ border-color: #2675d8; }}
         QToolButton[variant="disclosure"], QToolButton[variant="detail"] {{
             background: transparent; border-color: transparent; padding: 0 4px;
         }}
         QToolButton[variant="detail"] {{ color: #246ac2; }}
+        QToolButton[variant="utility"] {{ background: transparent; border-color: transparent; color: #68707d; padding: 0 4px; }}
+        QToolButton[variant="utility"][keyboardFocus="true"] {{ border-color: #4385d7; }}
+        QLabel#inspector_title {{ font-size: {metadata}; font-weight: 600; color: #68707d; }}
+        QLabel#output_summary_label {{ font-size: {metadata}; color: #343b46; }}
+        QLineEdit[density="compact"], QComboBox[density="compact"] {{
+            min-height: {height if large else 24}px; max-height: {height if large else 24}px;
+        }}
         QToolButton[variant="disclosure"]:hover, QToolButton[variant="detail"]:hover {{
             background: #edf0f4;
         }}
@@ -245,7 +257,7 @@ def stylesheet(app_font):
         QComboBox QAbstractItemView::item:hover {{ background: #f0f5fc; }}
 
         QPlainTextEdit#dir_text_edit {{
-            font-size: {content}; color: #252a32; background: #ffffff;
+            font-size: {body}; color: #59616d; background: #ffffff;
             border: 0; padding: 8px 0;
             selection-background-color: #dceaff; selection-color: #253e60;
         }}
@@ -255,11 +267,12 @@ def stylesheet(app_font):
         }}
         QTreeWidget#dir_tree_widget::item {{
             min-height: {row - 1}px; padding: 0 6px;
-            border: 0; border-bottom: 1px solid #f0f2f5;
+            border: 0;
         }}
         QTreeWidget#dir_tree_widget::item:hover {{ background: #f5f7fa; }}
         QTreeWidget#dir_tree_widget::item:selected {{ background: #e4efff; color: #253e60; }}
         QTreeWidget#dir_tree_widget::item:focus {{ border: 1px solid #aac9ef; }}
+        QHeaderView {{ background: #ffffff; }}
         QHeaderView::section {{
             font-size: {metadata}; font-weight: 400;
             color: #68707d; background: #ffffff;

@@ -31,7 +31,7 @@ from src.convert import (
 from src.gui.base import TreeWidget
 from src.gui.main_ui import Ui_PDFdir
 from src.gui.product_style import ERROR_COLOR, configure_select
-from src.gui.controls import DetailButton, DisclosureButton, configure_command, reserve_command_width
+from src.gui.controls import DetailButton, DisclosureButton, OutputSettingsDialog, configure_command, reserve_command_width
 from src.gui.product_style import icon as product_icon
 from src.gui.product_style import stylesheet as product_stylesheet
 from src.gui.rule_workbench import RuleWorkbenchMixin
@@ -465,9 +465,9 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
 
     def _configure_workspace(self):
         self.setAcceptDrops(True)
-        self.workspace_splitter.setStretchFactor(0, 9)
-        self.workspace_splitter.setStretchFactor(1, 11)
-        self.workspace_splitter.setSizes([450, 550])
+        self.workspace_splitter.setStretchFactor(0, 2)
+        self.workspace_splitter.setStretchFactor(1, 3)
+        self.workspace_splitter.setSizes([400, 600])
         self.offset_edit.setValidator(QtGui.QIntValidator(-99999, 99999, self))
         self.open_button.setShortcut(QtGui.QKeySequence.Open)
         self.export_button.setShortcut(QtGui.QKeySequence("Ctrl+Return"))
@@ -591,6 +591,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self.printed_anchor,
             self.pdf_anchor,
             self.calibration_apply_button,
+            self.calibration_offset,
             self.dir_tree_widget,
             self.undo_button,
             self.redo_button,
@@ -697,6 +698,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         for button in (self.auto_toc_button, self.paste_button, self.auto_offset_button,
                        self.open_button, self.cancel_button):
             configure_command(button)
+        self.open_button.setProperty("variant", "quiet")
         self.paste_button.clicked.connect(self._paste_toc_text)
         self.editor_header_layout.removeWidget(self.dir_text_label)
         self.editor_header_layout.removeWidget(self.auto_toc_button)
@@ -797,10 +799,9 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self.output_location_label = QtWidgets.QLabel(self.output_location_widget)
         self.output_location_label.setObjectName("output_location_label")
         location_layout.addWidget(self.output_location_label)
-        self.output_location_button = DetailButton(self.output_location_widget, compact=True)
+        self.output_location_button = DetailButton(self.action_frame, compact=True)
         self.output_location_button.setObjectName("output_location_button")
-        self.output_location_button.clicked.connect(self._show_output_details)
-        location_layout.addWidget(self.output_location_button)
+        self.output_location_button.clicked.connect(self._edit_output_settings)
         location_layout.addStretch(1)
         self.output_error_label = QtWidgets.QLabel(self.action_frame)
         self.output_error_label.setObjectName("output_error_label")
@@ -815,6 +816,14 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Preferred,
         )
+        self.output_summary_label = QtWidgets.QLabel(self.action_frame)
+        self.output_summary_label.setObjectName("output_summary_label")
+        self.output_summary_label.setTextFormat(QtCore.Qt.PlainText)
+        self.output_summary_label.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Preferred)
+        self.output_summary_label.setMinimumWidth(40)
+        self.output_name_edit.hide()
+        self.output_folder_button.hide()
+        self.output_feedback_stack.hide()
         self.output_path_edit.setVisible(False)
         self._actions_compact = None
         self._action_status_full_width = False
@@ -843,43 +852,25 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             return
         self._actions_compact = compact
         layout = self.action_controls_layout
-        for widget in (
-            self.keep_exist_dir_box,
-            self.output_label,
-            self.output_name_edit,
-            self.output_folder_button,
-            self.output_feedback_stack,
-            self.action_status_label,
-            self.cancel_button,
-            self.export_button,
-        ):
-            layout.removeWidget(widget)
         self._clear_layout(layout)
         for column in range(8):
             layout.setColumnStretch(column, 0)
         if compact:
-            self.output_name_edit.setMaximumWidth(16777215)
             layout.addWidget(self.output_label, 0, 0)
-            layout.addWidget(self.output_name_edit, 0, 1, 1, 2)
-            layout.addWidget(self.output_folder_button, 0, 3, QtCore.Qt.AlignRight)
+            layout.addWidget(self.output_summary_label, 0, 1, 1, 2)
+            layout.addWidget(self.output_location_button, 0, 3)
             layout.setColumnStretch(1, 1)
-            layout.addWidget(self.output_feedback_stack, 1, 1, 1, 3)
-            layout.addWidget(self.keep_exist_dir_box, 2, 1, 1, 3)
-            layout.addWidget(self.action_status_label, 3, 0, 1, 3)
-            layout.addWidget(self.cancel_button, 3, 3)
-            layout.addWidget(self.export_button, 3, 3)
+            layout.addWidget(self.action_status_label, 1, 0, 1, 3)
+            layout.addWidget(self.cancel_button, 1, 3)
+            layout.addWidget(self.export_button, 1, 3)
         else:
-            self.output_name_edit.setMaximumWidth(400)
             layout.addWidget(self.output_label, 0, 0)
-            layout.addWidget(self.output_name_edit, 0, 1)
-            layout.addWidget(self.output_folder_button, 0, 2)
-            layout.setColumnStretch(1, 3)
+            layout.addWidget(self.output_summary_label, 0, 1)
+            layout.addWidget(self.output_location_button, 0, 2)
             layout.setColumnStretch(3, 1)
+            layout.addWidget(self.action_status_label, 0, 3)
             layout.addWidget(self.cancel_button, 0, 4)
             layout.addWidget(self.export_button, 0, 4)
-            layout.addWidget(self.output_feedback_stack, 1, 1, 1, 2)
-            layout.addWidget(self.keep_exist_dir_box, 2, 1, 1, 2)
-            layout.addWidget(self.action_status_label, 1, 3, 1, 2)
         self._action_status_full_width = False
         self.action_status_label.setAlignment(QtCore.Qt.AlignLeft if compact else QtCore.Qt.AlignRight)
         self._position_action_status()
@@ -897,18 +888,18 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self.action_status_label.setAlignment(QtCore.Qt.AlignLeft)
             layout.addWidget(
                 self.action_status_label,
-                4 if self._actions_compact else 3,
+                2 if self._actions_compact else 1,
                 0,
                 1,
                 6,
             )
         elif self._actions_compact:
             self.action_status_label.setAlignment(QtCore.Qt.AlignLeft)
-            layout.addWidget(self.action_status_label, 3, 0, 1, 3)
+            layout.addWidget(self.action_status_label, 1, 0, 1, 3)
         else:
             self.action_status_label.setAlignment(QtCore.Qt.AlignRight)
             layout.addWidget(
-                self.action_status_label, 1, 3, 1, 2
+                self.action_status_label, 0, 3
             )
         self._action_status_full_width = full_width
         layout.invalidate()
@@ -939,16 +930,6 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             (self._t("open_generated"), self.cancel_button.text(),
              "Generate PDF" if self._language == "en" else "生成 PDF"),
         )
-        action_controls = (
-            self.output_label,
-            self.output_name_edit,
-            self.output_folder_button,
-            self.export_button,
-        )
-        action_width = sum(
-            (widget.width() if widget is self.export_button else widget.sizeHint().width())
-            for widget in action_controls
-        )
         large_font = self._large_text_mode()
         self._layout_pane_headers()
         self.auto_toc_button.setText(
@@ -964,7 +945,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         )
         self._resize_rule_workbench()
         self._layout_action_controls(
-            large_font or self.action_frame.width() < action_width + 80
+            large_font
         )
         self._update_tree_headers(compact=large_font or self.preview_pane.width() < 510)
         self.root_layout.invalidate()
@@ -974,6 +955,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self.action_controls_layout.invalidate()
         self.action_controls_layout.activate()
         self._render_action_status()
+        self._refresh_output_summary()
+        self._position_hierarchy_menu()
 
     def _apply_product_style(self):
         font_key = self.app.font().toString()
@@ -1111,6 +1094,41 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
     def _show_output_details(self):
         self._show_path_menu(self.output_location_button, self.output_path_edit.text())
 
+    def _edit_output_settings(self):
+        if not self.pdf_path.strip() or self._has_active_task():
+            return
+        dialog = OutputSettingsDialog(
+            self, self.output_name_edit.text(), os.path.dirname(self.output_path_edit.text()),
+            lambda target, name: self._output_target_problem(target, name)[1],
+            english=self._language == "en")
+        if dialog.exec() == QtWidgets.QDialog.Accepted:
+            folder = dialog.folder_edit.text()
+            self._output_directory_override = "" if folder == os.path.dirname(self.pdf_path) else folder
+            self._output_name_override = dialog.name_edit.text()
+            self._force_output_name_sync = True
+            self._refresh_dirty_state()
+            self._update_action_availability()
+        dialog.deleteLater()
+        self.output_location_button.setFocus(QtCore.Qt.OtherFocusReason)
+
+    def _refresh_output_summary(self):
+        target = self.output_path_edit.text()
+        name = os.path.basename(target)
+        if not self._actions_compact:
+            self.output_summary_label.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
+            remaining = self.action_frame.width() - self.export_button.width() - 270
+            self.output_summary_label.setFixedWidth(min(
+                max(40, remaining), 330,
+                max(40, self.output_summary_label.fontMetrics().horizontalAdvance(name) + 4)))
+        else:
+            self.output_summary_label.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
+            self.output_summary_label.setMinimumWidth(40)
+            self.output_summary_label.setMaximumWidth(16777215)
+        self.output_summary_label.setText(self.output_summary_label.fontMetrics().elidedText(
+            name, QtCore.Qt.ElideMiddle, max(0, self.output_summary_label.width())))
+        self.output_summary_label.setToolTip(target)
+        self.output_summary_label.setAccessibleName(target)
+
     def _choose_output_folder(self):
         source = self.pdf_path.strip()
         if not source:
@@ -1141,11 +1159,12 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             return os.path.join(folder, self._output_name_override)
         return self._next_available_output_path(source, folder)
 
-    def _output_target_problem(self, target):
-        name = self.output_name_edit.text().strip()
+    def _output_target_problem(self, target, name=None):
+        raw_name = self.output_name_edit.text() if name is None else name
+        name = raw_name.strip()
         if (
             not name or name in (".", "..")
-            or name != self.output_name_edit.text()
+            or name != raw_name
             or name != os.path.basename(name) or "\\" in name
         ):
             return (
@@ -1399,9 +1418,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
                 ("{} · Source unchanged ·" if self._language == "en"
                  else "{} · 原文件不变 ·").format(location)
             )
-            self.output_location_button.setText(
-                "View path" if self._language == "en" else "查看路径"
-            )
+            self.output_location_button.setText("Modify…" if self._language == "en" else "修改…")
             self.output_location_button.setToolTip(output)
             self.output_location_label.setToolTip(output)
         else:
@@ -1409,6 +1426,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self.output_location_button.setText("")
             self.output_location_label.setToolTip("")
         self.output_location_button.setEnabled(bool(output))
+        self._refresh_output_summary()
         source = self.pdf_path.strip()
         self.open_button.setText(
             ("Change PDF…" if source else "Open PDF…")
@@ -1511,7 +1529,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self._source_has_bookmarks
             and not self._draft_imported_from_source
         )
-        self.keep_exist_dir_box.setVisible(keep_visible)
+        self.keep_exist_dir_box.hide()
         self.keep_exist_dir_action.setVisible(keep_visible)
         self.keep_exist_dir_box.setEnabled(keep_visible and not write_running)
         self._sync_action_surface()
@@ -1542,6 +1560,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self.output_error_label if output_error
             else self.output_location_widget
         )
+        self.output_location_button.setEnabled(has_pdf and not task_running)
         if hasattr(self, "open_result_action"):
             self.open_result_action.setEnabled(
                 self._generated_result_state() == "current"
@@ -1607,7 +1626,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         if self._regex_validation_error:
             return self._regex_validation_error
         if self._rules_pending:
-            return "Preview needs update" if self._language == "en" else "规则预览尚未更新"
+            return "Source or rule changes need applying" if self._language == "en" else "原文或规则修改尚未应用"
         first_error = ""
         # Presentation is derived, not a tree edit or an undoable mutation.
         with QtCore.QSignalBlocker(self.dir_tree_widget):
@@ -1922,6 +1941,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         ):
             header_item.setText(index, header)
             header_item.setToolTip(index, full_header)
+            if index:
+                header_item.setTextAlignment(index, QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
 
     def _set_unwritable(self):
         self.level0_edit.setEnabled(False)
@@ -2121,18 +2142,17 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             and source_path.suffix.lower() == ".pdf"
         )
         if self._source_parse_error:
-            self._set_action_status(self._t("source_needs_review"), "error")
-        elif self._rules_pending:
             self._set_action_status(
-                ("Fix rules to update preview" if self._regex_validation_error else "Preview needs update")
-                if self._language == "en" else
-                ("请修正规则以更新预览" if self._regex_validation_error else "规则预览尚未更新"),
-                "normal",
-            )
+                self._source_parse_message() if self.source_tabs.currentIndex() == 1 else "",
+                "error" if self.source_tabs.currentIndex() == 1 else "normal")
+        elif self._rules_pending:
+            hidden_error = self._regex_validation_error if (
+                not self.advanced_button.isChecked() and not self._rule_guarded) else ""
+            self._set_action_status(hidden_error, "error" if hidden_error else "normal")
         elif validation_error:
             self._set_action_status(validation_error, "error")
         elif has_pdf and self._primary_action_mode != "open" and self._output_target_error(self.output_path_edit.text()):
-            self._set_action_status("", "normal")
+            self._set_action_status(self._output_target_error(self.output_path_edit.text()), "error")
         elif self._generated_source_changed():
             self._set_action_status(
                 "Source PDF changed. Generate again.\nOpen the previous result from the File menu."
@@ -2264,6 +2284,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             and event.type() == QtCore.QEvent.Resize
         ):
             QtCore.QTimer.singleShot(0, self._update_preview_empty_state)
+            QtCore.QTimer.singleShot(0, self._position_hierarchy_menu)
         if (
             watched is self.dir_text_edit
             and event.type() == QtCore.QEvent.KeyPress
@@ -2379,12 +2400,15 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self.preview_hint_label.setText(self._t(key))
         self.dir_tree_widget.setToolTip(self.preview_hint_label.text())
 
+    def _set_bookmark_count(self, count):
+        self.preview_count_label.setText(("{}" if self._language == "en" else "{} 条").format(count))
+        self.preview_count_label.setAccessibleName(
+            ("{} bookmarks" if self._language == "en" else "{} 条书签").format(count))
+
     def _update_preview_empty_state(self):
         item_count = sum(1 for _ in getattr(self.dir_tree_widget, "all_items", []))
         self.preview_label.setText("Bookmarks" if self._language == "en" else "书签")
-        self.preview_count_label.setText(
-            ("{} items" if self._language == "en" else "{} 条").format(item_count)
-        )
+        self._set_bookmark_count(item_count)
         is_empty = item_count == 0
         self.preview_empty_label.setText(self._t("preview_empty"))
         self.preview_empty_label.setGeometry(
@@ -2427,6 +2451,13 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             editor.setProperty("invalid", invalid)
             editor.style().unpolish(editor)
             editor.style().polish(editor)
+        if self.level_mode_box.currentIndex() == 1 and not any(
+            box.isChecked() and editor.text().strip()
+            for box, editor in zip(self._regex_boxes, self._regex_editors)
+        ):
+            self._regex_validation_error = (
+                "Enable at least one numbering rule. The previous bookmarks are preserved."
+                if self._language == "en" else "请启用至少一条编号规则，原有书签已保留。")
         self.regex_error_label.setText(self._regex_validation_error)
         self.regex_error_label.setVisible(bool(self._regex_validation_error))
         return not self._regex_validation_error
@@ -2761,6 +2792,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self.show_status(self._t("offset_working"))
         self._task_context = {
             "kind": "offset",
+            "calibration_preview": self.calibrate_button.isChecked(),
+            "calibration_draft": self._calibration_draft_signature(),
             "pdf_path": self.pdf_path,
             "dir_text": self.dir_text,
             "draft_signature": self._current_draft_signature(),
@@ -2835,6 +2868,9 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             or context.get("dir_text") != self.dir_text
             or context.get("draft_signature")
             != self._current_draft_signature()
+            or (context.get("calibration_preview") and (
+                not self.calibrate_button.isChecked()
+                or context.get("calibration_draft") != self._calibration_draft_signature()))
         ):
             self.show_status(
                 self._t("offset_discarded"),
@@ -2846,8 +2882,14 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self.alert_msg(self._t("offset_empty"), level="warn")
             return
         display_offset = offset
-        self.offset_edit.setText(str(display_offset))
-        self.show_status(self._t("offset_done", value=display_offset), 3000)
+        if context.get("calibration_preview"):
+            self.calibration_offset.setText(str(display_offset))
+            self.show_status(
+                ("Detected offset {:+d}; apply it after checking." if self._language == "en"
+                 else "识别到候选页差 {:+d}，校对后应用。").format(display_offset), 3000)
+        else:
+            self.offset_edit.setText(str(display_offset))
+            self.show_status(self._t("offset_done", value=display_offset), 3000)
 
     def _offset_failed(self, message):
         if self._close_requested:

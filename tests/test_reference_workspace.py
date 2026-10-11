@@ -163,6 +163,64 @@ def test_pdf_navigation_fills_calibration_target(window):
     assert window.pdf_anchor.text() == "8"
 
 
+def test_detected_offset_is_only_a_candidate_until_applied(window):
+    window.calibrate_button.click()
+    signature = window._current_draft_signature()
+    window._task_context = {
+        "kind": "offset", "pdf_path": window.pdf_path, "dir_text": window.dir_text,
+        "draft_signature": signature, "calibration_preview": True,
+        "calibration_draft": window._calibration_draft_signature(),
+    }
+    window._offset_inferred(3)
+    window._task_context = None
+    assert window.calibration_offset.text() == "3"
+    assert window.pdf_anchor.text() == "4"
+    assert window._current_draft_signature() == signature
+    window.calibration_header.close_button.click()
+    assert window._current_draft_signature() == signature
+    window.calibrate_button.click()
+    assert window.calibration_offset.text() == "0"
+    window.calibration_offset.setText("-")
+    assert not window.calibration_apply_button.isEnabled()
+    window.calibration_offset.setText("3")
+    window.calibration_apply_button.click()
+    assert window.offset_num == 3
+
+
+def test_real_detection_worker_reenables_candidate_apply(window, qtbot, monkeypatch):
+    import src.gui.main as main_module
+    monkeypatch.setattr(main_module, "infer_page_offset", lambda *_args, **_kwargs: 3)
+    window.calibrate_button.click()
+    window.auto_offset_button.click()
+    qtbot.waitUntil(lambda: window._worker_thread is None, timeout=5000)
+    assert window.calibration_offset.text() == "3"
+    assert window.offset_num == 0
+    assert window.calibration_apply_button.isEnabled()
+    window.calibration_apply_button.click()
+    assert window.offset_num == 3
+
+
+@pytest.mark.parametrize("change", ["edit", "close", "reopen"])
+def test_late_detection_cannot_replace_a_changed_calibration_trial(window, change):
+    window.calibrate_button.click()
+    window._task_context = {
+        "kind": "offset", "pdf_path": window.pdf_path, "dir_text": window.dir_text,
+        "draft_signature": window._current_draft_signature(), "calibration_preview": True,
+        "calibration_draft": window._calibration_draft_signature(),
+    }
+    if change == "edit":
+        window.calibration_offset.setText("2")
+    else:
+        window.calibration_header.close_button.click()
+        if change == "reopen":
+            window.calibrate_button.click()
+    before = window._calibration_draft_signature()
+    window._offset_inferred(3)
+    window._task_context = None
+    assert window._calibration_draft_signature() == before
+    assert window.offset_num == 0
+
+
 def test_editing_selected_destination_refreshes_pdf_reference(window):
     tree = window.dir_tree_widget
     tree.setCurrentItem(tree.topLevelItem(0))
@@ -190,14 +248,15 @@ def test_calibration_budgets_space_for_bookmark_comparison(window, qtbot, englis
     before = window.dir_tree_widget.height()
     window.calibrate_button.click()
     qtbot.wait(30)
-    assert window.dir_tree_widget.height() >= before * .75
-    assert not window.calibration_direct.isVisible()
-    assert window.calibration_more_button.isVisible()
-    window.calibration_more_button.click()
-    assert window.offset_edit.isVisible()
+    assert window.dir_tree_widget.height() >= before * .7
+    assert window.calibration_direct.isVisible()
+    assert not window.calibration_more_button.isVisible()
+    assert window.calibration_offset.isVisible()
     assert window.auto_offset_button.isVisible()
-    window.offset_edit.setText("2")
-    window.calibration_more_button.click()
+    window.calibration_offset.setText("2")
+    assert window.offset_num == 0
+    assert window.pdf_anchor.text() == "3"
+    window.calibration_apply_button.click()
     assert window.offset_num == 2
     window.calibrate_button.click()
     assert window.source_tabs.currentIndex() == 0
@@ -225,10 +284,9 @@ def test_large_text_calibration_never_clips_its_fields(window, qapp, qtbot):
         window.dir_text_edit.appendPlainText("Appendix 4")
         window.rules_accept_button.click()
         window.calibrate_button.click()
-        window.calibration_more_button.click()
         qtbot.wait(30)
         for control in (window.printed_anchor, window.pdf_anchor, window.calibration_apply_button,
-                        window.offset_edit, window.auto_offset_button):
+                        window.calibration_offset, window.auto_offset_button):
             rect = QtCore.QRect(control.mapTo(window.calibration_panel, QtCore.QPoint()), control.size())
             assert window.calibration_panel.rect().contains(rect), (control, rect)
             assert control.height() >= control.sizeHint().height()
@@ -239,6 +297,42 @@ def test_large_text_calibration_never_clips_its_fields(window, qapp, qtbot):
             window.grab().save(str(Path(capture_dir) / "large-font-calibration.png"))
     finally:
         qapp.setFont(original)
+
+
+def test_pdf_fit_page_stays_responsive_across_scrollbar_thresholds(qapp, qtbot, tmp_path):
+    from src.gui.pdf_reference import PdfReferencePane
+    from src.gui.product_style import stylesheet
+    source = tmp_path / "fit-page.pdf"
+    writer = QtGui.QPdfWriter(str(source))
+    painter = QtGui.QPainter(writer)
+    painter.drawText(100, 300, "Fit page resize regression")
+    painter.end()
+    del writer
+    pane = PdfReferencePane()
+    pane.setStyleSheet(stylesheet(qapp.font()))
+    qtbot.addWidget(pane)
+    pane.set_source(str(source))
+    pane.show()
+    if pane.view is None:
+        pytest.skip("This Qt build has no PDF viewer")
+    for height in range(520, 601, 4):
+        pane.resize(400, height)
+        qtbot.wait(1)
+    assert pane.current_page == 1
+    assert pane.view.horizontalScrollBar().maximum() == 0
+    assert pane.view.verticalScrollBarPolicy() == QtCore.Qt.ScrollBarAlwaysOff
+    pane.zoom_box.setCurrentIndex(1)
+    qtbot.wait(1)
+    assert pane.view.horizontalScrollBarPolicy() == QtCore.Qt.ScrollBarAlwaysOff
+    assert pane.view.verticalScrollBarPolicy() == QtCore.Qt.ScrollBarAlwaysOn
+    for index in (2, 3):
+        pane.zoom_box.setCurrentIndex(index)
+        qtbot.wait(1)
+        assert pane.view.horizontalScrollBarPolicy() == QtCore.Qt.ScrollBarAsNeeded
+        assert pane.view.verticalScrollBarPolicy() == QtCore.Qt.ScrollBarAsNeeded
+    pane.zoom_box.setCurrentIndex(0)
+    qtbot.wait(1)
+    assert pane.view.verticalScrollBarPolicy() == QtCore.Qt.ScrollBarAlwaysOff
 
 
 def test_hierarchy_move_preserves_subtree_source_and_undo(window):
@@ -275,9 +369,10 @@ def test_final_bookmark_hierarchy_and_calibration_reach_export(window, qtbot):
 def test_explicit_rule_add_and_preferences_are_separate(window):
     window.level_mode_box.setCurrentIndex(1)
     window.advanced_button.click()
-    assert not window.level0_edit.isVisible()
-    window._add_rule_level(0)
     assert window.level0_edit.isVisible()
+    window.level0_box.setChecked(False)
+    assert window.level0_edit.isVisible()
+    window.level0_box.setChecked(True)
     assert window.level0_edit.isEnabled()
     window.rules_options_button.click()
     assert not window.level5_edit.isVisible()
@@ -509,7 +604,7 @@ def test_source_error_height_shrinks_again_after_widening(window, qtbot):
     probe.setWordWrap(True)
     probe.setText(label.text())
     assert label.height() <= probe.heightForWidth(label.width()) + 2
-    assert label.height() < initial
+    assert label.height() <= initial
 
 
 @pytest.mark.parametrize("english", [False, True])

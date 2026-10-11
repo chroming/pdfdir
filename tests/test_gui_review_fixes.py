@@ -128,6 +128,7 @@ def test_title_column_owns_remaining_space(window):
     tree = window.dir_tree_widget
     assert not tree.header().stretchLastSection()
     assert tree.columnWidth(0) > tree.columnWidth(1) + tree.columnWidth(2)
+    assert tree.columnWidth(0) <= tree.fontMetrics().horizontalAdvance("M") * 42
 
 
 def test_english_minimum_keeps_offset_controls_grouped(window, tmp_path):
@@ -137,12 +138,11 @@ def test_english_minimum_keeps_offset_controls_grouped(window, tmp_path):
     window.to_english()
     window.resize(780, 560)
     window.calibrate_button.click()
-    window.calibration_more_button.click()
     window.app.processEvents()
-    assert window.offset_edit.parentWidget() is window.auto_offset_button.parentWidget()
-    gap = window.auto_offset_button.x() - (window.offset_edit.x() + window.offset_edit.width())
+    assert window.calibration_offset.parentWidget() is window.auto_offset_button.parentWidget()
+    gap = window.auto_offset_button.x() - (window.calibration_offset.x() + window.calibration_offset.width())
     assert gap >= window.calibration_direct.layout().spacing()
-    assert window.offset_edit.parentWidget() is window.calibration_direct
+    assert window.calibration_offset.parentWidget() is window.calibration_direct
     assert window.level_mode_box.parentWidget() is window.left_tools
 
 
@@ -523,8 +523,9 @@ def test_existing_bookmark_option_only_appears_when_relevant(
     assert not window.keep_exist_dir_box.isVisible()
 
     assert window._activate_document(str(bookmarked))
-    assert window.keep_exist_dir_box.isVisible()
-    assert "源 PDF" in window.keep_exist_dir_box.text()
+    assert not window.keep_exist_dir_box.isVisible()
+    assert window.keep_exist_dir_action.isVisible()
+    assert "书签" in window.keep_exist_dir_action.text()
 
 
 def test_imported_bookmark_titles_are_not_interpreted_as_rich_text(
@@ -967,7 +968,7 @@ def test_large_font_preserves_core_workspaces_and_reflows_controls(
         window.advanced_button.click()
         qtbot.waitUntil(window.rules_scroll.isVisible)
         window.level_mode_box.setCurrentIndex(1)
-        window.rules_options_button.click()
+        assert window.rules_options.isVisible()
         window.fix_non_seq_box.setFocus()
         qtbot.waitUntil(window.fix_non_seq_box.hasFocus)
         qtbot.wait(10)

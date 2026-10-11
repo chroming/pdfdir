@@ -58,10 +58,8 @@ def test_peer_secondary_commands_share_presentation(window):
 def test_disclosures_share_component_and_keep_label_and_size(window, qtbot, english):
     if english:
         window.to_english()
-    assert type(window.advanced_button) is type(window.rules_options_button)
-    for button in (window.advanced_button, window.rules_options_button):
-        if not button.isVisible():
-            window.advanced_button.click()
+    assert type(window.advanced_button) is type(window.calibrate_button)
+    for button in (window.advanced_button,):
         before = button.text(), button.sizeHint()
         icon = button.icon().cacheKey()
         button.click()
@@ -134,4 +132,4 @@ def test_shared_control_roles_have_keyboard_and_disabled_states(window):
         assert not button.isEnabled()
     assert window.rule_counts[0].property("variant") == "detail"
     assert window.output_location_button.property("density") == "compact"
-    assert window.rule_counts[0].property("density") == "regular"
+    assert window.rule_counts[0].property("density") == "compact"

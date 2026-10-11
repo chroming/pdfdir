@@ -230,6 +230,8 @@ def test_level_checkbox_click_toggles_matching_editor(window, level):
     checkbox = getattr(window, f"level{level}_box")
     editor = getattr(window, f"level{level}_edit")
 
+    assert editor.isEnabled() == checkbox.isChecked()
+    checkbox.setChecked(False)
     assert not editor.isEnabled()
     checkbox.click()
     assert editor.isEnabled()
