@@ -143,3 +143,20 @@ def test_unreadable_programmatic_pdf_path_blocks_export(window, tmp_path, caplog
     assert not window.export_button.isEnabled()
     assert "Could not read PDF page count" in caplog.text
 
+
+def test_comparison_rows_follow_each_source_lines_actual_font(window, qtbot):
+    import math
+    editor = window.dir_text_edit
+    editor.setPlainText("First 1\nSecond 2\nThird 3")
+    cursor = editor.textCursor()
+    cursor.movePosition(QtGui.QTextCursor.Start)
+    cursor.select(QtGui.QTextCursor.BlockUnderCursor)
+    text_format = QtGui.QTextCharFormat()
+    text_format.setFontPointSize(24)
+    cursor.mergeCharFormat(text_format)
+    heights = [math.ceil(editor.blockBoundingRect(editor.document().findBlockByNumber(i)).height())
+               for i in range(3)]
+    assert len(set(heights)) > 1  # Exercise the same mixed-metric shape as CJK fallback.
+    qtbot.waitUntil(lambda: [window.dir_tree_widget.visualItemRect(item).height()
+                            for item in window.dir_tree_widget.all_items] == heights)
+

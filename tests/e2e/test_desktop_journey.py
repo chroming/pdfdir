@@ -72,7 +72,7 @@ def test_user_opens_pdf_previews_hierarchy_and_generates_bookmarks(
     assert reader.get_destination_page_number(chapter) == 0
     assert section.title == "Section One"
     assert reader.get_destination_page_number(section) == 1
-    assert window.output_path_edit.text() == str(output_path)
+    assert os.path.normcase(os.path.normpath(window.output_path_edit.text())) == os.path.normcase(str(output_path))
     assert "已生成" in window.action_status_label.accessibleDescription()
     assert window.export_button.text() == "打开生成的 PDF"
 
@@ -131,7 +131,7 @@ def test_external_result_replacement_never_opens_or_overwrites_it(
 
     assert not window.open_result_action.isEnabled()
     assert window.export_button.text() == "生成 PDF"
-    assert window.output_path_edit.text() == str(next_output)
+    assert os.path.normcase(os.path.normpath(window.output_path_edit.text())) == os.path.normcase(str(next_output))
     assert "外部修改" in window.action_status_label.accessibleDescription()
     window.export_button.click()
     qtbot.waitUntil(

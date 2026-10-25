@@ -8,6 +8,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from src.convert import clean_clipboard_control_chars
 from src.gui.controls import BookmarkItemDelegate, DetailButton, DisclosureButton, InlineErrorLabel, InspectorHeader, MenuButton, ViewTabs, align_label_baselines, configure_command
 from src.gui.pdf_reference import PdfReferencePane
+from src.gui.base import SOURCE_ROLE
 
 
 class ReferenceWorkspaceMixin:
@@ -262,8 +263,13 @@ class ReferenceWorkspaceMixin:
         if not isinstance(delegate, BookmarkItemDelegate):
             return  # Shell construction precedes tree-controller initialization.
         block = self.dir_text_edit.document().firstBlock()
-        height = math.ceil(self.dir_text_edit.blockBoundingRect(block).height())
-        if delegate.set_source_line_height(height):
+        heights = {}
+        while block.isValid():
+            heights[block.blockNumber()] = math.ceil(self.dir_text_edit.blockBoundingRect(block).height())
+            block = block.next()
+        if delegate.set_source_line_heights(heights, SOURCE_ROLE):
+            # Fallback fonts can vary by line, not merely by document.
+            self.dir_tree_widget.setUniformRowHeights(False)
             self.dir_tree_widget.doItemsLayout()
 
     def _layout_reference_tools(self, compact=False):

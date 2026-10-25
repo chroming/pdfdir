@@ -316,18 +316,21 @@ class OutputSettingsDialog(QtWidgets.QDialog):
 
 
 class BookmarkItemDelegate(QtWidgets.QStyledItemDelegate):
-    def set_source_line_height(self, height):
-        if getattr(self, "_source_line_height", None) == height:
+    def set_source_line_heights(self, heights, source_role):
+        if getattr(self, "_source_line_heights", None) == heights:
             return False
-        self._source_line_height = height
+        self._source_line_heights = heights
+        self._source_role = source_role
         return True
 
     def sizeHint(self, option, index):
         size = super().sizeHint(option, index)
         # Cocoa adds native item padding; the comparison editor uses one
         # unwrapped text line. Keep both reading units on the same rhythm.
-        size.setHeight(max(math.ceil(QtGui.QFontMetricsF(option.font).height()),
-                           getattr(self, "_source_line_height", 0)))
+        height = math.ceil(QtGui.QFontMetricsF(option.font).height())
+        if hasattr(self, "_source_line_heights"):
+            height = self._source_line_heights.get(index.data(self._source_role), height)
+        size.setHeight(height)
         return size
 
     def createEditor(self, parent, option, index):
