@@ -128,6 +128,25 @@ def test_output_helper_owns_folder_dialog(window, qtbot, tmp_path):
     edit_output_settings(window, qtbot, folder=tmp_path, accept=False)
 
 
+def test_output_helper_reports_modal_lookup_failure(window, qtbot, monkeypatch):
+    from PySide6 import QtWidgets
+    from tests.gui_test_utils import edit_output_settings
+
+    def fail():
+        raise RuntimeError("modal lookup failed")
+    monkeypatch.setattr(QtWidgets.QApplication, "activeModalWidget", fail)
+    with pytest.raises(RuntimeError, match="modal lookup failed"):
+        edit_output_settings(window, qtbot)
+
+
+def test_output_helper_rejects_guarded_noop(window, qtbot):
+    from tests.gui_test_utils import edit_output_settings
+    window.pdf_path_edit.clear()
+    window.output_location_button.setEnabled(True)
+    with pytest.raises(AssertionError, match="dialog never opened"):
+        edit_output_settings(window, qtbot)
+
+
 def test_missing_ocr_uses_exception_type_not_backend_words(window):
     from src.pdf.page_offset import OcrUnavailableError
     assert window._friendly_recognition_error(OcrUnavailableError("arbitrary localized details")) == window._t("ocr_unavailable")

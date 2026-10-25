@@ -74,6 +74,14 @@ def test_roman_page_labels_cannot_silently_inherit_a_destination(text):
         convert_dir_text("Chapter 5\n" + text, offset=8)
 
 
+@pytest.mark.parametrize("title", ["Chapter One mix", "Chapter One DC", "Chapter One CD"])
+def test_ambiguous_title_can_explicitly_choose_page_or_group(title):
+    assert convert_dir_text(title + "  7")[0]["title"] == title
+    assert convert_dir_text(title + "  —")[0]["is_group"]
+    with pytest.raises(ValueError, match="may be a Roman"):
+        convert_dir_text(title)
+
+
 def test_explicit_groups_and_numeric_pages_remain_supported():
     result = convert_dir_text("Part IV  —\n  Preface iii 3\nBody 4", level_by_space=True)
     assert result[0]["is_group"]

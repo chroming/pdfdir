@@ -79,11 +79,12 @@ def test_cli_help_succeeds():
     assert "Add bookmarks to a PDF" in result.stdout
 
 
-def test_cli_process_writes_nested_bookmarks(tmp_path):
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig"])
+def test_cli_process_writes_nested_bookmarks(tmp_path, encoding):
     source_path = tmp_path / "source.pdf"
     toc_path = tmp_path / "toc.txt"
     _write_pdf(source_path)
-    toc_path.write_text("1. Chapter 1\n1.1 Section 2\n", encoding="utf-8")
+    toc_path.write_text("1. Chapter 1\n1.1 Section 2\n", encoding=encoding)
 
     result = _run_cli(source_path, toc_path)
     output_path = tmp_path / "source_new.pdf"

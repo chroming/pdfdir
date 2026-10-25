@@ -32,7 +32,7 @@ def build_parser():
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
-    toc = Path(args.toc_path).read_text(encoding="utf-8")
+    toc = Path(args.toc_path).read_text(encoding="utf-8-sig")
     output_path = add_directory(
         toc,
         args.offset,

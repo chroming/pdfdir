@@ -13,11 +13,13 @@ def edit_output_settings(window, qtbot, name=None, folder=None, accept=True, ins
     from src.gui.controls import OutputSettingsDialog
 
     errors = []
+    completed = []
 
     def interact():
-        dialog = QtWidgets.QApplication.activeModalWidget()
+        dialog = None
         try:
-            assert isinstance(dialog, OutputSettingsDialog)
+            dialog = QtWidgets.QApplication.activeModalWidget()
+            assert isinstance(dialog, OutputSettingsDialog), "Output settings dialog never opened"
             if name is not None:
                 dialog.name_edit.selectAll()
                 qtbot.keyClicks(dialog.name_edit, name)
@@ -38,9 +40,20 @@ def edit_output_settings(window, qtbot, name=None, folder=None, accept=True, ins
                 dialog.reject()
             for child in window.findChildren(OutputSettingsDialog):
                 child.reject()
+        finally:
+            completed.append(True)
 
-    QtCore.QTimer.singleShot(0, interact)
-    window.output_location_button.click()
+    timer = QtCore.QTimer(window)
+    timer.setSingleShot(True)
+    timer.timeout.connect(interact)
+    try:
+        assert window.output_location_button.isEnabled(), "Output settings action is unavailable"
+        timer.start(0)
+        window.output_location_button.click()
+        qtbot.waitUntil(lambda: bool(completed), timeout=1000)
+    finally:
+        timer.stop()
+        timer.deleteLater()
     if errors:
         raise errors[0]
 

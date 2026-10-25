@@ -49,7 +49,7 @@ class AmbiguousPageLabelError(ValueError):
         self.line_number = line_number
         self.label = label
         super().__init__(
-            f"Line {line_number}: Roman page label '{label}' needs an explicit numeric page. "
+            f"Line {line_number}: trailing token '{label}' may be a Roman page label; use an explicit numeric page. "
             "Use a number matching the current page offset, or append two spaces and — for a group."
         )
 

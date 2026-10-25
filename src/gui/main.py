@@ -327,7 +327,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "text_import_title": "Import TOC text",
             "text_import_replace": "Import replaces the TOC text and can be undone in the text editor. Manual bookmark edits are preserved until you choose to rebuild. No PDF file is changed.",
             "text_import_failed": "Cannot import text: {message}. Choose a valid UTF-8 or BOM-marked UTF-16 text file (up to 2 MiB).",
-            "roman_page_label": "Line {row}: Roman label '{label}'. Use a number (PDF page minus offset), or two spaces and — for a group.",
+            "roman_page_label": "Line {row}: '{label}' may be a Roman page label. Append a number (PDF page minus offset), or two spaces and — for a group.",
             "invalid_source_tree": "Invalid TOC structure. Previous bookmarks are preserved; generation is blocked: {message}",
             "source_needs_review": "Review the pages or structure in the TOC text before generating.",
             "offset_progress": "Detecting page offset with OCR: {current}/{total} pages",
