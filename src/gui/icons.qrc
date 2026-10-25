@@ -1,1 +1,1 @@
-<RCC><qresource prefix="/pdfdir"><file alias="chevron-down.svg">icons/chevron-down.svg</file></qresource></RCC>
+<RCC><qresource prefix="/pdfdir"><file alias="chevron-down.svg">icons/chevron-down.svg</file><file alias="chevron-down-disabled.svg">icons/chevron-down-disabled.svg</file></qresource></RCC>

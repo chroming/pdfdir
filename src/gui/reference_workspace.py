@@ -5,7 +5,7 @@ from pathlib import Path
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from src.convert import clean_clipboard_control_chars
-from src.gui.controls import DetailButton, DisclosureButton, InlineErrorLabel, InspectorHeader, MenuButton, ViewTabs, configure_command
+from src.gui.controls import DetailButton, DisclosureButton, InlineErrorLabel, InspectorHeader, MenuButton, ViewTabs, align_label_baselines, configure_command
 from src.gui.pdf_reference import PdfReferencePane
 
 
@@ -47,7 +47,7 @@ class ReferenceWorkspaceMixin:
         self.right_tools.setObjectName("context_tools")
         self.right_tools_layout.setContentsMargins(0, 0, 0, 0)
         self.right_tools.hide()
-        self.calibrate_button = DisclosureButton(self.preview_pane)
+        self.calibrate_button = DisclosureButton(self.preview_pane, command=True)
         self._calibration_trial_serial = 0
         self.calibrate_button.toggled.connect(self._toggle_calibration)
         self.offset_summary = QtWidgets.QLabel(self.preview_pane)
@@ -200,8 +200,9 @@ class ReferenceWorkspaceMixin:
             self._clear_layout(layout)
             for column in range(6):
                 layout.setColumnStretch(column, 0)
-        self.preview_header_layout.addWidget(self.preview_label, 0, 0)
-        self.preview_header_layout.addWidget(self.preview_count_label, 0, 1)
+        align_label_baselines(self.preview_label, self.preview_count_label)
+        self.preview_header_layout.addWidget(self.preview_label, 0, 0, QtCore.Qt.AlignVCenter)
+        self.preview_header_layout.addWidget(self.preview_count_label, 0, 1, QtCore.Qt.AlignVCenter)
         self.preview_header_layout.setColumnStretch(2, 1)
         if self._large_text_mode():
             # Accessibility text gets a symmetric second command row, rather

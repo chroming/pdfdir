@@ -871,7 +871,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             layout.addWidget(self.cancel_button, 0, 4)
             layout.addWidget(self.export_button, 0, 4)
         self._action_status_full_width = False
-        self.action_status_label.setAlignment(QtCore.Qt.AlignLeft if compact else QtCore.Qt.AlignRight)
+        self.action_status_label.setAlignment(QtCore.Qt.AlignVCenter | (
+            QtCore.Qt.AlignLeft if compact else QtCore.Qt.AlignRight))
         self._position_action_status()
         layout.invalidate()
 
@@ -884,7 +885,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         layout = self.action_controls_layout
         layout.removeWidget(self.action_status_label)
         if full_width:
-            self.action_status_label.setAlignment(QtCore.Qt.AlignLeft)
+            self.action_status_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
             layout.addWidget(
                 self.action_status_label,
                 2 if self._actions_compact else 1,
@@ -893,10 +894,10 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
                 6,
             )
         elif self._actions_compact:
-            self.action_status_label.setAlignment(QtCore.Qt.AlignLeft)
+            self.action_status_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
             layout.addWidget(self.action_status_label, 1, 0, 1, 3)
         else:
-            self.action_status_label.setAlignment(QtCore.Qt.AlignRight)
+            self.action_status_label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
             layout.addWidget(
                 self.action_status_label, 0, 3
             )

@@ -123,6 +123,9 @@ def test_result_label_does_not_move_primary_slot_or_output_field(window, qtbot):
         window.resize(window.minimumSize())
         window._reflow_controls()
         qtbot.wait(20)
+        status = window.action_status_label
+        ink = status.fontMetrics().boundingRect(status.contentsRect(), int(status.alignment()), status.text())
+        assert abs(ink.center().y() - status.contentsRect().center().y()) <= 1
         before = [control.geometry() for control in (window.export_button, window.output_summary_label, window.action_frame)]
         window.export_button.setText(window._t("open_generated"))
         window._reflow_controls()

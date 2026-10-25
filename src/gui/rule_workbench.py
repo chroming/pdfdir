@@ -500,13 +500,13 @@ class RuleWorkbenchMixin:
         for i, button in enumerate(self.rule_counts):
             button.setText(
                 ("Not updated" if english else "待更新") if stale
-                else (("{} matches" if english else "{} 条匹配").format(counts[i]))
+                else (("Locate · {}" if english else "定位匹配 · {}").format(counts[i]))
             )
             button.setToolTip(("Show matches for rule {}" if english else "定位第 {} 层规则匹配的书签").format(i + 1))
             button.setAccessibleName(f"{button.toolTip()} · {button.text()}")
             button.setEnabled(bool(counts[i]) and not stale)
         self.rules_unmatched_button.setText(
-            ("Unmatched: {}" if english else "未匹配：{} 条").format("—" if stale else counts[-1])
+            ("Find unmatched: {}" if english else "定位未匹配：{} 条").format("—" if stale else counts[-1])
         )
         self.rules_unmatched_button.setVisible(not self.level_by_space)
         self.rules_unmatched_button.setEnabled(bool(counts[-1]) and not stale)

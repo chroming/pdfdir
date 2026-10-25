@@ -81,7 +81,7 @@ def test_inspection_links_are_explicit_and_do_not_change_draft(window, qtbot, en
     window.level1_edit.setText(r"^\d+\.\d+")
     window._clear_rule_trial()
     button = window.rule_counts[0]
-    assert "match" in button.text().lower() if english else "匹配" in button.text()
+    assert "Locate" in button.text() if english else "定位匹配" in button.text()
     assert type(button) is type(window.output_location_button)
     assert type(button) is type(window.rules_unmatched_button)
     before = window._current_draft_signature()

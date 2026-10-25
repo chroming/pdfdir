@@ -14,6 +14,13 @@ def configure_command(button):
         button.installEventFilter(button._keyboard_focus_filter)
 
 
+def align_label_baselines(title, metadata):
+    """Align mixed-size labels while their layout centers the whole group."""
+    heading, detail = title.fontMetrics(), metadata.fontMetrics()
+    offset = 2 * (heading.ascent() - detail.ascent()) - (heading.height() - detail.height())
+    metadata.setContentsMargins(0, max(0, offset), 0, max(0, -offset))
+
+
 class CommandFocusFilter(QtCore.QObject):
     def eventFilter(self, widget, event):
         kind = event.type()
@@ -104,10 +111,11 @@ class KeyboardFocusMixin:
 
 
 class DisclosureButton(KeyboardFocusMixin, QtWidgets.QToolButton):
-    def __init__(self, parent=None, *, compact=False):
+    def __init__(self, parent=None, *, compact=False, command=False):
         super().__init__(parent)
         self.setProperty("variant", "disclosure")
         self.setProperty("density", "compact" if compact else "regular")
+        self.setProperty("emphasis", "command" if command else "quiet")
         self.setCheckable(True)
         self.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.setIconSize(QtCore.QSize(16, 16))

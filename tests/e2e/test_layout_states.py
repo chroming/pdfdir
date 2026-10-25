@@ -82,6 +82,10 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
         }
 
     capture("source")
+    def baseline(label):
+        ink = label.fontMetrics().boundingRect(label.contentsRect(), int(label.alignment()), label.text())
+        return label.mapTo(window, ink.topLeft()).y() + label.fontMetrics().ascent()
+    assert abs(baseline(window.preview_label) - baseline(window.preview_count_label)) <= 1
     editor, tree = window.dir_text_edit, window.dir_tree_widget
     source_origin = editor.viewport().mapTo(window, QtCore.QPoint()).y()
     tree_origin = tree.viewport().mapTo(window, QtCore.QPoint()).y()
@@ -113,6 +117,9 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
         for control in (window.unknown_level_box, window.fix_non_seq_box):
             assert viewport.rect().contains(QtCore.QRect(
                 control.mapTo(viewport, QtCore.QPoint()), control.size()))
+        for button in window.rule_counts[:3]:
+            assert viewport.rect().contains(QtCore.QRect(
+                button.mapTo(viewport, QtCore.QPoint()), button.size()))
     assert window.rules_options.isVisible()
     window.level1_box.setChecked(False)
     capture("disabled-rule")

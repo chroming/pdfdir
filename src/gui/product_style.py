@@ -70,12 +70,14 @@ def icon(name):
             path.moveTo(2, 7)
             path.lineTo(14, 7)
         elif name in ("chevron-right", "chevron-down"):
-            if name == "chevron-down":
-                painter.translate(16, 0)
-                painter.rotate(90)
-            path.moveTo(6, 4)
-            path.lineTo(10, 8)
-            path.lineTo(6, 12)
+            if name == "chevron-right":
+                painter.translate(8, 8)
+                painter.rotate(-90)
+                painter.translate(-8, -8)
+            QtGui.QIcon(":/pdfdir/chevron-down.svg").paint(painter, QtCore.QRect(0, 0, 16, 16))
+            painter.resetTransform()
+            painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceIn)
+            painter.fillRect(0, 0, 16, 16, QtGui.QColor(color))
         elif name in ("undo", "redo"):
             if name == "redo":
                 painter.translate(16, 0)
@@ -149,8 +151,11 @@ def stylesheet(app_font):
             background: #e4efff;
         }}
         QToolButton[variant="menu"]::menu-indicator {{
-            image: url({arrow}); width: 12px; height: 12px;
+            image: url({arrow}); width: 16px; height: 16px;
             subcontrol-origin: padding; subcontrol-position: center right; right: 6px;
+        }}
+        QToolButton[variant="menu"]::menu-indicator:disabled {{
+            image: url(:/pdfdir/chevron-down-disabled.svg);
         }}
         QLabel#action_status_label {{ color: #68707d; font-size: {body}; }}
         QLabel#action_status_label[statusKind="working"] {{ color: #246ac2; }}
@@ -233,6 +238,17 @@ def stylesheet(app_font):
         QToolButton[variant="disclosure"]:disabled, QToolButton[variant="detail"]:disabled {{
             color: #a2a9b4; background: transparent; border-color: transparent;
         }}
+        QToolButton[variant="disclosure"][emphasis="command"] {{
+            background: #f5f7fa; border-color: #d3d8e0; padding: 0 4px;
+        }}
+        QToolButton[variant="disclosure"][emphasis="command"]:hover,
+        QToolButton[variant="disclosure"][emphasis="command"]:checked {{
+            background: #edf2f8; border-color: #bac2cd;
+        }}
+        QToolButton[variant="disclosure"][emphasis="command"][keyboardFocus="true"] {{ border-color: #4385d7; }}
+        QToolButton[variant="disclosure"][emphasis="command"]:disabled {{
+            background: #f5f7fa; border-color: #e1e5eb;
+        }}
         QToolButton[variant="detail"][density="compact"],
         QToolButton[variant="disclosure"][density="compact"] {{
             font-size: {metadata};
@@ -248,7 +264,8 @@ def stylesheet(app_font):
             subcontrol-origin: padding; subcontrol-position: top right;
             width: 28px; border: 0; background: transparent;
         }}
-        QComboBox::down-arrow {{ image: url("{arrow}"); width: 14px; height: 14px; }}
+        QComboBox::down-arrow {{ image: url("{arrow}"); width: 16px; height: 16px; }}
+        QComboBox::down-arrow:disabled {{ image: url(:/pdfdir/chevron-down-disabled.svg); }}
         QComboBox QAbstractItemView {{
             background: #ffffff; border: 1px solid #d3d8e0;
             border-radius: 6px; padding: 4px; outline: 0;
