@@ -55,13 +55,13 @@ jobs:
         if: runner.os != 'Linux'
         shell: bash
         env:
-          QT_QPA_PLATFORM: offscreen
+          QT_QPA_PLATFORM: ${{ runner.os == 'Windows' && 'windows' || 'offscreen' }}
         run: uv run pytest -q -m "not e2e" --strict-markers
 
       - name: Run desktop E2E
         shell: bash
         env:
-          QT_QPA_PLATFORM: offscreen
+          QT_QPA_PLATFORM: ${{ runner.os == 'Windows' && 'windows' || 'offscreen' }}
         run: uv run pytest -q -m e2e --strict-markers
 
       - name: Measure coverage

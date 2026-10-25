@@ -85,6 +85,9 @@ def test_ci_workflow_uses_current_actions_and_semantic_frozen_smoke():
     ):
         assert contract in workflow, contract
     assert "sleep 5" not in workflow
+    # The Windows offscreen plugin has no native font database and measures
+    # missing-glyph boxes, not the typography users see in the desktop app.
+    assert workflow.count("runner.os == 'Windows' && 'windows' || 'offscreen'") == 2
 
 
 def test_setup_uv_is_pinned_consistently_across_workflows():
