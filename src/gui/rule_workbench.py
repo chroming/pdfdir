@@ -6,13 +6,14 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from src.convert import split_page_num
 from src.gui.product_style import configure_select
-from src.gui.controls import DetailButton, DisclosureButton, InspectorHeader, configure_command
+from src.gui.controls import DetailButton, InlineErrorLabel, InspectorHeader, configure_command
 from src.gui.base import SOURCE_ROLE, RULE_ROLE
 
 
 class RuleWorkbenchMixin:
     def _build_rule_workbench(self):
         self._rule_baseline = None
+        self._rule_rebuilt = False
         self._rules_pending = False
         self._rule_guarded = False
         self._rule_restore_running = False
@@ -45,6 +46,7 @@ class RuleWorkbenchMixin:
         self.rules_scroll.setObjectName("rules_scroll")
         self.rules_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.rules_scroll.setWidgetResizable(True)
+        self.rules_scroll.viewport().installEventFilter(self)
         self.rules_scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.rules_scroll.setWidget(self.advanced_widget)
         self.advanced_widget.setVisible(True)
@@ -86,11 +88,9 @@ class RuleWorkbenchMixin:
         for column in range(4):
             self.regex_grid.setColumnStretch(column, 1 if column == 1 else 0)
 
-        self.regex_error_label = QtWidgets.QLabel(self.advanced_widget)
-        self.regex_error_label.setObjectName("regex_error_label")
-        self.regex_error_label.setWordWrap(True)
+        self.regex_error_label = InlineErrorLabel(self.rules_section)
         self.regex_error_label.hide()
-        self.advanced_layout.insertWidget(0, self.regex_error_label)
+        section.insertWidget(2, self.regex_error_label)
         self.rules_indent_hint = QtWidgets.QLabel(self.advanced_widget)
         self.rules_indent_hint.setWordWrap(True)
         self.advanced_layout.insertWidget(1, self.rules_indent_hint)
@@ -108,8 +108,6 @@ class RuleWorkbenchMixin:
         while self.advanced_options_layout.count():
             self.advanced_options_layout.takeAt(0)
         self.advanced_layout.removeItem(self.advanced_options_layout)
-        self.rules_options_button = DisclosureButton(self.advanced_widget, compact=True)
-        self.rules_options_button.toggled.connect(self._toggle_rule_options)
         self.rules_commands = QtWidgets.QWidget(self.advanced_widget)
         commands = QtWidgets.QHBoxLayout(self.rules_commands)
         commands.setContentsMargins(0, 0, 0, 0)
@@ -124,7 +122,6 @@ class RuleWorkbenchMixin:
         self.read_exist_dir_box.hide()  # Owned by the existing preferences menu.
         self.advanced_layout.addWidget(self.rules_options)
         self.rules_options.show()
-        self.rules_options_button.hide()
         self.rules_unmatched_button = DetailButton(self.advanced_widget, compact=True)
         self.rules_unmatched_button.clicked.connect(lambda: self._show_rule_matches(-1))
         self.advanced_layout.addStretch(1)
@@ -167,11 +164,6 @@ class RuleWorkbenchMixin:
             "Hierarchy follows source indentation."
             if english else "层级由原文缩进决定。"
         )
-        self.rules_options_button.setText("Processing options" if english else "处理选项")
-        self.rules_options_button.setAccessibleDescription(
-            "Show or hide processing options"
-            if english else "展开或收起目录处理选项"
-        )
         self.add_rule_button.setText("+ Add level" if english else "+ 添加层级")
         self.read_exist_dir_box.setText("Ask to import bookmarks" if english else "打开 PDF 时询问导入书签")
         self.fix_non_seq_box.setText("Keep pages in order" if english else "修正倒序页码")
@@ -187,9 +179,6 @@ class RuleWorkbenchMixin:
         self.rules_accept_button.setText("Rebuild from source" if english else "按新原文重建书签")
         self._update_rule_rows()
         self._update_rule_feedback()
-
-    def _toggle_rule_options(self, expanded):
-        self.rules_options.setVisible(True)
 
     def _update_rule_rows(self):
         for i, count in enumerate(self.rule_counts):
@@ -238,6 +227,9 @@ class RuleWorkbenchMixin:
         self._resize_rule_workbench()
         self._translate_rule_workbench()
         if not expanded:
+            if not self._rule_guarded and not self._has_rule_trial_changes():
+                self._rule_baseline = None
+                self._rule_rebuilt = False
             # QSplitter retains its allocation when only the child's maximum
             # height changes; explicitly return the hidden tools' space.
             total = self.rule_splitter.height() - self.rule_splitter.handleWidth()
@@ -246,6 +238,7 @@ class RuleWorkbenchMixin:
             self._active_rule = None
             self._highlight_rule_matches()
             self.advanced_button.setFocus()
+        self._update_action_availability()
         self._refresh_action_status()
 
     def _resize_rule_workbench(self):
@@ -264,7 +257,13 @@ class RuleWorkbenchMixin:
         self.unknown_level_box.setVisible(not self.level_by_space)
         self._clear_layout(layout)
         layout.addWidget(self.unknown_level_label, 0, 0)
-        stacked = self._large_text_mode() or self.editor_pane.width() < 330
+        required_width = (self.unknown_level_label.sizeHint().width()
+                          + self.unknown_level_box.minimumSizeHint().width()
+                          + layout.horizontalSpacing())
+        usable_width = (self.rules_scroll.viewport().width()
+                        - self.advanced_layout.contentsMargins().left()
+                        - self.advanced_layout.contentsMargins().right())
+        stacked = self._large_text_mode() or required_width > usable_width
         layout.addWidget(self.unknown_level_box, 1 if stacked else 0,
                          0 if stacked else 1)
         layout.setColumnStretch(2, 1)
@@ -273,12 +272,20 @@ class RuleWorkbenchMixin:
             total = self.rule_splitter.height() - self.rule_splitter.handleWidth()
             footer = (self.rules_footer.sizeHint().height() + self.rules_header.sizeHint().height()
                       + self.left_tools.sizeHint().height() + self.rules_section.layout().spacing() * 3)
+            if self.regex_error_label.isVisible():
+                footer += self.regex_error_label.height() + self.rules_section.layout().spacing()
             # Size the ordinary case to its contents, not a fixed percentage.
             # Three active rules and recovery must be usable beside the source;
             # longer rule sets/options scroll in the same bounded inspector.
             content = self.advanced_widget.sizeHint().height()
-            source_min = self.dir_text_edit.fontMetrics().lineSpacing() * 6 + 16
+            source_min = self.dir_text_edit.fontMetrics().lineSpacing() * 6
             available = max(0, total - source_min)
+            # Long validation text and large fonts can consume most of the
+            # inspector. Scrolling must still expose a complete editable row.
+            row_min = self.level0_edit.sizeHint().height()
+            row_min += self.advanced_layout.contentsMargins().top() + self.advanced_layout.contentsMargins().bottom()
+            self.rules_section.setMinimumHeight(footer + row_min)
+            available = max(available, min(total - self.dir_text_edit.minimumHeight(), footer + row_min))
             desired = content + footer
             if self._rule_panel_ratio is not None:
                 desired = round(total * self._rule_panel_ratio)
@@ -293,6 +300,7 @@ class RuleWorkbenchMixin:
         )
 
     def _capture_rule_trial(self, values=None):
+        self._rule_rebuilt = False
         tree = self.dir_tree_widget
         self._rule_baseline = {
             "values": values or self._rule_values(),
@@ -343,6 +351,21 @@ class RuleWorkbenchMixin:
         self._update_rule_feedback()
 
     def _accept_rule_trial(self):
+        if not self._validate_regex_settings():
+            self.advanced_button.setChecked(True)
+            self._toggle_rule_workbench()
+            target = self.level0_box
+            for box, editor in zip(self._regex_boxes, self._regex_editors):
+                if box.isChecked():
+                    try:
+                        re.compile(editor.text())
+                    except re.error:
+                        target = editor
+                        break
+            target.setFocus(QtCore.Qt.OtherFocusReason)
+            QtCore.QTimer.singleShot(0, lambda: self._ensure_rule_control_visible(target))
+            self._update_action_availability()
+            return
         was_manual = self._preview_manually_adjusted
         self._rule_guarded = False
         self._preview_manually_adjusted = False
@@ -354,6 +377,9 @@ class RuleWorkbenchMixin:
             self._rule_guarded = True
             self.rules_guard_label.show()
             self.rules_accept_button.show()
+            self._update_action_availability()
+        elif was_manual:
+            self._rule_rebuilt = True
             self._update_action_availability()
 
     def _apply_rule_preview(self):
@@ -413,6 +439,7 @@ class RuleWorkbenchMixin:
     def _clear_rule_trial(self):
         self._rules_timer.stop()
         self._rule_baseline = None
+        self._rule_rebuilt = False
         self._rules_pending = False
         self._rule_guarded = False
         self.rules_guard_label.hide()
@@ -483,16 +510,19 @@ class RuleWorkbenchMixin:
         )
         self.rules_unmatched_button.setVisible(not self.level_by_space)
         self.rules_unmatched_button.setEnabled(bool(counts[-1]) and not stale)
-        state = self._rule_baseline
-        changed = state is not None and (
-            state["values"] != self._rule_values() or state["text"] != self.dir_text
-            or state["offset"] != self.offset_edit.text()
-            or state["items"] != self.dir_tree_widget._snapshot()
-        )
+        changed = self._has_rule_trial_changes()
         self.rules_restore_button.setEnabled(changed and not self._has_active_task())
         self.rules_restore_button.setVisible(bool(changed) and self.advanced_button.isChecked() and not self._rule_guarded)
         count = sum(1 for _ in self.dir_tree_widget.all_items)
         self._set_bookmark_count(count)
+
+    def _has_rule_trial_changes(self):
+        state = self._rule_baseline
+        return state is not None and (
+            state["values"] != self._rule_values() or state["text"] != self.dir_text
+            or state["offset"] != self.offset_edit.text()
+            or state["items"] != self.dir_tree_widget._snapshot()
+        )
 
     def _show_rule_matches(self, rule):
         matches = [item for item in self.dir_tree_widget.all_items if item.data(0, RULE_ROLE) == rule]
@@ -541,12 +571,26 @@ class RuleWorkbenchMixin:
         self._active_rule = item.data(0, RULE_ROLE)
         self._highlight_rule_matches()
 
+    def _ensure_rule_control_visible(self, control):
+        if control is None or not self.rules_scroll.isAncestorOf(control) or not control.isVisible():
+            return
+        self.rules_scroll.ensureWidgetVisible(control, 0, 0)
+        viewport = self.rules_scroll.viewport()
+        rect = QtCore.QRect(control.mapTo(viewport, QtCore.QPoint()), control.size())
+        bar = self.rules_scroll.verticalScrollBar()
+        if rect.bottom() > viewport.rect().bottom():
+            bar.setValue(bar.value() + rect.bottom() - viewport.rect().bottom())
+        elif rect.top() < 0:
+            bar.setValue(bar.value() + rect.top())
+
     def _rule_event_filter(self, watched, event):
+        if hasattr(self, "rules_scroll") and watched is self.rules_scroll.viewport() and event.type() == QtCore.QEvent.Resize:
+            QtCore.QTimer.singleShot(0, lambda: self._ensure_rule_control_visible(self.focusWidget()))
         if watched not in getattr(self, "_advanced_focus_chain", ()):
             return False
         if event.type() == QtCore.QEvent.FocusIn:
-            self.rules_scroll.ensureWidgetVisible(watched)
-            QtCore.QTimer.singleShot(0, lambda: self.rules_scroll.ensureWidgetVisible(watched))
+            self._ensure_rule_control_visible(watched)
+            QtCore.QTimer.singleShot(0, lambda: self._ensure_rule_control_visible(watched))
             if watched in self._regex_editors:
                 self._active_rule = self._regex_editors.index(watched)
                 self._highlight_rule_matches()

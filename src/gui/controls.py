@@ -140,9 +140,10 @@ class ViewTabs(KeyboardFocusMixin, QtWidgets.QTabBar):
 
 
 class MenuButton(KeyboardFocusMixin, QtWidgets.QToolButton):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, *, in_header=False):
         super().__init__(parent)
         self.setProperty("variant", "menu")
+        self.setProperty("density", "header" if in_header else "regular")
         self.setPopupMode(QtWidgets.QToolButton.InstantPopup)
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
@@ -234,6 +235,13 @@ class OutputSettingsDialog(QtWidgets.QDialog):
 
 
 class BookmarkItemDelegate(QtWidgets.QStyledItemDelegate):
+    def sizeHint(self, option, index):
+        size = super().sizeHint(option, index)
+        # Cocoa adds native item padding; the comparison editor uses one
+        # unwrapped text line. Keep both reading units on the same rhythm.
+        size.setHeight(option.fontMetrics.height())
+        return size
+
     def createEditor(self, parent, option, index):
         editor = QtWidgets.QLineEdit(parent)
         editor.setProperty("variant", "cell-editor")

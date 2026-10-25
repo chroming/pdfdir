@@ -52,7 +52,7 @@ class ReferenceWorkspaceMixin:
         self.calibrate_button.toggled.connect(self._toggle_calibration)
         self.offset_summary = QtWidgets.QLabel(self.preview_pane)
         self.offset_summary.setObjectName("offset_formula_label")
-        self.hierarchy_button = MenuButton(self.preview_pane)
+        self.hierarchy_button = MenuButton(self.dir_tree_widget.header().viewport(), in_header=True)
         hierarchy_menu = QtWidgets.QMenu(self.hierarchy_button)
         self.hierarchy_button.setMenu(hierarchy_menu)
         self.indent_action = hierarchy_menu.addAction("")
@@ -109,8 +109,6 @@ class ReferenceWorkspaceMixin:
         direct.addWidget(self.auto_offset_button)
         direct.addStretch(1)
         calibration.addWidget(self.calibration_direct, 3, 0, 1, 3)
-        self.calibration_more_button = DisclosureButton(self.calibration_panel, compact=True)
-        self.calibration_more_button.hide()
         self.calibration_direct.show()
         self.offset_edit.hide()
         self.offset_formula_label.hide()
@@ -223,7 +221,6 @@ class ReferenceWorkspaceMixin:
             self.preview_header_layout.addWidget(self.calibrate_button, 0, 3)
             self.preview_header_layout.addWidget(self.undo_button, 0, 4)
             self.preview_header_layout.addWidget(self.redo_button, 0, 5)
-        self.hierarchy_button.setParent(self.dir_tree_widget)
         self.hierarchy_button.show()
         self._position_hierarchy_menu()
 
@@ -237,7 +234,9 @@ class ReferenceWorkspaceMixin:
         preferred = max(320, min(ceiling, tree.sizeHintForColumn(0) + width + 16))
         tree.setColumnWidth(0, max(80, min(available, preferred)))
         self.hierarchy_button.resize(width, header.height())
-        self.hierarchy_button.move(max(0, header.sectionSize(0) - width - 8), header.y())
+        self.hierarchy_button.move(max(0, header.sectionSize(0) - width - 8), 0)
+        self.dir_text_edit.set_text_top_inset(
+            0 if self.advanced_button.isChecked() else header.height())
 
     def _layout_reference_tools(self, compact=False):
         large = self._large_text_mode()
@@ -282,9 +281,6 @@ class ReferenceWorkspaceMixin:
     def _resize_calibration(self):
         self.calibration_layout.invalidate()
         self.calibration_panel.setMinimumHeight(self.calibration_layout.sizeHint().height())
-
-    def _toggle_direct_calibration(self, expanded):
-        self.calibration_direct.show()
 
     def _direct_calibration_changed(self):
         if self.calibration_offset.hasAcceptableInput() and self.printed_anchor.hasAcceptableInput():
@@ -383,7 +379,8 @@ class ReferenceWorkspaceMixin:
         self.calibrate_button.setEnabled(has_pdf and not write_running and not self._rule_guarded)
         self.calibration_panel.setEnabled(has_pdf and not write_running)
         self.hierarchy_button.setEnabled(not write_running and self.dir_tree_widget.topLevelItemCount() > 0)
-        manual_trial = self._rule_baseline and self._rule_baseline["manual"]
+        manual_trial = (self._rule_rebuilt and self._rule_baseline
+                        and self._rule_baseline["manual"] and self._has_rule_trial_changes())
         self.guard_panel.setVisible(bool(self._rule_guarded or manual_trial))
         if self._rule_guarded:
             self.rules_guard_label.setText(
@@ -427,8 +424,6 @@ class ReferenceWorkspaceMixin:
             shortcut = QtGui.QKeySequence(sequence).toString(QtGui.QKeySequence.NativeText)
             action.setText(f"{label}\t{shortcut}")
         self.calibrate_button.setText("Calibrate" if english else "校准页码")
-        self.calibration_more_button.setText("Other methods" if english else "其他方式")
-        self.calibration_more_button.setToolTip("Set the offset directly or detect it from the PDF." if english else "直接输入页差，或从 PDF 自动识别页差。")
         self.printed_anchor_label.setText("Printed page" if english else "书上标注页")
         self.pdf_anchor_label.setText("PDF page" if english else "对应 PDF 页")
         self.calibration_header.title.setText("Page calibration" if english else "页码校准")

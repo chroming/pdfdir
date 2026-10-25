@@ -63,6 +63,11 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
             qtbot.wait(35)
         assert window.size() == QtCore.QSize(*size)
         assert window.dir_tree_widget.horizontalScrollBar().maximum() == 0
+        header = window.dir_tree_widget.header()
+        edit = window.hierarchy_button
+        assert header.viewport().rect().contains(edit.geometry())
+        for index in range(window.source_tabs.count()):
+            assert window.source_tabs.rect().contains(window.source_tabs.tabRect(index))
         command = window.cancel_button if window.cancel_button.isVisible() else window.export_button
         for widget in (command, window.action_status_label, window.dir_tree_widget):
             rect = QtCore.QRect(widget.mapTo(window, QtCore.QPoint()), widget.size())
@@ -77,6 +82,14 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
         }
 
     capture("source")
+    editor, tree = window.dir_text_edit, window.dir_tree_widget
+    source_origin = editor.viewport().mapTo(window, QtCore.QPoint()).y()
+    tree_origin = tree.viewport().mapTo(window, QtCore.QPoint()).y()
+    for index, item in enumerate(tree.all_items):
+        block = editor.document().findBlockByNumber(index)
+        source_rect = editor.blockBoundingGeometry(block).translated(editor.contentOffset())
+        tree_rect = tree.visualItemRect(item)
+        assert abs(source_origin + source_rect.top() - tree_origin - tree_rect.top()) <= 1
     qtbot.mouseClick(window.source_tabs, QtCore.Qt.LeftButton,
                      pos=window.source_tabs.tabRect(1).center())
     capture("pdf-pointer")
@@ -94,6 +107,12 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
         getattr(window, f"level{index}_edit").setText(pattern)
     qtbot.waitUntil(lambda: not window._rules_pending)
     capture("three-rules")
+    if size[0] == 780:
+        assert window.rules_scroll.verticalScrollBar().maximum() == 0
+        viewport = window.rules_scroll.viewport()
+        for control in (window.unknown_level_box, window.fix_non_seq_box):
+            assert viewport.rect().contains(QtCore.QRect(
+                control.mapTo(viewport, QtCore.QPoint()), control.size()))
     assert window.rules_options.isVisible()
     window.level1_box.setChecked(False)
     capture("disabled-rule")
@@ -144,6 +163,8 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
         window.advanced_button.click()
     assert window._current_draft_signature() == signature
     capture("ready")
+    assert not window.guard_panel.isVisible()
+    tree_before_export = window.dir_tree_widget.geometry()
     def inspect_output(dialog):
         if folder:
             assert dialog.grab().save(str(folder / "output-settings.png"))
@@ -153,8 +174,12 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
     window.export_button.click()
     window._reflow_controls()
     capture("working", settle=False)
+    assert not window.guard_panel.isVisible()
+    assert window.dir_tree_widget.geometry() == tree_before_export
     qtbot.waitUntil(lambda: window._worker_thread is None, timeout=15000)
     capture("result")
+    assert not window.guard_panel.isVisible()
+    assert window.dir_tree_widget.geometry() == tree_before_export
     assert states["ready"]["footer"] == states["working"]["footer"] == states["result"]["footer"]
     assert PdfReader(window.output_path_edit.text()).outline
     assert source.read_bytes() == original

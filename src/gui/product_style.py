@@ -113,7 +113,6 @@ def stylesheet(app_font):
     heading = f"{size if large else 15:g}{unit}"
     content = f"{size if large else 14:g}{unit}"
     height = control_height(app_font) - 2
-    row = QtGui.QFontMetrics(app_font).height() + 6 if large else 20
     arrow = ":/pdfdir/chevron-down.svg"
     return f"""
         QWidget {{ font-family: "{app_font.family()}"; font-size: {body}; color: #252a32; }}
@@ -149,9 +148,6 @@ def stylesheet(app_font):
         QTabBar[variant="view-tabs"][keyboardFocus="true"]::tab:selected {{
             background: #e4efff;
         }}
-        QToolButton[variant="menu"] {{ padding-right: 24px; background: transparent; border-color: transparent; }}
-        QToolButton[variant="menu"]:focus {{ border-color: transparent; }}
-        QToolButton[variant="menu"][keyboardFocus="true"] {{ border-color: #4385d7; }}
         QToolButton[variant="menu"]::menu-indicator {{
             image: url({arrow}); width: 12px; height: 12px;
             subcontrol-origin: padding; subcontrol-position: center right; right: 6px;
@@ -182,6 +178,12 @@ def stylesheet(app_font):
         QPushButton:disabled, QToolButton:disabled, QLineEdit:disabled, QComboBox:disabled {{
             color: #a2a9b4; background: #f3f5f7; border-color: #e1e5eb;
         }}
+        QToolButton[variant="menu"] {{ padding-right: 24px; background: transparent; border-color: transparent; }}
+        QToolButton[variant="menu"]:hover {{ background: #edf0f4; }}
+        QToolButton[variant="menu"]:focus {{ border-color: transparent; }}
+        QToolButton[variant="menu"][keyboardFocus="true"] {{ border-color: #4385d7; }}
+        QToolButton[variant="menu"]:disabled {{ background: transparent; border-color: transparent; }}
+        QToolButton[variant="menu"][density="header"] {{ min-height: 0; max-height: 10000px; }}
         QPushButton[variant="quiet"], QToolButton[variant="quiet"],
         QPushButton[variant="icon"], QToolButton[variant="icon"] {{
             background: transparent; border-color: transparent;
@@ -257,8 +259,8 @@ def stylesheet(app_font):
         QComboBox QAbstractItemView::item:hover {{ background: #f0f5fc; }}
 
         QPlainTextEdit#dir_text_edit {{
-            font-size: {body}; color: #59616d; background: #ffffff;
-            border: 0; padding: 8px 0;
+            font-size: {content}; color: #59616d; background: #ffffff;
+            border: 0; padding: 0;
             selection-background-color: #dceaff; selection-color: #253e60;
         }}
         QTreeWidget#dir_tree_widget {{
@@ -266,7 +268,7 @@ def stylesheet(app_font):
             border: 0; show-decoration-selected: 1;
         }}
         QTreeWidget#dir_tree_widget::item {{
-            min-height: {row - 1}px; padding: 0 6px;
+            padding: 0 6px;
             border: 0;
         }}
         QTreeWidget#dir_tree_widget::item:hover {{ background: #f5f7fa; }}

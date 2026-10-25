@@ -18,6 +18,8 @@ class _LineNumberArea(QtWidgets.QWidget):
 class NumberedTextEdit(QtWidgets.QPlainTextEdit):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._text_top_inset = 0
+        self.document().setDocumentMargin(0)
         self.line_number_area = _LineNumberArea(self)
         self.blockCountChanged.connect(self._update_line_number_width)
         self.updateRequest.connect(self._update_line_number_area)
@@ -32,7 +34,13 @@ class NumberedTextEdit(QtWidgets.QPlainTextEdit):
         return 16 + self.fontMetrics().horizontalAdvance("9") * max(2, digits)
 
     def _update_line_number_width(self, _count=0):
-        self.setViewportMargins(self.line_number_area_width(), 0, 0, 0)
+        self.setViewportMargins(self.line_number_area_width(), self._text_top_inset, 0, 0)
+
+    def set_text_top_inset(self, height):
+        if height != self._text_top_inset:
+            self._text_top_inset = height
+            self._update_line_number_width()
+            self.line_number_area.update()
 
     def _update_line_number_area(self, rect, dy):
         if dy:
@@ -56,6 +64,7 @@ class NumberedTextEdit(QtWidgets.QPlainTextEdit):
         block = self.firstVisibleBlock()
         number = block.blockNumber()
         top = int(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())
+        top += self.viewport().y() - self.line_number_area.y()
         while block.isValid() and top <= event.rect().bottom():
             height = int(self.blockBoundingRect(block).height())
             if block.isVisible() and top + height >= event.rect().top():

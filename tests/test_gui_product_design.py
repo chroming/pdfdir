@@ -67,7 +67,7 @@ def test_file_entry_starts_header_and_source_is_secondary(window):
     assert window.open_button.geometry().right() < (
         window.document_name_label.geometry().left()
     )
-    assert window.dir_text_edit.fontMetrics().height() < (
+    assert window.dir_text_edit.fontMetrics().height() == (
         window.dir_tree_widget.fontMetrics().height()
     )
 
@@ -161,7 +161,6 @@ def test_fields_and_commands_share_a_control_track(window):
 def test_select_popup_shows_current_option_and_supports_keyboard(window, qtbot, name):
     if name == "unknown_level_box":
         window.advanced_button.click()
-        window.rules_options_button.click()
         qtbot.waitUntil(window.rules_options.isVisible)
     combo = getattr(window, name)
     combo.setFocus()

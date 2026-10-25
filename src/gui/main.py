@@ -544,7 +544,6 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self.level4_edit,
             self.level5_box,
             self.level5_edit,
-            self.rules_options_button,
             self.unknown_level_box,
             self.fix_non_seq_box,
             self.read_exist_dir_box,
@@ -1210,6 +1209,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self.sub_dir_group.setEnabled(numbering_mode)
         self.rules_indent_hint.setVisible(not numbering_mode)
         self._update_accessible_layout_constraints()
+        # Measure after Qt has propagated the mode's child visibility changes.
+        QtCore.QTimer.singleShot(0, self._resize_rule_workbench)
         self._validate_regex_settings()
         self._update_action_availability()
 
@@ -1738,7 +1739,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self.level4_box: ("Level 5", "五层"),
             self.level5_box: ("Level 6", "六层"),
             self.unknown_level_label: (
-                "Unmatched lines become",
+                "Unmatched lines",
                 "未识别行作为",
             ),
             self.fix_non_seq_box: (
@@ -2147,7 +2148,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
                 "error" if self.source_tabs.currentIndex() == 1 else "normal")
         elif self._rules_pending:
             hidden_error = self._regex_validation_error if (
-                not self.advanced_button.isChecked() and not self._rule_guarded) else ""
+                not self.advanced_button.isChecked()) else ""
             self._set_action_status(hidden_error, "error" if hidden_error else "normal")
         elif validation_error:
             self._set_action_status(validation_error, "error")
@@ -2443,11 +2444,12 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
                             index
                         ]
                     )
-                    self._regex_validation_error = self._t(
-                        "invalid_regex",
-                        level=level_name,
-                        message=str(exc),
-                    )
+                    if not self._regex_validation_error:
+                        self._regex_validation_error = self._t(
+                            "invalid_regex",
+                            level=level_name,
+                            message=str(exc),
+                        )
             editor.setProperty("invalid", invalid)
             editor.style().unpolish(editor)
             editor.style().polish(editor)

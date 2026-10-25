@@ -123,7 +123,7 @@ def test_cell_editor_keyboard_commit_cancel_and_history(window, qtbot, key):
 
 
 def test_shared_control_roles_have_keyboard_and_disabled_states(window):
-    controls = (window.advanced_button, window.rules_options_button,
+    controls = (window.advanced_button, window.source_import_button,
                 window.output_location_button, window.rules_unmatched_button,
                 *window.rule_counts)
     for button in controls:

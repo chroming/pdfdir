@@ -250,7 +250,6 @@ def test_calibration_budgets_space_for_bookmark_comparison(window, qtbot, englis
     qtbot.wait(30)
     assert window.dir_tree_widget.height() >= before * .7
     assert window.calibration_direct.isVisible()
-    assert not window.calibration_more_button.isVisible()
     assert window.calibration_offset.isVisible()
     assert window.auto_offset_button.isVisible()
     window.calibration_offset.setText("2")
@@ -374,7 +373,6 @@ def test_explicit_rule_add_and_preferences_are_separate(window):
     assert window.level0_edit.isVisible()
     window.level0_box.setChecked(True)
     assert window.level0_edit.isEnabled()
-    window.rules_options_button.click()
     assert not window.level5_edit.isVisible()
     assert not window.read_exist_dir_box.isVisible()
     assert window.read_exist_dir_action in window.file_menu.actions()

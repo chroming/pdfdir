@@ -1,11 +1,12 @@
 """Contracts for iterative rule editing, independent of panel decoration."""
 
 import os
+from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6 import QtCore
+from PySide6 import QtCore, QtGui
 from pypdf import PdfWriter
 
 from src.gui.base import SOURCE_ROLE, RULE_ROLE
@@ -60,6 +61,80 @@ def test_collapsed_rule_error_has_one_visible_recovery_message(window):
     window.advanced_button.click()
     assert window.regex_error_label.isVisible()
     assert window.action_status_label.text() == ""
+
+
+@pytest.mark.parametrize("invalid_level", [0, 5])
+def test_guarded_invalid_rebuild_reveals_error_without_changing_draft(window, qtbot, invalid_level):
+    if invalid_level:
+        for index in range(2, 6):
+            window._add_rule_level(index)
+    window.resize(window.minimumSize())
+    editor = getattr(window, f"level{invalid_level}_edit")
+    window.dir_tree_widget.topLevelItem(0).setText(0, "Manual correction")
+    before = window._tree_snapshot()
+    history = list(window.dir_tree_widget._history)
+    editor.setText("[")
+    window.advanced_button.click()
+    assert window._regex_validation_error in window.action_status_label.toolTip()
+    window.rules_accept_button.click()
+    qtbot.wait(30)
+    assert window.rules_section.isVisible()
+    assert window.regex_error_label.isVisible()
+    assert editor.hasFocus()
+    viewport = window.rules_scroll.viewport()
+    assert viewport.rect().contains(QtCore.QRect(editor.mapTo(viewport, QtCore.QPoint()), editor.size()))
+    assert not window.regex_error_label.visibleRegion().isEmpty()
+    assert window._rule_guarded
+    assert window._tree_snapshot() == before
+    assert window.dir_tree_widget._history == history
+    assert window.action_status_label.text() == ""
+
+
+def test_large_text_last_rule_error_and_field_remain_visible(window, qtbot, qapp):
+    original = qapp.font()
+    font = QtGui.QFont(original)
+    font.setPointSize(24)
+    try:
+        qapp.setFont(font)
+        window.to_english()
+        test_guarded_invalid_rebuild_reveals_error_without_changing_draft(window, qtbot, 5)
+        label = window.regex_error_label
+        assert label.visibleRegion().boundingRect().contains(label.rect())
+        capture_dir = os.environ.get("PDFDIR_UI_CAPTURE_DIR")
+        if capture_dir:
+            window.grab().save(str(Path(capture_dir) / "large-font-rule-error.png"))
+    finally:
+        qapp.setFont(original)
+
+
+def test_unchanged_rule_visit_does_not_offer_restore_on_refresh(window, qtbot):
+    window.advanced_button.click()
+    window._clear_rule_trial()
+    window.dir_tree_widget.topLevelItem(0).setText(0, "Manual correction")
+    before = window._tree_snapshot()
+    for _ in range(3):
+        window.advanced_button.click()
+        window.advanced_button.click()
+        window._update_action_availability()
+        assert window._rule_baseline is None
+        assert not window.guard_panel.isVisible()
+    assert window._tree_snapshot() == before
+
+
+def test_rebuilt_manual_draft_remains_recoverable_after_panel_visit(window, qtbot):
+    window.dir_tree_widget.topLevelItem(0).setText(0, "Manual correction")
+    before = window._tree_snapshot()
+    window.level0_edit.setText("^Appendix")
+    window.rules_accept_button.click()
+    assert window._rule_rebuilt
+    window.advanced_button.click()
+    window.advanced_button.click()
+    window.advanced_button.click()
+    window._update_action_availability()
+    assert window.source_restore_button.isVisible()
+    window.source_restore_button.click()
+    assert window._tree_snapshot() == before
+    assert not window.guard_panel.isVisible()
 
 
 def test_rule_panel_remembers_user_size_across_disclosure(window, qtbot):
@@ -235,6 +310,10 @@ def test_three_rules_and_recovery_fit_without_scrolling_at_minimum(window, qtbot
     assert window.dir_text_edit.viewport().height() >= window.dir_text_edit.fontMetrics().lineSpacing() * 6
     assert window.rules_restore_button.isVisible()
     assert window.rules_unmatched_button.isVisible()
+    assert window.rules_scroll.verticalScrollBar().maximum() == 0
+    for control in (window.unknown_level_box, window.fix_non_seq_box):
+        rect = QtCore.QRect(control.mapTo(viewport, QtCore.QPoint()), control.size())
+        assert viewport.rect().contains(rect)
 
 
 def test_indentation_tools_do_not_keep_empty_numbering_space(window, qtbot):
@@ -253,7 +332,6 @@ def test_options_disclosure_reveals_controls_and_keeps_recovery_visible(window, 
     window.resize(window.minimumSize())
     qtbot.wait(30)
     assert window.rules_options.isVisible()
-    assert not window.rules_options_button.isVisible()
     viewport = window.rules_scroll.viewport()
     control = window.unknown_level_box
     rect = QtCore.QRect(control.mapTo(viewport, QtCore.QPoint()), control.size())
