@@ -42,11 +42,11 @@ def configure_select(combo):
     combo.setMinimumContentsLength(6)
 
 
-def icon(name):
+def icon(name, *, foreground=None):
     """Small monochrome toolbar symbols, drawn on the same 16-unit grid."""
     result = QtGui.QIcon()
     for mode, color in (
-        (QtGui.QIcon.Normal, "#525b68"),
+        (QtGui.QIcon.Normal, foreground or "#525b68"),
         (QtGui.QIcon.Disabled, "#b5bbc4"),
     ):
         pixmap = QtGui.QPixmap(32, 32)
@@ -132,6 +132,10 @@ def stylesheet(app_font):
         QLabel#document_name_label, QLabel#dir_text_label, QLabel#preview_label {{
             font-size: {heading}; font-weight: 600;
         }}
+        QLabel#document_name_label[documentState="empty"] {{
+            font-size: {body}; font-weight: 400; color: #68707d;
+        }}
+        QLabel#document_pages_label {{ font-size: {metadata}; font-weight: 400; color: #68707d; }}
         QLabel#preview_count_label, QLabel#offset_formula_label,
         QLabel#output_location_label, QLabel#level_mode_label,
         QLabel#offset_label, QLabel#output_label {{
@@ -238,16 +242,25 @@ def stylesheet(app_font):
         QToolButton[variant="disclosure"]:disabled, QToolButton[variant="detail"]:disabled {{
             color: #a2a9b4; background: transparent; border-color: transparent;
         }}
-        QToolButton[variant="disclosure"][emphasis="command"] {{
-            background: #f5f7fa; border-color: #d3d8e0; padding: 0 4px;
+        QToolButton[variant="disclosure"][emphasis="command"],
+        QToolButton[variant="menu"][emphasis="command"] {{
+            background: #f5f7fa; border-color: #d3d8e0;
         }}
+        QToolButton[variant="disclosure"][emphasis="command"] {{ padding: 0 4px; }}
         QToolButton[variant="disclosure"][emphasis="command"]:hover,
-        QToolButton[variant="disclosure"][emphasis="command"]:checked {{
+        QToolButton[variant="disclosure"][emphasis="command"]:checked,
+        QToolButton[variant="menu"][emphasis="command"]:hover,
+        QToolButton[variant="menu"][emphasis="command"]:pressed {{
             background: #edf2f8; border-color: #bac2cd;
         }}
-        QToolButton[variant="disclosure"][emphasis="command"][keyboardFocus="true"] {{ border-color: #4385d7; }}
-        QToolButton[variant="disclosure"][emphasis="command"]:disabled {{
+        QToolButton[variant="disclosure"][emphasis="command"][keyboardFocus="true"],
+        QToolButton[variant="menu"][emphasis="command"][keyboardFocus="true"] {{ border-color: #4385d7; }}
+        QToolButton[variant="disclosure"][emphasis="command"]:disabled,
+        QToolButton[variant="menu"][emphasis="command"]:disabled {{
             background: #f5f7fa; border-color: #e1e5eb;
+        }}
+        QToolButton[variant="menu"][suggested="true"] {{
+            background: #eaf2fd; border-color: #4385d7; color: #246ac2;
         }}
         QToolButton[variant="detail"][density="compact"],
         QToolButton[variant="disclosure"][density="compact"] {{

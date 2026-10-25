@@ -38,7 +38,8 @@ def test_primary_workspace_has_readable_default_geometry(window):
     assert window.workspace_frame.isVisible()
     assert not window.dir_tree_widget.alternatingRowColors()
     assert not window.pdf_path_edit.isVisible()
-    assert window.output_summary_label.isVisible()
+    assert not window.output_summary_label.isVisible()
+    assert not window.output_label.isVisible()
     assert not window.output_name_edit.isVisible()
     assert window.dir_text_edit.line_number_area_width() > 0
     assert window.level_mode_box.parentWidget() is window.left_tools
@@ -64,9 +65,8 @@ def test_related_controls_stay_grouped_at_default_and_minimum_width(window):
 
 
 def test_file_entry_starts_header_and_source_is_secondary(window):
-    assert window.open_button.geometry().right() < (
-        window.document_name_label.geometry().left()
-    )
+    assert window.open_button.geometry().right() < window.document_name_label.mapTo(
+        window.document_frame, QtCore.QPoint()).x()
     assert window.dir_text_edit.fontMetrics().height() == (
         window.dir_tree_widget.fontMetrics().height()
     )
@@ -374,7 +374,7 @@ def test_output_path_is_visible_before_generation(window, tmp_path):
     assert window.output_path_edit.isReadOnly()
     assert window.output_name_edit.text() == "source_new.pdf"
     assert "source.pdf" in window.document_name_label.toolTip()
-    assert "1 页" in window.document_name_label.text()
+    assert window.document_pages_label.text() == "1 页"
 
 
 def test_large_font_document_identity_elides_without_clipping_page_count(
@@ -398,12 +398,18 @@ def test_large_font_document_identity_elides_without_clipping_page_count(
 
         label = window.document_name_label
         assert label.accessibleDescription().endswith("2 pages")
-        assert label.text().endswith("2 pages")
+        assert window.document_pages_label.text() == "2 pages"
+        assert window.document_identity.rect().contains(window.document_pages_label.geometry())
         assert "…" in label.text()
         assert (
             label.fontMetrics().horizontalAdvance(label.text())
             <= label.contentsRect().width()
         )
+        capture_dir = os.environ.get("PDFDIR_UI_CAPTURE_DIR")
+        if capture_dir:
+            from pathlib import Path
+            Path(capture_dir).mkdir(parents=True, exist_ok=True)
+            window.grab().save(str(Path(capture_dir) / "large-font-document-identity.png"))
     finally:
         qapp.setFont(original_font)
 

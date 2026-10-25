@@ -31,7 +31,7 @@ from src.convert import (
 from src.gui.base import TreeWidget
 from src.gui.main_ui import Ui_PDFdir
 from src.gui.product_style import ERROR_COLOR, configure_select
-from src.gui.controls import DetailButton, DisclosureButton, OutputSettingsDialog, configure_command, reserve_command_width
+from src.gui.controls import DocumentIdentity, DetailButton, DisclosureButton, OutputSettingsDialog, configure_command, reserve_command_width, set_presentation
 from src.gui.product_style import icon as product_icon
 from src.gui.product_style import stylesheet as product_stylesheet
 from src.gui.rule_workbench import RuleWorkbenchMixin
@@ -253,7 +253,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "dirty": "有未生成的更改。",
             "preview_title": "书签预览",
             "preview_title_with_count": "书签预览 (共 {count} 条)",
-            "preview_empty": "输入或识别目录后，在这里校对书签标题、层级和页码。",
+            "preview_empty": "书签将在这里显示。",
+            "preview_empty_with_pdf": "导入或粘贴目录，开始校对书签。",
             "preview_edit_hint": "双击或按 F2 编辑；拖动调整顺序与层级；Delete 删除。",
             "preview_compact_hint": "编辑：F2 · 双击 · 拖动 · Delete",
             "preview_manual_hint": "预览已手工调整。编辑左侧目录或识别规则会重建并替换这些调整。",
@@ -348,7 +349,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "dirty": "Ungenerated changes.",
             "preview_title": "Bookmark preview",
             "preview_title_with_count": "Bookmark preview ({count})",
-            "preview_empty": "Enter or recognize a TOC, then verify bookmark titles, hierarchy, and pages here.",
+            "preview_empty": "Bookmarks will appear here.",
+            "preview_empty_with_pdf": "Import or paste a TOC to start reviewing bookmarks.",
             "preview_edit_hint": "Double-click or press F2 to edit; drag to reorder or nest; Delete removes.",
             "preview_compact_hint": "Edit: F2 · double-click · drag · Delete",
             "preview_manual_hint": "Preview adjusted manually. Editing TOC text or recognition rules will rebuild and replace these changes.",
@@ -657,14 +659,11 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self.open_button.setIcon(product_icon("folder"))
         self.open_button.setIconSize(QtCore.QSize(16, 16))
         document_layout.addWidget(self.open_button)
-        self.document_name_label = QtWidgets.QLabel(self.document_frame)
-        self.document_name_label.setObjectName("document_name_label")
-        self.document_name_label.setSizePolicy(
-            QtWidgets.QSizePolicy.Ignored,
-            QtWidgets.QSizePolicy.Preferred,
-        )
+        self.document_identity = DocumentIdentity(self.document_frame)
+        self.document_name_label = self.document_identity.name_label
+        self.document_pages_label = self.document_identity.pages_label
         self.document_name_label.installEventFilter(self)
-        document_layout.addWidget(self.document_name_label, 1)
+        document_layout.addWidget(self.document_identity, 1)
         self.document_info_button = QtWidgets.QToolButton(self.document_frame)
         self.document_info_button.setObjectName("document_info_button")
         self.document_info_button.setIcon(product_icon("info"))
@@ -697,7 +696,6 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         for button in (self.auto_toc_button, self.paste_button, self.auto_offset_button,
                        self.open_button, self.cancel_button):
             configure_command(button)
-        self.open_button.setProperty("variant", "quiet")
         self.paste_button.clicked.connect(self._paste_toc_text)
         self.editor_header_layout.removeWidget(self.dir_text_label)
         self.editor_header_layout.removeWidget(self.auto_toc_button)
@@ -726,7 +724,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self.quick_settings_layout.takeAt(0)
         self.advanced_button.hide()
         self.advanced_button.deleteLater()
-        self.advanced_button = DisclosureButton(self.editor_pane)
+        self.advanced_button = DisclosureButton(self.editor_pane, command=True)
         self.advanced_button.setObjectName("advanced_button")
         self.left_tools = QtWidgets.QWidget(self.editor_pane)
         self.left_tools.setObjectName("pane_tools")
@@ -1469,22 +1467,28 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         return candidate
 
     def _refresh_document_name(self):
-        available_width = max(self.document_name_label.contentsRect().width() - 2, 0)
         name = self._document_display_name
+        pages = ""
         if self._document_page_count is not None:
             if self._language == "en":
                 unit = "page" if self._document_page_count == 1 else "pages"
-                name += " · {} {}".format(self._document_page_count, unit)
+                pages = "{} {}".format(self._document_page_count, unit)
             else:
-                name += " · {} 页".format(self._document_page_count)
-        self.document_name_label.setAccessibleDescription(name)
-        self.document_name_label.setText(
-            self.document_name_label.fontMetrics().elidedText(
-                name,
-                QtCore.Qt.ElideMiddle,
-                available_width,
-            )
-        )
+                pages = "{} 页".format(self._document_page_count)
+        self.document_identity.set_document(name, pages, bool(self.pdf_path.strip()))
+
+    def _sync_workflow_presentation(self, has_pdf, task_running):
+        """Opening, providing a TOC and exporting share one emphasis budget."""
+        open_role = "secondary" if has_pdf else "primary"
+        if self.open_button.property("variant") != open_role:
+            set_presentation(self.open_button, "variant", open_role)
+            self.open_button.setIcon(product_icon("folder", foreground="#ffffff" if not has_pdf else None))
+        set_presentation(self.source_import_button, "suggested", bool(
+            has_pdf and not task_running and not self.dir_text.strip()
+            and not self.dir_tree_widget.topLevelItemCount()))
+        has_output = bool(self.output_path_edit.text())
+        for control in (self.output_label, self.output_summary_label, self.output_location_button):
+            control.setVisible(has_output)
 
     def _update_action_availability(self):
         source_path = Path(self.pdf_path.strip()) if self.pdf_path.strip() else None
@@ -1592,6 +1596,9 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self._refresh_action_status()
 
         self._sync_reference_workspace(has_pdf, write_running)
+        self._sync_workflow_presentation(has_pdf, task_running)
+        if not self.dir_tree_widget.topLevelItemCount():
+            self._update_preview_empty_state()
 
     def _has_active_task(self):
         """Cover the short start/finish gaps around the QThread lifecycle."""
@@ -2170,9 +2177,9 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         elif self._is_dirty():
             self._set_action_status(self._t("dirty"), "normal")
         elif not has_pdf:
-            self._set_action_status(self._t("ready_select_pdf"), "normal")
+            self._set_action_status("", "normal")
         elif not self.dir_text.strip():
-            self._set_action_status(self._t("ready_enter_toc"), "normal")
+            self._set_action_status("", "normal")
         else:
             self._set_action_status(
                 self._t(
@@ -2412,7 +2419,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self.preview_label.setText("Bookmarks" if self._language == "en" else "书签")
         self._set_bookmark_count(item_count)
         is_empty = item_count == 0
-        self.preview_empty_label.setText(self._t("preview_empty"))
+        self.preview_empty_label.setText(self._t(
+            "preview_empty_with_pdf" if self.pdf_path.strip() else "preview_empty"))
         self.preview_empty_label.setGeometry(
             self.dir_tree_widget.viewport().rect()
         )

@@ -17,7 +17,7 @@ class ReferenceWorkspaceMixin:
         self.source_tabs.setElideMode(QtCore.Qt.ElideNone)
         self.source_tabs.setUsesScrollButtons(False)
         self.dir_text_label.hide()
-        self.source_import_button = MenuButton(self.editor_pane)
+        self.source_import_button = MenuButton(self.editor_pane, command=True)
         import_menu = QtWidgets.QMenu(self.source_import_button)
         self.source_import_button.setMenu(import_menu)
         self.import_pdf_action = import_menu.addAction("")

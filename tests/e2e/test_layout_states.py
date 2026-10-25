@@ -203,3 +203,106 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
             "platform": qapp.platformName(), "language": language, "size": size,
             "states": states,
         }, ensure_ascii=False, indent=2))
+
+
+def _exercise_workflow_roles(qapp, qtbot, tmp_path, size, language):
+    source = tmp_path / "Product design - review.pdf"
+    writer = QtGui.QPdfWriter(str(source))
+    painter = QtGui.QPainter(writer)
+    painter.drawText(100, 300, "Document workflow")
+    painter.end()
+    del writer
+    window = main_module.Main(qapp, QtCore.QTranslator())
+    track_main_window(qtbot, qapp, window)
+    (window.to_english if language == "en" else window.to_chinese)()
+    window.resize(*size)
+    window.show()
+    qtbot.wait(40)
+    root = os.environ.get("PDFDIR_UI_CAPTURE_DIR")
+    points = qapp.font().pointSizeF()
+    folder = Path(root) / f"workflow-{language}-{size[0]}-{points:g}" if root else None
+    if folder:
+        folder.mkdir(parents=True, exist_ok=True)
+
+    def capture(name):
+        qtbot.wait(40)
+        for control in (window.open_button, window.document_identity, window.export_button):
+            assert window.rect().contains(QtCore.QRect(control.mapTo(window, QtCore.QPoint()), control.size()))
+        if folder:
+            assert window.grab().save(str(folder / f"{name}.png"))
+
+    capture("no-document")
+    assert window.open_button.isEnabled()
+    assert window.open_button.property("variant") == "primary"
+    assert not window.export_button.isEnabled()
+    assert window.document_name_label.fontMetrics().height() <= window.open_button.fontMetrics().height()
+    assert window.document_name_label.font().weight() < window.open_button.font().weight()
+    assert not window.output_label.isVisible()
+    assert not window.output_summary_label.isVisible()
+    assert not window.action_status_label.text()
+    # Preparing the TOC before choosing a file remains a supported entry path.
+    text = "Chapter 1\n  Section 1"
+    window.dir_text_edit.setPlainText(text)
+    assert window.dir_tree_widget.topLevelItemCount() > 0
+    assert window.open_button.property("variant") == "primary"
+    capture("toc-before-document")
+    window.dir_text_edit.clear()
+    window.read_exist_dir_box.setChecked(False)
+    assert window._activate_document(str(source))
+    capture("document-without-toc")
+    assert window.open_button.property("variant") == "secondary"
+    assert window.source_import_button.property("suggested")
+    assert window.source_import_button.isEnabled()
+    assert not window.export_button.isEnabled()
+    assert window.document_pages_label.isVisible()
+    assert window.document_pages_label.font().weight() < window.document_name_label.font().weight()
+    assert window.document_identity.rect().contains(window.document_pages_label.geometry())
+    gap = window.document_pages_label.x() - window.document_name_label.geometry().right()
+    assert 0 < gap < window.document_name_label.fontMetrics().height()
+    assert window.output_label.isVisible()
+    assert not window.action_status_label.text()
+    assert len({button.height() for button in (
+        window.source_import_button, window.advanced_button, window.calibrate_button)}) == 1
+    window.dir_text_edit.setPlainText(text)
+    capture("bookmarks-ready")
+    assert window.export_button.isEnabled()
+    assert window.export_button.property("variant") == "primary"
+    assert not window.source_import_button.property("suggested")
+    signature = window._current_draft_signature()
+    for _ in range(3):
+        window._reflow_controls()
+    assert window._current_draft_signature() == signature
+    window.pdf_path_edit.clear()
+    capture("document-cleared")
+    assert window.open_button.property("variant") == "primary"
+    assert not window.document_pages_label.isVisible()
+    assert not window.output_label.isVisible()
+    assert window.dir_text == text
+    if folder:
+        implementation = Path(main_module.__file__).parent
+        (folder / "manifest.json").write_text(json.dumps({
+            "runtime": str(implementation), "platform": qapp.platformName(),
+            "source_sha256": hashlib.sha256(b"".join(p.read_bytes() for p in sorted(implementation.glob("*.py")))).hexdigest(),
+            "language": language, "size": window.size().toTuple(), "font_points": points,
+            "states": ["no-document", "toc-before-document", "document-without-toc", "bookmarks-ready", "document-cleared"],
+        }, ensure_ascii=False, indent=2))
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("size", [(780, 560), (1100, 760), (1440, 900)])
+@pytest.mark.parametrize("language", ["zh", "en"])
+def test_workflow_primary_action_follows_stage(qapp, qtbot, tmp_path, size, language):
+    _exercise_workflow_roles(qapp, qtbot, tmp_path, size, language)
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("language", ["zh", "en"])
+def test_workflow_roles_remain_clear_with_large_text(qapp, qtbot, tmp_path, language):
+    original = qapp.font()
+    font = QtGui.QFont(original)
+    font.setPointSize(24)
+    try:
+        qapp.setFont(font)
+        _exercise_workflow_roles(qapp, qtbot, tmp_path, (1100, 800), language)
+    finally:
+        qapp.setFont(original)

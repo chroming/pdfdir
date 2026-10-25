@@ -32,7 +32,9 @@ def window(qtbot, qapp):
 def test_empty_preview_explains_how_to_start(window, qtbot):
     qtbot.waitUntil(window.preview_empty_label.isVisible)
     assert window.preview_empty_label.isVisible()
-    assert "目录" in window.preview_empty_label.text()
+    assert "书签" in window.preview_empty_label.text()
+    assert window.open_button.isEnabled()
+    assert window.open_button.property("variant") == "primary"
 
     window.dir_text_edit.setPlainText("Chapter 1  1")
 

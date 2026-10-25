@@ -21,6 +21,67 @@ def align_label_baselines(title, metadata):
     metadata.setContentsMargins(0, max(0, offset), 0, max(0, -offset))
 
 
+def set_presentation(widget, name, value):
+    """Refresh a semantic role only when it changes, without affecting state."""
+    if widget.property(name) != value:
+        widget.setProperty(name, value)
+        widget.style().unpolish(widget)
+        widget.style().polish(widget)
+        widget.updateGeometry()
+        widget.update()
+
+
+class DocumentIdentity(QtWidgets.QWidget):
+    """Elided object identity followed immediately by quiet, complete metadata."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._name = ""
+        self.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Preferred)
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        self.name_label = QtWidgets.QLabel(self)
+        self.name_label.setObjectName("document_name_label")
+        self.name_label.setTextFormat(QtCore.Qt.PlainText)
+        self.pages_label = QtWidgets.QLabel(self)
+        self.pages_label.setObjectName("document_pages_label")
+        self.pages_label.setTextFormat(QtCore.Qt.PlainText)
+        layout.addWidget(self.name_label)
+        layout.addWidget(self.pages_label)
+        layout.addStretch(1)
+        self.setMinimumWidth(40)
+
+    def set_document(self, name, pages, loaded):
+        self._name = name
+        set_presentation(self.name_label, "documentState", "loaded" if loaded else "empty")
+        self.pages_label.setText(pages)
+        self.pages_label.setVisible(bool(pages))
+        description = " · ".join(part for part in (name, pages) if part)
+        self.name_label.setAccessibleDescription(description)
+        self._refresh()
+
+    def _refresh(self):
+        if not hasattr(self, "pages_label"):
+            return
+        label = self.name_label
+        pages_width = self.pages_label.sizeHint().width() if self.pages_label.text() else 0
+        available = max(0, self.width() - pages_width - (6 if pages_width else 0))
+        width = min(available, label.fontMetrics().horizontalAdvance(self._name) + 2)
+        label.setFixedWidth(width)
+        label.setText(label.fontMetrics().elidedText(self._name, QtCore.Qt.ElideMiddle, width))
+        align_label_baselines(label, self.pages_label)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._refresh()
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() in (QtCore.QEvent.FontChange, QtCore.QEvent.StyleChange):
+            self._refresh()
+
+
 class CommandFocusFilter(QtCore.QObject):
     def eventFilter(self, widget, event):
         kind = event.type()
@@ -148,10 +209,11 @@ class ViewTabs(KeyboardFocusMixin, QtWidgets.QTabBar):
 
 
 class MenuButton(KeyboardFocusMixin, QtWidgets.QToolButton):
-    def __init__(self, parent=None, *, in_header=False):
+    def __init__(self, parent=None, *, in_header=False, command=False):
         super().__init__(parent)
         self.setProperty("variant", "menu")
         self.setProperty("density", "header" if in_header else "regular")
+        self.setProperty("emphasis", "command" if command else "quiet")
         self.setPopupMode(QtWidgets.QToolButton.InstantPopup)
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
