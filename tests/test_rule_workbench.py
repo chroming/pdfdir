@@ -100,9 +100,15 @@ def test_large_text_last_rule_error_and_field_remain_visible(window, qtbot, qapp
         test_guarded_invalid_rebuild_reveals_error_without_changing_draft(window, qtbot, 5)
         label = window.regex_error_label
         assert label.visibleRegion().boundingRect().contains(label.rect())
+        assert label.geometry().bottom() < window.rules_scroll.geometry().top()
+        viewport = window.rules_scroll.viewport()
+        level = window.level5_box
+        assert viewport.rect().contains(QtCore.QRect(level.mapTo(viewport, QtCore.QPoint()), level.size()))
         capture_dir = os.environ.get("PDFDIR_UI_CAPTURE_DIR")
         if capture_dir:
-            window.grab().save(str(Path(capture_dir) / "large-font-rule-error.png"))
+            folder = Path(capture_dir)
+            folder.mkdir(parents=True, exist_ok=True)
+            assert window.grab().save(str(folder / "large-font-rule-error.png"))
     finally:
         qapp.setFont(original)
 

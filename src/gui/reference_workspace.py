@@ -220,7 +220,7 @@ class ReferenceWorkspaceMixin:
             self.source_header_layout.setColumnStretch(2, 1)
             self.preview_header_layout.addWidget(self.undo_button, 0, 3)
             self.preview_header_layout.addWidget(self.redo_button, 0, 4)
-            self.preview_header_layout.addWidget(self.calibrate_button, 1, 0, 1, 2, QtCore.Qt.AlignLeft)
+            self.preview_header_layout.addWidget(self.calibrate_button, 1, 0, 1, 6, QtCore.Qt.AlignLeft)
         else:
             self.source_header_layout.addWidget(self.source_tabs, 0, 0)
             self.source_header_layout.setColumnStretch(1, 1)

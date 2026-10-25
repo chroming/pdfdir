@@ -166,7 +166,10 @@ class RuleWorkbenchMixin:
         )
         self.add_rule_button.setText("+ Add level" if english else "+ 添加层级")
         self.read_exist_dir_box.setText("Ask to import bookmarks" if english else "打开 PDF 时询问导入书签")
-        self.fix_non_seq_box.setText("Keep pages in order" if english else "修正倒序页码")
+        self.fix_non_seq_box.setText(
+            ("Fix page order" if self._large_text_mode() else "Keep pages in order")
+            if english else "修正倒序页码"
+        )
         self.rules_restore_button.setText("Undo trial" if english else "恢复本次试调")
         self.rules_restore_button.setToolTip(
             "Restore rules, TOC text, page offset and bookmarks from before this trial."
@@ -193,6 +196,7 @@ class RuleWorkbenchMixin:
         self.add_rule_button.setEnabled(len(self._rule_rows) < 6)
         if hasattr(self, "rules_restore_button"):
             self._resize_rule_workbench()
+            QtCore.QTimer.singleShot(0, self._resize_rule_workbench)
 
     def _remember_rule_panel_size(self, _position, _index):
         sizes = self.rule_splitter.sizes()
@@ -226,6 +230,7 @@ class RuleWorkbenchMixin:
         self.rules_section.setVisible(expanded)
         self._resize_rule_workbench()
         self._translate_rule_workbench()
+        QtCore.QTimer.singleShot(0, self._resize_rule_workbench)
         if not expanded:
             if not self._rule_guarded and not self._has_rule_trial_changes():
                 self._rule_baseline = None
@@ -244,6 +249,24 @@ class RuleWorkbenchMixin:
     def _resize_rule_workbench(self):
         if not hasattr(self, "rules_section"):
             return
+        # Large native fonts need the whole source lane for a regex, rather
+        # than three minimum-width cells forcing a hidden horizontal offset.
+        large = self._large_text_mode()
+        if getattr(self, "_rule_layout_large", None) != large:
+            self._rule_layout_large = large
+            for index, (box, editor, count) in enumerate(zip(
+                self._regex_boxes, self._regex_editors, self.rule_counts
+            )):
+                for control in (box, editor, count):
+                    self.regex_grid.removeWidget(control)
+                row = index * 3 if large else index
+                self.regex_grid.addWidget(box, row, 0, 1, 3 if large else 1)
+                self.regex_grid.addWidget(count, row + 2 if large else row,
+                                          0 if large else 2, 1, 3 if large else 1,
+                                          QtCore.Qt.AlignLeft)
+                self.regex_grid.addWidget(editor, row + 1 if large else row,
+                                          0 if large else 1, 1, 3 if large else 1)
+            self.rules_scroll.horizontalScrollBar().setValue(0)
         expanded = self.advanced_button.isChecked()
         self.dir_text_edit.setMinimumHeight(
             self.dir_text_edit.fontMetrics().lineSpacing() * 3 + 12
@@ -277,6 +300,10 @@ class RuleWorkbenchMixin:
                       + self.rules_scroll.frameWidth() * 2)
             if self.regex_error_label.isVisible():
                 footer += self.regex_error_label.height() + self.rules_section.layout().spacing()
+            if self.rules_section.isVisible() and self.rules_scroll.viewport().height() > 0:
+                # Native styles can allocate controls beyond sizeHint. Measure
+                # actual chrome after layout, not a hand-summed approximation.
+                footer = max(footer, self.rules_section.height() - self.rules_scroll.viewport().height())
             # Size the ordinary case to its contents, not a fixed percentage.
             # Three active rules and recovery must be usable beside the source;
             # longer rule sets/options scroll in the same bounded inspector.
@@ -285,7 +312,13 @@ class RuleWorkbenchMixin:
             available = max(0, total - source_min)
             # Long validation text and large fonts can consume most of the
             # inspector. Scrolling must still expose a complete editable row.
-            row_min = self.level0_edit.sizeHint().height()
+            row_min = max(self.level0_edit.sizeHint().height(),
+                          self.level0_edit.minimumHeight(),
+                          self.rules_scroll.minimumSizeHint().height())
+            if large:
+                row_min = max(row_min, self.level0_edit.minimumHeight()
+                              + self.level0_box.sizeHint().height()
+                              + self.regex_grid.verticalSpacing())
             row_min += self.advanced_layout.contentsMargins().top() + self.advanced_layout.contentsMargins().bottom()
             self.rules_section.setMinimumHeight(footer + row_min)
             available = max(available, min(total - self.dir_text_edit.minimumHeight(), footer + row_min))
@@ -580,6 +613,11 @@ class RuleWorkbenchMixin:
         self.rules_scroll.ensureWidgetVisible(control, 0, 0)
         viewport = self.rules_scroll.viewport()
         rect = QtCore.QRect(control.mapTo(viewport, QtCore.QPoint()), control.size())
+        if self._large_text_mode() and control in self._regex_editors:
+            label = self._regex_boxes[self._regex_editors.index(control)]
+            unit = rect.united(QtCore.QRect(label.mapTo(viewport, QtCore.QPoint()), label.size()))
+            if unit.height() <= viewport.height():
+                rect = unit
         bar = self.rules_scroll.verticalScrollBar()
         if rect.bottom() > viewport.rect().bottom():
             bar.setValue(bar.value() + rect.bottom() - viewport.rect().bottom())
