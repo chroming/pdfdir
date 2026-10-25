@@ -96,6 +96,53 @@ def test_delete_and_backspace_remove_selection_and_notify_once(qtbot):
     assert changes == ["changed"]
 
 
+def test_shift_selection_deletes_range_as_one_undoable_operation(qtbot):
+    changes = []
+    tree = _make_tree(qtbot, preview_changed=lambda: changes.append("changed"))
+    tree.addTopLevelItems([QtWidgets.QTreeWidgetItem([name, "1", "1"])
+                           for name in ("First", "Second", "Third", "Fourth")])
+    before = tree._snapshot()
+    tree.setCurrentItem(tree.topLevelItem(0))
+    tree.setFocus()
+    qtbot.keyClick(tree, QtCore.Qt.Key_Down, modifier=QtCore.Qt.ShiftModifier)
+    qtbot.keyClick(tree, QtCore.Qt.Key_Down, modifier=QtCore.Qt.ShiftModifier)
+    assert [item.text(0) for item in tree.selectedItems()] == ["First", "Second", "Third"]
+    changes.clear()
+    qtbot.keyClick(tree, QtCore.Qt.Key_Delete)
+    assert tree.topLevelItemCount() == 1
+    assert tree.topLevelItem(0).text(0) == "Fourth"
+    assert changes == ["changed"]
+    tree.undo()
+    assert tree._snapshot() == before
+    tree.redo()
+    assert tree.topLevelItemCount() == 1
+
+
+def test_disjoint_mouse_selection_includes_parent_and_child_without_double_delete(qtbot):
+    tree = _make_tree(qtbot)
+    parent = QtWidgets.QTreeWidgetItem(["Parent", "1", "1"])
+    child = QtWidgets.QTreeWidgetItem(["Child", "1", "1"])
+    parent.addChild(child)
+    kept = QtWidgets.QTreeWidgetItem(["Kept", "1", "1"])
+    other = QtWidgets.QTreeWidgetItem(["Other", "2", "2"])
+    tree.addTopLevelItems([parent, kept, other])
+    parent.setExpanded(True)
+    qtbot.wait(20)
+    before = tree._snapshot()
+    # Qt maps ControlModifier to Command on Cocoa.
+    modifier = QtCore.Qt.ControlModifier
+    qtbot.mouseClick(tree.viewport(), QtCore.Qt.LeftButton, pos=tree.visualItemRect(parent).center())
+    for item in (child, other):
+        qtbot.mouseClick(tree.viewport(), QtCore.Qt.LeftButton, modifier,
+                         tree.visualItemRect(item).center())
+    assert len(tree.selectedItems()) == 3
+    qtbot.keyClick(tree, QtCore.Qt.Key_Delete)
+    assert tree.topLevelItemCount() == 1
+    assert tree.topLevelItem(0).text(0) == "Kept"
+    tree.undo()
+    assert tree._snapshot() == before
+
+
 def test_keyboard_context_menu_and_localized_delete_label(qtbot):
     tree = _make_tree(qtbot)
     item = QtWidgets.QTreeWidgetItem(["Chapter", "1", "1"])

@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
 
       - name: Install Linux Qt runtime
         if: runner.os == 'Linux'
@@ -97,7 +97,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.9"
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       - run: bash .github/scripts/install-linux-qt-deps.sh
       - name: Run minimum dependency tests
         env:

@@ -46,6 +46,7 @@ from src.pdf.bookmark import (
     read_document_info,
 )
 from src.pdf.cancellation import OperationCancelled
+from src.pdf.pdf import next_available_output_path
 from src.pdf.page_offset import infer_page_offset
 from src.pdf.toc import extract_toc_text
 
@@ -1455,16 +1456,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             return False
         return True
 
-    @staticmethod
-    def _next_available_output_path(source, folder=None):
-        stem, suffix = os.path.splitext(source)
-        stem = os.path.join(folder, os.path.basename(stem)) if folder else stem
-        candidate = stem + "_new" + suffix
-        sequence = 2
-        while os.path.lexists(candidate):
-            candidate = "{}_new_{}{}".format(stem, sequence, suffix)
-            sequence += 1
-        return candidate
+    _next_available_output_path = staticmethod(next_available_output_path)
 
     def _refresh_document_name(self):
         name = self._document_display_name

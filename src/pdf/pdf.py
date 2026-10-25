@@ -35,6 +35,19 @@ class OutputTargetChangedError(OSError):
     """The output path changed after PDF generation started."""
 
 
+def next_available_output_path(source, folder=None):
+    """Choose a fresh default destination; final creation remains atomic."""
+    stem, suffix = os.path.splitext(os.fspath(source))
+    stem = os.path.join(os.fspath(folder), os.path.basename(stem)) if folder else stem
+    candidate = stem + "_new" + suffix
+    sequence = 2
+    # A dangling link or a directory reserves a name just as a regular file does.
+    while os.path.lexists(candidate):
+        candidate = "{}_new_{}{}".format(stem, sequence, suffix)
+        sequence += 1
+    return candidate
+
+
 class Pdf(object):
     """
     Add bookmarks to a pdf file.

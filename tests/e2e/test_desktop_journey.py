@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -139,3 +140,46 @@ def test_external_result_replacement_never_opens_or_overwrites_it(
     )
     assert len(PdfReader(output).pages) == 3
     assert PdfReader(next_output).outline[0].title == "Chapter"
+
+
+@pytest.mark.e2e
+def test_user_multiselects_deletes_undoes_and_exports_remaining_bookmarks(qtbot, qapp, tmp_path):
+    source = tmp_path / "source.pdf"
+    _write_blank_pdf(source, page_count=3)
+    original = source.read_bytes()
+    window = Main(qapp, QtCore.QTranslator())
+    track_main_window(qtbot, qapp, window)
+    window.show()
+    window.read_exist_dir_box.setChecked(False)
+    assert window._activate_document(str(source))
+    window.dir_text_edit.setPlainText("Chapter 1\n  Section 1\nKeep 2\nRemove 3")
+    tree = window.dir_tree_widget
+    parent, removed = tree.topLevelItem(0), tree.topLevelItem(2)
+    child = parent.child(0)
+    parent.setExpanded(True)
+    qtbot.wait(40)
+    before = window._tree_snapshot()
+    qtbot.mouseClick(tree.viewport(), QtCore.Qt.LeftButton, pos=tree.visualItemRect(parent).center())
+    for item in (child, removed):
+        qtbot.mouseClick(tree.viewport(), QtCore.Qt.LeftButton, QtCore.Qt.ControlModifier,
+                         tree.visualItemRect(item).center())
+    assert len(tree.selectedItems()) == 3
+    assert not tree.can_move_current_level(1)
+    capture_dir = os.environ.get("PDFDIR_UI_CAPTURE_DIR")
+    if capture_dir:
+        Path(capture_dir).mkdir(parents=True, exist_ok=True)
+        window.grab().save(str(Path(capture_dir) / "multi-selection.png"))
+    qtbot.keyClick(tree, QtCore.Qt.Key_Delete)
+    assert tree.topLevelItemCount() == 1
+    assert tree.topLevelItem(0).text(0) == "Keep"
+    assert window._preview_manually_adjusted
+    window.undo_button.click()
+    assert window._tree_snapshot() == before
+    window.redo_button.click()
+    assert tree.topLevelItemCount() == 1
+    window.export_button.click()
+    qtbot.waitUntil(lambda: window._worker_thread is None, timeout=15000)
+    outline = PdfReader(window.output_path_edit.text()).outline
+    assert len(outline) == 1
+    assert outline[0].title == "Keep"
+    assert source.read_bytes() == original

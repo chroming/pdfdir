@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
 
       - name: Install system and project dependencies
         run: |
@@ -89,7 +89,7 @@ jobs:
           python-version: "3.12"
           architecture: "x64"
 
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
 
       - name: Install dependencies
         run: uv pip install --system -r requirements.txt -r requirements_dev.txt
@@ -161,7 +161,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
 
       - name: Install dependencies
         run: uv pip install --system -r requirements.txt -r requirements_dev.txt

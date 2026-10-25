@@ -67,7 +67,6 @@ def test_release_workflow_uses_supported_python_and_current_actions():
         'python-version: "3.12"',
         "actions/checkout@v6",
         "actions/setup-python@v6",
-        "astral-sh/setup-uv@v8",
         "actions/upload-artifact@v7",
         "actions/download-artifact@v8",
         "softprops/action-gh-release@v3",
@@ -82,11 +81,20 @@ def test_ci_workflow_uses_current_actions_and_semantic_frozen_smoke():
     for contract in (
         "actions/checkout@v6",
         "actions/setup-python@v6",
-        "astral-sh/setup-uv@v8",
         "dist/PDFdir --smoke-test",
     ):
         assert contract in workflow, contract
     assert "sleep 5" not in workflow
+
+
+def test_setup_uv_is_pinned_consistently_across_workflows():
+    references = []
+    for workflow in (_ci_workflow_text(), _release_workflow_text()):
+        refs = re.findall(r"uses:\s*astral-sh/setup-uv@([^\s#]+)", workflow)
+        assert refs
+        assert all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in refs)
+        references.extend(refs)
+    assert len(set(references)) == 1
 
 
 def test_release_builds_install_committed_dependencies():

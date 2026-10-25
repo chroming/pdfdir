@@ -118,6 +118,7 @@ class TreeWidget(MixinContextMenu):
             ]
         )
         self.setDragDropMode(QAbstractItemView.InternalMove)
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setDefaultDropAction(Qt.MoveAction)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)

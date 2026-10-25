@@ -96,6 +96,40 @@ def test_cli_process_writes_nested_bookmarks(tmp_path):
     assert outline[1][0].title == "1.1 Section"
 
 
+def test_cli_repeated_conversion_creates_new_outputs_without_replacing_files(tmp_path):
+    source = tmp_path / "source.pdf"
+    toc = tmp_path / "toc.txt"
+    _write_pdf(source)
+    toc.write_text("1. Chapter 1\n1.1 Section 2\n", encoding="utf-8")
+    original = source.read_bytes()
+    outputs = {}
+    for suffix in ("_new", "_new_2", "_new_3"):
+        result = _run_cli(source, toc)
+        expected = tmp_path / f"source{suffix}.pdf"
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == str(expected)
+        assert PdfReader(expected).outline[0].title == "1. Chapter"
+        outputs[expected] = expected.read_bytes()
+        assert source.read_bytes() == original
+        assert all(path.read_bytes() == content for path, content in outputs.items())
+
+
+def test_cli_skips_dangling_output_symlinks(tmp_path):
+    source = tmp_path / "source.pdf"
+    toc = tmp_path / "toc.txt"
+    _write_pdf(source)
+    toc.write_text("Chapter 1\n", encoding="utf-8")
+    reserved = tmp_path / "source_new.pdf"
+    try:
+        reserved.symlink_to(tmp_path / "missing.pdf")
+    except OSError:
+        pytest.skip("Creating symlinks is not permitted on this platform")
+    result = _run_cli(source, toc)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == str(tmp_path / "source_new_2.pdf")
+    assert reserved.is_symlink()
+
+
 @pytest.mark.parametrize(
     "arguments",
     [
