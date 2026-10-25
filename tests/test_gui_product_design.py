@@ -577,6 +577,7 @@ def test_paste_preserves_existing_directory_draft(window, qtbot):
         window.dir_text_edit.setPlainText("Chapter 1")
         window.dir_text_edit.moveCursor(QtGui.QTextCursor.End)
         clipboard.setText("\n  Section 2")
+        qtbot.waitUntil(window.paste_button.isEnabled)
         window.paste_button.click()
         assert window.dir_text_edit.toPlainText() == "Chapter 1\n  Section 2"
         assert window.dir_text_edit.blockCount() == 2

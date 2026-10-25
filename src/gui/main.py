@@ -352,7 +352,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "preview_manual_hint": "Preview adjusted manually. Editing TOC text or recognition rules will rebuild and replace these changes.",
             "preview_manual_compact_hint": "Preview adjusted manually; changing the left side rebuilds it.",
             "preview_reset": "Preview rebuilt; use Undo in the preview context menu to restore it",
-            "invalid_regex": "Invalid regular expression for {level}: {message}",
+            "invalid_regex": "Invalid {level}: {message}",
             "empty_title": "Bookmark {row} has no title; correct it in the preview.",
             "invalid_preview_page": "Bookmark {row} must use integer page numbers; correct it in the preview.",
             "export_needs_pdf": "Select a valid PDF first.",

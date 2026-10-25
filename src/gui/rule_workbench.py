@@ -11,6 +11,10 @@ from src.gui.base import SOURCE_ROLE, RULE_ROLE
 
 
 class RuleWorkbenchMixin:
+    # Four source lines preserve local comparison while ordinary three-level
+    # rules remain fully visible with Windows' in-window native menu bar.
+    _RULE_SOURCE_LINES = 4
+
     def _build_rule_workbench(self):
         self._rule_baseline = None
         self._rule_rebuilt = False
@@ -308,7 +312,7 @@ class RuleWorkbenchMixin:
             # Three active rules and recovery must be usable beside the source;
             # longer rule sets/options scroll in the same bounded inspector.
             content = self.advanced_widget.sizeHint().height()
-            source_min = self.dir_text_edit.fontMetrics().lineSpacing() * 6
+            source_min = self.dir_text_edit.fontMetrics().lineSpacing() * self._RULE_SOURCE_LINES
             available = max(0, total - source_min)
             # Long validation text and large fonts can consume most of the
             # inspector. Scrolling must still expose a complete editable row.

@@ -320,7 +320,7 @@ def test_three_rules_and_recovery_fit_without_scrolling_at_minimum(window, qtbot
         editor = getattr(window, f"level{index}_edit")
         rect = QtCore.QRect(editor.mapTo(viewport, QtCore.QPoint()), editor.size())
         assert viewport.rect().contains(rect)
-    assert window.dir_text_edit.viewport().height() >= window.dir_text_edit.fontMetrics().lineSpacing() * 6
+    assert window.dir_text_edit.viewport().height() >= window.dir_text_edit.fontMetrics().lineSpacing() * window._RULE_SOURCE_LINES
     assert window.rules_restore_button.isVisible()
     assert window.rules_unmatched_button.isVisible()
     assert window.rules_scroll.verticalScrollBar().maximum() == 0, {

@@ -261,12 +261,14 @@ class OutputSettingsDialog(QtWidgets.QDialog):
         self.folder_button.clicked.connect(lambda: self._choose_folder(english))
         form.addRow("Folder" if english else "保存到", directory)
         layout.addLayout(form)
-        self.path_label = QtWidgets.QLabel(self)
-        self.path_label.setTextFormat(QtCore.Qt.PlainText)
-        self.path_label.setWordWrap(True)
+        # A full Windows path can be hundreds of characters. A selectable,
+        # horizontally navigable value keeps every character available without
+        # letting wrapped metadata grow the dialog beyond the desktop window.
+        self.path_label = QtWidgets.QLineEdit(self)
+        self.path_label.setReadOnly(True)
+        self.path_label.setAccessibleName("Full output path" if english else "完整输出路径")
         self.path_label.setMinimumWidth(0)
         self.path_label.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Preferred)
-        self.path_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         layout.addWidget(self.path_label)
         source_note = QtWidgets.QLabel(
             "Creates a new PDF. The source remains unchanged." if english
@@ -305,6 +307,8 @@ class OutputSettingsDialog(QtWidgets.QDialog):
         from pathlib import Path
         target = str(Path(self.folder_edit.text()) / self.name_edit.text())
         self.path_label.setText(target)
+        self.path_label.setToolTip(target)
+        self.path_label.setCursorPosition(0)
         error = self._validate(target, self.name_edit.text())
         self.error_label.setText(error)
         self.error_label.setVisible(bool(error))
