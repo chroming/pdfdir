@@ -953,7 +953,13 @@ def test_large_font_preserves_core_workspaces_and_reflows_controls(
         )
         window._render_action_status()
         status_lines = window.action_status_label.text().splitlines()
-        assert status_lines == ["Generating PDF…"]
+        assert status_lines == ["Generating PDF…"], {
+            "font": window.action_status_label.font().toString(),
+            "text_width": window.action_status_label.fontMetrics().horizontalAdvance("Generating PDF…"),
+            "status": window.action_status_label.geometry().getRect(),
+            "primary": window.cancel_button.geometry().getRect(),
+            "footer": window.action_frame.geometry().getRect(),
+        }
         assert long_name in window.action_status_label.toolTip()
         assert long_name in window.action_status_label.accessibleDescription()
         for line in status_lines:

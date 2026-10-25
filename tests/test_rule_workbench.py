@@ -6,7 +6,7 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6 import QtCore, QtGui
+from PySide6 import QtCore, QtGui, QtWidgets
 from pypdf import PdfWriter
 
 from src.gui.base import SOURCE_ROLE, RULE_ROLE
@@ -82,7 +82,14 @@ def test_guarded_invalid_rebuild_reveals_error_without_changing_draft(window, qt
     assert window.regex_error_label.isVisible()
     assert editor.hasFocus()
     viewport = window.rules_scroll.viewport()
-    assert viewport.rect().contains(QtCore.QRect(editor.mapTo(viewport, QtCore.QPoint()), editor.size()))
+    assert viewport.rect().contains(QtCore.QRect(editor.mapTo(viewport, QtCore.QPoint()), editor.size())), {
+        "viewport": viewport.size().toTuple(),
+        "content_minimum": window.advanced_widget.minimumSizeHint().toTuple(),
+        "children": [(type(control).__name__, getattr(control, "text", lambda: "")(),
+                      control.minimumSizeHint().toTuple(), control.geometry().getRect())
+                     for control in window.advanced_widget.findChildren(QtWidgets.QWidget)
+                     if control.isVisible()],
+    }
     assert not window.regex_error_label.visibleRegion().isEmpty()
     assert window._rule_guarded
     assert window._tree_snapshot() == before
@@ -316,7 +323,18 @@ def test_three_rules_and_recovery_fit_without_scrolling_at_minimum(window, qtbot
     assert window.dir_text_edit.viewport().height() >= window.dir_text_edit.fontMetrics().lineSpacing() * 6
     assert window.rules_restore_button.isVisible()
     assert window.rules_unmatched_button.isVisible()
-    assert window.rules_scroll.verticalScrollBar().maximum() == 0
+    assert window.rules_scroll.verticalScrollBar().maximum() == 0, {
+        "section": window.rules_section.height(),
+        "viewport": viewport.height(),
+        "content": window.advanced_widget.sizeHint().height(),
+        "minimum": window.advanced_widget.minimumSizeHint().height(),
+        "source": window.dir_text_edit.viewport().height(),
+        "source_line": window.dir_text_edit.fontMetrics().lineSpacing(),
+        "sizes": window.rule_splitter.sizes(),
+        "children": [(type(control).__name__, control.geometry().getRect(), control.sizeHint().toTuple())
+                     for control in window.rules_section.findChildren(QtWidgets.QWidget)
+                     if control.isVisible()],
+    }
     for control in (window.unknown_level_box, window.fix_non_seq_box):
         rect = QtCore.QRect(control.mapTo(viewport, QtCore.QPoint()), control.size())
         assert viewport.rect().contains(rect)
