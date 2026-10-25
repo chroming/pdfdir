@@ -66,6 +66,10 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
     def capture(name, settle=True):
         if settle:
             qtbot.wait(35)
+            # Native fonts/ResizeToContents can settle after the first paint.
+            # Wait for the invariant, not one machine's event-loop timing.
+            qtbot.waitUntil(lambda: window.dir_tree_widget.horizontalScrollBar().maximum() == 0,
+                            timeout=1500)
         assert window.size() == QtCore.QSize(*size)
         assert window.dir_tree_widget.horizontalScrollBar().maximum() == 0
         header = window.dir_tree_widget.header()
