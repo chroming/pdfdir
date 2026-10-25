@@ -63,7 +63,6 @@ branch = true
 source = ["src"]
 omit = [
     "src/gui/main_ui.py",
-    "src/test.py",
 ]
 
 [tool.coverage.report]

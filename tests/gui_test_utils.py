@@ -1,6 +1,7 @@
 """Shared lifecycle helpers for tests that own a ``Main`` window."""
 
 import time
+from unittest.mock import patch
 
 from PySide6 import QtCore
 from PySide6 import QtTest
@@ -11,6 +12,8 @@ def edit_output_settings(window, qtbot, name=None, folder=None, accept=True, ins
     """Exercise the visible output editor, including its transaction boundary."""
     from src.gui.controls import OutputSettingsDialog
 
+    errors = []
+
     def interact():
         dialog = QtWidgets.QApplication.activeModalWidget()
         try:
@@ -19,7 +22,9 @@ def edit_output_settings(window, qtbot, name=None, folder=None, accept=True, ins
                 dialog.name_edit.selectAll()
                 qtbot.keyClicks(dialog.name_edit, name)
             if folder is not None:
-                dialog.folder_button.click()
+                with patch.object(QtWidgets.QFileDialog, "getExistingDirectory", return_value=str(folder)):
+                    dialog.folder_button.click()
+                assert dialog.folder_edit.text() == str(folder)
             if inspect:
                 inspect(dialog)
             if accept:
@@ -27,13 +32,17 @@ def edit_output_settings(window, qtbot, name=None, folder=None, accept=True, ins
                 dialog.apply_button.click()
             else:
                 dialog.reject()
-        except BaseException:
+        except Exception as exc:
+            errors.append(exc)
             if dialog:
                 dialog.reject()
-            raise
+            for child in window.findChildren(OutputSettingsDialog):
+                child.reject()
 
     QtCore.QTimer.singleShot(0, interact)
     window.output_location_button.click()
+    if errors:
+        raise errors[0]
 
 
 def track_main_window(qtbot, qapp, window):

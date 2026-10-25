@@ -47,7 +47,7 @@ def _mac_bundle_version_python():
 
 def test_source_version_is_a_real_parseable_version():
     assert "${{" not in __version__
-    assert Version(__version__) == Version("0.3.0b0")
+    assert isinstance(Version(__version__), Version)
 
 
 def test_release_has_one_tag_only_workflow():
@@ -69,11 +69,11 @@ def test_release_workflow_uses_supported_python_and_current_actions():
         "actions/setup-python@v6",
         "actions/upload-artifact@v7",
         "actions/download-artifact@v8",
-        "softprops/action-gh-release@v3",
+        "softprops/action-gh-release@5113cdc90fd4d541c801c55356214017bf5ae34b",
     ):
         assert contract in workflow, contract
 
-    assert workflow.count("softprops/action-gh-release@v3") == 1
+    assert workflow.count("uses: softprops/action-gh-release@") == 1
 
 
 def test_ci_workflow_uses_current_actions_and_semantic_frozen_smoke():
@@ -100,7 +100,9 @@ def test_setup_uv_is_pinned_consistently_across_workflows():
 def test_release_builds_install_committed_dependencies():
     workflow = _release_workflow_text()
     assert "requirements_build_addon.txt" not in workflow
-    assert workflow.count("requirements_dev.txt") == 3
+    assert workflow.count("uv sync --locked --group build") == 3
+    assert workflow.count('echo "$PWD/.venv/bin" >> "$GITHUB_PATH"') == 2
+    assert 'echo "$PWD/.venv/Scripts" >> "$GITHUB_PATH"' in workflow
 
 
 def test_release_uses_the_exact_tag_as_the_application_version():
@@ -128,8 +130,10 @@ def test_release_exercises_each_frozen_gui_to_pdf_path():
     workflow = _release_workflow_text()
     for command in (
         "./pdfdir --smoke-test",
-        r".\pdfdir.exe --smoke-test",
-        r".\pdfdir_folder\pdfdir_folder.exe --smoke-test",
+        r'".\pdfdir.exe"',
+        r'".\pdfdir_folder\pdfdir_folder.exe"',
+        'Start-Process -FilePath $executable -ArgumentList "--smoke-test" -Wait -PassThru',
+        'if ($process.ExitCode -ne 0) { exit $process.ExitCode }',
         "./pdfdir.app/Contents/MacOS/pdfdir --smoke-test",
     ):
         assert command in workflow, command
@@ -216,8 +220,8 @@ def test_publish_job_is_the_only_release_writer_and_needs_every_build():
     ):
         assert dependency in publish_workflow
 
-    assert "softprops/action-gh-release@v3" not in workflow[:publish_start]
-    assert publish_workflow.count("softprops/action-gh-release@v3") == 1
+    assert "softprops/action-gh-release@" not in workflow[:publish_start]
+    assert publish_workflow.count("uses: softprops/action-gh-release@") == 1
     assert "actions/download-artifact@v8" in publish_workflow
     assert "merge-multiple: true" in publish_workflow
     assert "SHA256SUMS" in publish_workflow

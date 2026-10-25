@@ -16,7 +16,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  preflight:
+    name: Check release destination
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Refuse to build an existing tag release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "$RUNNER_TEMP/all-releases.json"
+          python .github/scripts/guard_existing_release.py "$RUNNER_TEMP/all-releases.json" "$RELEASE_VERSION"
+
   build-linux:
+    needs: preflight
+    timeout-minutes: 60
     name: Build Linux
     runs-on: ubuntu-22.04
 
@@ -31,11 +49,14 @@ jobs:
           python-version: "3.12"
 
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
 
       - name: Install system and project dependencies
         run: |
           bash .github/scripts/install-linux-qt-deps.sh
-          uv pip install --system -r requirements.txt -r requirements_dev.txt
+          uv sync --locked --group build
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Test
         env:
@@ -75,6 +96,8 @@ jobs:
           retention-days: 7
 
   build-windows:
+    needs: preflight
+    timeout-minutes: 60
     name: Build Windows
     runs-on: windows-2025
 
@@ -90,9 +113,14 @@ jobs:
           architecture: "x64"
 
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
 
       - name: Install dependencies
-        run: uv pip install --system -r requirements.txt -r requirements_dev.txt
+        shell: bash
+        run: |
+          uv sync --locked --group build
+          echo "$PWD/.venv/Scripts" >> "$GITHUB_PATH"
 
       - name: Test
         env:
@@ -115,8 +143,10 @@ jobs:
         shell: pwsh
         run: |
           $env:QT_QPA_PLATFORM = "offscreen"
-          .\pdfdir.exe --smoke-test
-          .\pdfdir_folder\pdfdir_folder.exe --smoke-test
+          foreach ($executable in @(".\pdfdir.exe", ".\pdfdir_folder\pdfdir_folder.exe")) {
+            $process = Start-Process -FilePath $executable -ArgumentList "--smoke-test" -Wait -PassThru
+            if ($process.ExitCode -ne 0) { exit $process.ExitCode }
+          }
 
       - name: Prepare archives
         run: |
@@ -136,6 +166,8 @@ jobs:
           retention-days: 7
 
   build-macos:
+    needs: preflight
+    timeout-minutes: 60
     name: Build macOS (${{ matrix.architecture }})
     strategy:
       fail-fast: false
@@ -162,9 +194,13 @@ jobs:
           python-version: "3.12"
 
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
 
       - name: Install dependencies
-        run: uv pip install --system -r requirements.txt -r requirements_dev.txt
+        run: |
+          uv sync --locked --group build
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Test
         env:
@@ -275,6 +311,7 @@ jobs:
           fi
 
   publish:
+    timeout-minutes: 20
     name: Publish verified release
     needs:
       - build-linux
@@ -344,7 +381,7 @@ jobs:
           gh release create "$RELEASE_VERSION" --draft --verify-tag --generate-notes --title "PDFdir ${RELEASE_VERSION}" --repo "$GITHUB_REPOSITORY"
 
       - name: Upload verified assets to the draft
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@5113cdc90fd4d541c801c55356214017bf5ae34b # v3
         with:
           tag_name: ${{ github.ref_name }}
           name: PDFdir ${{ github.ref_name }}

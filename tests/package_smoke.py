@@ -3,6 +3,7 @@
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter
@@ -12,6 +13,8 @@ def main():
     root = Path(sys.argv[1]).resolve()
     cli = Path(sys.argv[2]).resolve()
     root.mkdir(parents=True, exist_ok=True)
+    # Each invocation owns a fresh subdirectory; never delete caller artifacts.
+    root = Path(tempfile.mkdtemp(prefix="smoke-", dir=root))
     source_path = root / "source.pdf"
     toc_path = root / "toc.txt"
     writer = PdfWriter()

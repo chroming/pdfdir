@@ -1,6 +1,8 @@
 """Interaction roles shared by the workbench's native Qt controls."""
 
-from PySide6 import QtCore, QtWidgets
+import math
+
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from src.gui.product_style import icon
 
@@ -244,6 +246,7 @@ class OutputSettingsDialog(QtWidgets.QDialog):
         self.setWindowModality(QtCore.Qt.WindowModal)
         layout = QtWidgets.QVBoxLayout(self)
         form = QtWidgets.QFormLayout()
+        form.setFieldGrowthPolicy(QtWidgets.QFormLayout.AllNonFixedFieldsGrow)
         self.name_edit = QtWidgets.QLineEdit(name, self)
         form.addRow("Filename" if english else "文件名", self.name_edit)
         directory = QtWidgets.QWidget(self)
@@ -261,11 +264,15 @@ class OutputSettingsDialog(QtWidgets.QDialog):
         self.path_label = QtWidgets.QLabel(self)
         self.path_label.setTextFormat(QtCore.Qt.PlainText)
         self.path_label.setWordWrap(True)
+        self.path_label.setMinimumWidth(0)
+        self.path_label.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Preferred)
         self.path_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         layout.addWidget(self.path_label)
-        layout.addWidget(QtWidgets.QLabel(
+        source_note = QtWidgets.QLabel(
             "Creates a new PDF. The source remains unchanged." if english
-            else "生成一份新 PDF，原文件保持不变。", self))
+            else "生成一份新 PDF，原文件保持不变。", self)
+        source_note.setWordWrap(True)
+        layout.addWidget(source_note)
         self.error_label = InlineErrorLabel(self)
         layout.addWidget(self.error_label)
         buttons = QtWidgets.QDialogButtonBox(self)
@@ -309,7 +316,7 @@ class BookmarkItemDelegate(QtWidgets.QStyledItemDelegate):
         size = super().sizeHint(option, index)
         # Cocoa adds native item padding; the comparison editor uses one
         # unwrapped text line. Keep both reading units on the same rhythm.
-        size.setHeight(option.fontMetrics.height())
+        size.setHeight(math.ceil(QtGui.QFontMetricsF(option.font).height()))
         return size
 
     def createEditor(self, parent, option, index):

@@ -48,6 +48,7 @@ def test_convert_dir_text():
         1,
         level1=r"第\d章",
         level2=r"第\d节",
+        fix_non_seq=True,
     ) == {
         0: {"num": 1, "real_num": 2, "title": "a"},
         1: {"num": 23, "real_num": 24, "title": "第2单元 编程基础"},
@@ -63,6 +64,7 @@ def test_convert_dir_text():
         level1=r"第\d章",
         level2=r"第\d节",
         other=2,
+        fix_non_seq=True,
     ) == {
         0: {"num": 1, "real_num": 2, "title": "a"},
         1: {"num": 23, "real_num": 24, "title": "第2单元 编程基础"},
@@ -75,7 +77,7 @@ def test_convert_dir_text():
 
 
 def test_non_sequential_page_repair_can_be_disabled():
-    repaired = convert_dir_text("A 23\nB\nC 21\nD 24")
+    repaired = convert_dir_text("A 23\nB\nC 21\nD 24", fix_non_seq=True)
     raw = convert_dir_text(
         "A 23\nB\nC 21\nD 24", fix_non_seq=False
     )

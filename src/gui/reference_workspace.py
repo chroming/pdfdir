@@ -96,7 +96,7 @@ class ReferenceWorkspaceMixin:
         self.calibration_error = InlineErrorLabel(self.calibration_panel)
         calibration.addWidget(self.calibration_error, 2, 0, 1, 3)
         self.calibration_direct = QtWidgets.QWidget(self.calibration_panel)
-        direct = QtWidgets.QHBoxLayout(self.calibration_direct)
+        direct = QtWidgets.QGridLayout(self.calibration_direct)
         direct.setContentsMargins(0, 0, 0, 0)
         direct.setSpacing(8)
         self.calibration_offset = QtWidgets.QLineEdit("0", self.calibration_direct)
@@ -104,10 +104,10 @@ class ReferenceWorkspaceMixin:
         self.calibration_offset.setMaximumWidth(96)
         self.calibration_offset.setProperty("density", "compact")
         self.calibration_offset.textChanged.connect(self._direct_calibration_changed)
-        direct.addWidget(self.offset_label)
-        direct.addWidget(self.calibration_offset)
-        direct.addWidget(self.auto_offset_button)
-        direct.addStretch(1)
+        direct.addWidget(self.offset_label, 0, 0)
+        direct.addWidget(self.calibration_offset, 0, 1)
+        direct.addWidget(self.auto_offset_button, 0, 2)
+        direct.setColumnStretch(3, 1)
         calibration.addWidget(self.calibration_direct, 3, 0, 1, 3)
         self.calibration_direct.show()
         self.offset_edit.hide()
@@ -134,8 +134,6 @@ class ReferenceWorkspaceMixin:
         self.preview_layout.insertWidget(3, self.guard_panel)
         self.guard_panel.hide()
         self.dir_tree_widget.currentItemChanged.connect(self._follow_bookmark_page)
-        self._headers_large = None
-        self._tools_layout_key = None
         self._layout_pane_headers()
         self._layout_tool_controls(False)
 
@@ -157,7 +155,9 @@ class ReferenceWorkspaceMixin:
             default_choice="cancel", escape_choice="cancel",
         )
         box.exec()
-        return box.clickedButton() is buttons["replace"]
+        accepted = box.clickedButton() is buttons["replace"]
+        box.deleteLater()
+        return accepted
 
     def _import_toc_file(self, path):
         if self._has_active_task():
@@ -167,7 +167,8 @@ class ReferenceWorkspaceMixin:
             with Path(path).open("rb") as stream:
                 data = stream.read(2 * 1024 * 1024 + 1)
             if len(data) > 2 * 1024 * 1024:
-                raise ValueError("2 MiB")
+                raise ValueError("Text file exceeds the 2 MiB limit" if self._language == "en"
+                                 else "文本文件超过 2 MiB 大小限制")
             encoding = "utf-16" if data.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig"
             text = data.decode(encoding)
             if "\x00" in text or not text.strip():
@@ -209,7 +210,13 @@ class ReferenceWorkspaceMixin:
             # than squeezing labels or raising the normal window minimum.
             self.source_header_layout.addWidget(self.source_tabs, 0, 0, 1, 3)
             self.source_header_layout.addWidget(self.source_import_button, 1, 0)
-            self.source_header_layout.addWidget(self.advanced_button, 1, 1)
+            required = (self.source_import_button.sizeHint().width()
+                        + self.advanced_button.sizeHint().width()
+                        + self.source_header_layout.horizontalSpacing())
+            stacked = required > self.editor_pane.width()
+            self.source_header_layout.addWidget(self.advanced_button,
+                                               2 if stacked else 1,
+                                               0 if stacked else 1)
             self.source_header_layout.setColumnStretch(2, 1)
             self.preview_header_layout.addWidget(self.undo_button, 0, 3)
             self.preview_header_layout.addWidget(self.redo_button, 0, 4)
@@ -241,6 +248,11 @@ class ReferenceWorkspaceMixin:
 
     def _layout_reference_tools(self, compact=False):
         large = self._large_text_mode()
+        direct = self.calibration_direct.layout()
+        direct.removeWidget(self.auto_offset_button)
+        direct.addWidget(self.auto_offset_button, 1 if large else 0,
+                         0 if large else 2, 1, 2 if large else 1,
+                         QtCore.Qt.AlignLeft)
         compact = compact or large
         self._tools_compact = compact
         english = self._language == "en"

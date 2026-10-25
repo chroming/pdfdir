@@ -168,7 +168,7 @@ def _convert_dir_text(
     level5=None,
     other=0,
     level_by_space=False,
-    fix_non_seq=True,
+    fix_non_seq=False,
 ):
     l0, l1, pagenum, index_dict = 0, 0, -float("inf"), {}
     l2, l3, l4 = 0, 0, 0
@@ -231,7 +231,7 @@ def convert_dir_text(
     level5=None,
     other=0,
     level_by_space=False,
-    fix_non_seq=True,
+    fix_non_seq=False,
 ):
     """
     convert directory text to dict.

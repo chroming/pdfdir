@@ -4,8 +4,16 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   desktop:
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -26,6 +34,8 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
 
       - name: Install Linux Qt runtime
         if: runner.os == 'Linux'
@@ -42,6 +52,7 @@ jobs:
           diff -u src/gui/main_ui.py "${RUNNER_TEMP}/main_ui.py"
 
       - name: Run tests
+        if: runner.os != 'Linux'
         shell: bash
         env:
           QT_QPA_PLATFORM: offscreen
@@ -91,6 +102,7 @@ jobs:
         run: dist/PDFdir --smoke-test
 
   minimum-dependencies:
+    timeout-minutes: 20
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
@@ -98,6 +110,8 @@ jobs:
         with:
           python-version: "3.9"
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
       - run: bash .github/scripts/install-linux-qt-deps.sh
       - name: Run minimum dependency tests
         env:

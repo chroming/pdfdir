@@ -201,7 +201,7 @@ def test_success_keeps_actual_result_and_persistent_open_action(
 
     _complete_generation(window, source, output)
 
-    assert window.output_path_edit.text() == str(output)
+    assert os.path.normcase(os.path.normpath(window.output_path_edit.text())) == os.path.normcase(str(output))
     assert window.export_button.text() == "打开生成的 PDF"
     assert "已生成" in window.action_status_label.text()
     assert str(output) not in window.action_status_label.text()
@@ -209,7 +209,7 @@ def test_success_keeps_actual_result_and_persistent_open_action(
 
     window._status_timeout()
 
-    assert window.output_path_edit.text() == str(output)
+    assert os.path.normcase(os.path.normpath(window.output_path_edit.text())) == os.path.normcase(str(output))
     assert window.export_button.text() == "打开生成的 PDF"
     assert "已生成" in window.action_status_label.text()
 
@@ -245,12 +245,12 @@ def test_success_primary_action_opens_result_without_writing_duplicate(
 
     window.export_button.click()
 
-    assert opened == [str(output)]
+    assert [os.path.normcase(os.path.normpath(path)) for path in opened] == [os.path.normcase(str(output))]
     assert not duplicate.exists()
     assert window.export_button.text() == "打开生成的 PDF"
 
     assert window._open_generated_pdf()
-    assert opened == [str(output), str(output)]
+    assert [os.path.normcase(os.path.normpath(path)) for path in opened] == [os.path.normcase(str(output)), os.path.normcase(str(output))]
 
 
 def test_effective_output_changes_leave_and_restore_result_state(
@@ -270,7 +270,7 @@ def test_effective_output_changes_leave_and_restore_result_state(
     item.setText(0, "Chapter")
 
     assert window.export_button.text() == "打开生成的 PDF"
-    assert window.output_path_edit.text() == str(output)
+    assert os.path.normcase(os.path.normpath(window.output_path_edit.text())) == os.path.normcase(str(output))
     assert "已生成" in window.action_status_label.text()
 
 
@@ -286,7 +286,7 @@ def test_hidden_numbering_rules_do_not_make_indent_result_stale(
     assert window.level_mode_box.currentIndex() == 0
     assert window.sub_dir_group.isHidden()
     assert window.export_button.text() == "打开生成的 PDF"
-    assert window.output_path_edit.text() == str(output)
+    assert os.path.normcase(os.path.normpath(window.output_path_edit.text())) == os.path.normcase(str(output))
 
 
 def test_missing_result_recovers_to_generation_without_duplicate(
@@ -300,7 +300,7 @@ def test_missing_result_recovers_to_generation_without_duplicate(
     window.export_button.click()
 
     assert window.export_button.text() == "生成 PDF"
-    assert window.output_path_edit.text() == str(output)
+    assert os.path.normcase(os.path.normpath(window.output_path_edit.text())) == os.path.normcase(str(output))
     assert "移动或删除" in window.action_status_label.accessibleDescription()
 
 
@@ -330,7 +330,7 @@ def test_open_failure_keeps_result_available_for_retry(
 
     window.export_button.click()
 
-    assert window.output_path_edit.text() == str(output)
+    assert os.path.normcase(os.path.normpath(window.output_path_edit.text())) == os.path.normcase(str(output))
     assert window.export_button.text() == "打开生成的 PDF"
     assert "无法打开" in window.action_status_label.text()
 
@@ -408,7 +408,7 @@ def test_result_action_translates_without_losing_ownership(window, tmp_path):
 
     window.to_english()
 
-    assert window.output_path_edit.text() == str(output)
+    assert os.path.normcase(os.path.normpath(window.output_path_edit.text())) == os.path.normcase(str(output))
     assert window.export_button.text() == "Open generated PDF"
     assert "Generated" in window.action_status_label.text()
 
@@ -504,7 +504,7 @@ def test_changed_source_reenables_generation_and_keeps_old_result(
     opened = []
     monkeypatch.setattr(QtGui.QDesktopServices, "openUrl", lambda url: opened.append(url.toLocalFile()) or True)
     window.open_result_action.trigger()
-    assert opened == [str(output)]
+    assert [os.path.normcase(os.path.normpath(path)) for path in opened] == [os.path.normcase(str(output))]
     window.export_button.click()
     qtbot.waitUntil(lambda: window._worker_thread is None, timeout=5000)
     assert len(PdfReader(tmp_path / "source_new_2.pdf").pages) == 2

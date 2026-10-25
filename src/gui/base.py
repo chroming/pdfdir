@@ -3,7 +3,7 @@
 from functools import partial
 
 from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
@@ -101,6 +101,8 @@ class TreeWidget(MixinContextMenu):
         self.redo_action = self.add_action("重做", self.redo)
         self.undo_action.setShortcut(QKeySequence.Undo)
         self.redo_action.setShortcut(QKeySequence.Redo)
+        for action in (self.undo_action, self.redo_action):
+            action.setShortcutContext(Qt.WidgetShortcut)
         self.context_menu.addSeparator()
         self.itemPressed.connect(self.close_editor)
         self.itemDoubleClicked.connect(self.item_double_clicked)
@@ -117,6 +119,7 @@ class TreeWidget(MixinContextMenu):
                 QKeySequence(Qt.Key_Backspace),
             ]
         )
+        self.delete_action.setShortcutContext(Qt.WidgetShortcut)
         self.setDragDropMode(QAbstractItemView.InternalMove)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setDefaultDropAction(Qt.MoveAction)
@@ -124,11 +127,9 @@ class TreeWidget(MixinContextMenu):
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
         self.setDragDropOverwriteMode(False)
-        self.setEditTriggers(
-            self.editTriggers()
-            | QAbstractItemView.DoubleClicked
-            | QAbstractItemView.EditKeyPressed
-        )
+        # Persistent editors own double-click and F2; native triggers must not
+        # create a second editor for the same cell.
+        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.setIndentation(18)
         self.setUniformRowHeights(True)
         self.last_item = None
@@ -197,7 +198,6 @@ class TreeWidget(MixinContextMenu):
         try:
             self.load_snapshot(self._history[target])
             self._history_index = target
-            self._configure_all_items()
         finally:
             self._suppress_preview_changed = False
             self._history_paused = False
@@ -302,7 +302,9 @@ class TreeWidget(MixinContextMenu):
         if key == Qt.Key_F2 and self.currentItem():
             item = self.currentItem()
             self._configure_item(item)
-            self.editItem(item, self.currentColumn())
+            self.close_editor()
+            self.openPersistentEditor(item, self.currentColumn())
+            self.last_item, self.last_column = item, self.currentColumn()
             event.accept()
             return
         if key in (Qt.Key_Delete, Qt.Key_Backspace):
@@ -411,7 +413,7 @@ class TreeWidget(MixinContextMenu):
         self._set_all_items(items)
 
     def close_editor(self, *args):
-        if None not in (self.last_item, self.last_column):
+        if self.last_item is not None and self.last_column is not None:
             self.closePersistentEditor(self.last_item, self.last_column)
 
     def item_clicked(self, item):

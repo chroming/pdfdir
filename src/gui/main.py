@@ -6,6 +6,7 @@ The main GUI model of project.
 """
 
 import os
+import logging
 import re
 import signal
 import sys
@@ -28,7 +29,6 @@ from src.convert import (
     clean_clipboard_control_chars,
     convert_dir_text,
 )
-from src.gui.base import TreeWidget
 from src.gui.main_ui import Ui_PDFdir
 from src.gui.product_style import ERROR_COLOR, configure_select
 from src.gui.controls import DocumentIdentity, DetailButton, DisclosureButton, OutputSettingsDialog, configure_command, reserve_command_width, set_presentation
@@ -46,8 +46,8 @@ from src.pdf.bookmark import (
     read_document_info,
 )
 from src.pdf.cancellation import OperationCancelled
-from src.pdf.pdf import next_available_output_path
-from src.pdf.page_offset import infer_page_offset
+from src.pdf.pdf import next_available_output_path, OutputTargetChangedError
+from src.pdf.page_offset import infer_page_offset, OcrUnavailableError
 from src.pdf.toc import extract_toc_text
 
 # import qdarkstyle
@@ -61,7 +61,7 @@ class ControlButtonMixin(object):
 
 class PageOffsetWorker(QtCore.QObject):
     finished = QtCore.Signal(object)
-    failed = QtCore.Signal(str)
+    failed = QtCore.Signal(object)
     cancelled = QtCore.Signal()
     progress = QtCore.Signal(int, int)
 
@@ -90,14 +90,14 @@ class PageOffsetWorker(QtCore.QObject):
         except OperationCancelled:
             self.cancelled.emit()
         except Exception as e:
-            self.failed.emit(str(e))
+            self.failed.emit(e)
         else:
             self.finished.emit(offset)
 
 
 class TocTextWorker(QtCore.QObject):
     finished = QtCore.Signal(str)
-    failed = QtCore.Signal(str)
+    failed = QtCore.Signal(object)
     cancelled = QtCore.Signal()
     progress = QtCore.Signal(int, int)
 
@@ -124,14 +124,14 @@ class TocTextWorker(QtCore.QObject):
         except OperationCancelled:
             self.cancelled.emit()
         except Exception as e:
-            self.failed.emit(str(e))
+            self.failed.emit(e)
         else:
             self.finished.emit(toc_text)
 
 
 class PdfWriteWorker(QtCore.QObject):
     finished = QtCore.Signal(str)
-    failed = QtCore.Signal(str)
+    failed = QtCore.Signal(object)
     cancelled = QtCore.Signal()
 
     def __init__(
@@ -167,7 +167,7 @@ class PdfWriteWorker(QtCore.QObject):
         except OperationCancelled:
             self.cancelled.emit()
         except Exception as e:
-            self.failed.emit(str(e))
+            self.failed.emit(e)
         else:
             self.finished.emit(new_path)
 
@@ -195,7 +195,6 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
     _MESSAGES = {
         "zh": {
             "advanced_title": "识别设置",
-            "advanced_mode": "层级识别方式",
             "no_document": "尚未选择 PDF",
             "select_pdf": "选择 PDF",
             "checking_update": "正在检查更新…",
@@ -269,7 +268,6 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "export_needs_valid_preview": "请先修正预览中的问题：{message}",
             "toc_needs_pdf": "选择有效的 PDF 后可识别目录。",
             "offset_needs_input": "选择有效的 PDF 并输入目录后可识别页差。",
-            "keep_source_bookmarks": "保留源 PDF 书签",
             "keep_source_description": "在新书签之外保留源 PDF 中原有的书签。",
             "imported_keep_disabled": "已有书签已导入为草稿；再次保留会产生重复书签。",
             "generated_task": "正在生成 {source} → {output}",
@@ -277,9 +275,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "page_below_minimum": "书签页码 {page} 小于 1，请在预览中修正",
             "page_above_maximum": "书签页码 {page} 超出 PDF 总页数 {total}，请在预览中修正",
             "output_changed": "输出位置已被其他程序占用，PDFdir 未覆盖该文件。请检查后重试，应用会改用新的编号文件名。",
-            "generation_cancelled": "已取消生成 PDF",
             "generating": "正在生成带书签的 PDF…",
-            "generated": "已生成：{path}",
             "generated_ready": "PDF 已生成。",
             "open_generated": "打开生成的 PDF",
             "open_generated_description": "使用系统默认应用打开刚生成的 PDF",
@@ -291,7 +287,6 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         },
         "en": {
             "advanced_title": "Recognition Settings",
-            "advanced_mode": "Hierarchy detection",
             "no_document": "No PDF selected",
             "select_pdf": "Select PDF",
             "checking_update": "Checking for updates…",
@@ -365,7 +360,6 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "export_needs_valid_preview": "Correct the preview first: {message}",
             "toc_needs_pdf": "Select a valid PDF to recognize its TOC.",
             "offset_needs_input": "Select a valid PDF and enter a TOC to detect page offset.",
-            "keep_source_bookmarks": "Keep source PDF bookmarks",
             "keep_source_description": "Keep the source PDF's existing bookmarks in addition to the new bookmarks.",
             "imported_keep_disabled": "Existing bookmarks were imported as the draft; keeping them again would create duplicates.",
             "generated_task": "Generating {source} → {output}",
@@ -373,9 +367,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             "page_below_minimum": "Bookmark page {page} is below 1; correct it in the preview",
             "page_above_maximum": "Bookmark page {page} exceeds the PDF's {total} pages; correct it in the preview",
             "output_changed": "Another program occupied the output path. PDFdir did not overwrite it; inspect the file and retry with the next numbered name.",
-            "generation_cancelled": "PDF generation cancelled",
             "generating": "Generating bookmarked PDF…",
-            "generated": "Generated: {path}",
             "generated_ready": "Generated PDF.",
             "open_generated": "Open generated PDF",
             "open_generated_description": "Open the generated PDF with the system default application",
@@ -427,6 +419,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self._output_name_override = ""
         self._output_source_key = ""
         self._document_page_count = None
+        self._document_info_error = ""
         self._pending_document_info = None
         self._layout_timer = QtCore.QTimer(self)
         self._layout_timer.setSingleShot(True)
@@ -434,7 +427,10 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self._build_product_shell()
         self._apply_product_style()
         self.version = CONFIG.VERSION
-        self.default_folder = CONFIG.DEFAULT_FOLDER
+        self.default_folder = (
+            QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.DocumentsLocation)
+            or CONFIG.DEFAULT_FOLDER
+        )
         self.setWindowTitle(
             "{name} {version} [*]".format(
                 name=CONFIG.APP_NAME,
@@ -1223,6 +1219,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self._output_directory_override = ""
             self._output_name_override = ""
             self._document_page_count = None
+            self._document_info_error = ""
             if (
                 self._pending_document_info
                 and self._pending_document_info[0] == source_key
@@ -1231,8 +1228,11 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             elif source and os.path.isfile(source):
                 try:
                     self._document_page_count = len(PdfReader(source).pages)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logging.getLogger(__name__).warning(
+                        "Could not read PDF page count for %s", source, exc_info=True
+                    )
+                    self._document_info_error = self._t("invalid_pdf", message=str(exc))
         if source:
             self._document_display_name = os.path.basename(source)
             self._refresh_document_name()
@@ -1434,6 +1434,9 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             if self._language == "en"
             else ("更换 PDF…" if source else "打开 PDF…")
         )
+        # setText() resets a button's mnemonic/shortcut; restore the native
+        # binding after every document/result state transition.
+        self.open_button.setShortcut(QtGui.QKeySequence.Open)
 
     def _run_primary_action(self):
         if self._primary_action_mode == "open" and self._generated_source_changed():
@@ -1529,6 +1532,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         )
         self.keep_exist_dir_box.hide()
         self.keep_exist_dir_action.setVisible(keep_visible)
+        self.keep_exist_dir_action.setEnabled(keep_visible and not write_running)
         self.keep_exist_dir_box.setEnabled(keep_visible and not write_running)
         self._sync_action_surface()
         output_kind, output_error = (
@@ -1622,6 +1626,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             self.close()
 
     def _validate_preview_tree(self):
+        if self._document_info_error:
+            return self._document_info_error
         if self._source_parse_error:
             return self._source_parse_message()
         if self._regex_validation_error:
@@ -1669,6 +1675,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         self.open_result_action.setEnabled(False)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.read_exist_dir_action)
+        self.file_menu.addAction(self.keep_exist_dir_action)
         self.home_page_action.triggered.connect(self._open_home_page)
         self.help_action.triggered.connect(self._open_help_page)
         self.update_action.triggered.connect(self._open_update_page)
@@ -1682,6 +1689,9 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
     def _apply_language(self):
         english = self._language == "en"
         self.file_menu.setTitle("File" if english else "文件")
+        self.keep_exist_dir_action.setText(
+            "Keep source PDF bookmarks" if english else "保留源 PDF 书签"
+        )
         self.open_result_action.setText(
             "Open last generated PDF" if english else "打开上次生成的 PDF"
         )
@@ -1853,7 +1863,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             if english
             else "根据可编辑的书签预览生成一份新 PDF"
         )
-        self.open_button.setShortcut(QtGui.QKeySequence("Ctrl+O"))
+        self.open_button.setShortcut(QtGui.QKeySequence.Open)
         self.export_button.setShortcut(QtGui.QKeySequence("Ctrl+Return"))
         self.cancel_button.setAccessibleDescription(
             "Cancel the running background task"
@@ -2501,7 +2511,9 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
             escape_choice="keep",
         )
         box.exec()
-        return box.clickedButton() is buttons["import"]
+        accepted = box.clickedButton() is buttons["import"]
+        box.deleteLater()
+        return accepted
 
     def _prompt_document_switch(self):
         box, buttons = self._build_choice_box(
@@ -2517,6 +2529,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         )
         box.exec()
         clicked = box.clickedButton()
+        box.deleteLater()
         for choice, button in buttons.items():
             if clicked is button:
                 return choice
@@ -2655,6 +2668,8 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         try:
             offset = int(self.offset_edit.text())
         except ValueError:
+            self._refresh_dirty_state()
+            self._update_action_availability()
             return
         delta = offset - self._preview_offset
         self._preview_offset = offset
@@ -2951,17 +2966,7 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         )
 
     def _friendly_recognition_error(self, message):
-        lowered = str(message).lower()
-        if any(
-            marker in lowered
-            for marker in (
-                "ocr fallback requires",
-                "ocr requires",
-                "paddleocr backend requires",
-                "tesseract",
-                "pymupdf",
-            )
-        ):
+        if isinstance(message, OcrUnavailableError):
             return self._t("ocr_unavailable_packaged" if getattr(sys, "frozen", False)
                            else "ocr_unavailable")
         return str(message)
@@ -3267,22 +3272,11 @@ class Main(ReferenceWorkspaceMixin, RuleWorkbenchMixin, QtWidgets.QMainWindow, U
         if self._close_requested:
             return
         self.show_status(self._t("generation_failed"), 5000)
-        if "Output target changed" in message:
+        if isinstance(message, OutputTargetChangedError):
             message = self._t("output_changed")
         self.alert_msg(
-            self._t("generation_error", message=message),
+            self._t("generation_error", message=str(message)),
             level="warn",
-        )
-
-    @staticmethod
-    def dict_to_pdf(
-        pdf_path, index_dict, keep_exist_dir=False, cancel_check=None
-    ):
-        return add_bookmark(
-            pdf_path,
-            index_dict,
-            keep_exist_dir,
-            cancel_check=cancel_check,
         )
 
     @staticmethod

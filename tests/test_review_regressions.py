@@ -56,17 +56,13 @@ def test_source_is_closed_before_operation_returns(tracked_source, operation):
     assert all(stream.closed for stream in streams)
 
 
-@pytest.mark.parametrize("failure", ["reader", "pages"])
-def test_constructor_failure_closes_source(tracked_source, monkeypatch, failure):
+def test_constructor_failure_closes_source(tracked_source, monkeypatch):
     source, streams = tracked_source
 
     def fail(*args, **kwargs):
         raise ValueError("parse failed")
 
-    if failure == "reader":
-        monkeypatch.setattr(pdf_module, "PdfReader", fail)
-    else:
-        monkeypatch.setattr(pdf_module.Pdf, "_get_pages_num", fail)
+    monkeypatch.setattr(pdf_module, "PdfReader", fail)
     with pytest.raises(ValueError, match="parse failed"):
         read_document_info(str(source))
     assert streams and all(stream.closed for stream in streams)

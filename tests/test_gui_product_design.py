@@ -114,7 +114,9 @@ def test_narrow_tools_prioritize_content_and_keep_page_meanings(window, qtbot, e
     assert not window.level_mode_label.isVisible()
     headers = window.dir_tree_widget.headerItem()
     assert headers.toolTip(1) == ("Printed page" if english else "标注页")
-    assert window.dir_tree_widget.columnWidth(0) > window.dir_tree_widget.viewport().width() * .6
+    tree = window.dir_tree_widget
+    assert tree.columnWidth(0) > tree.columnWidth(1) + tree.columnWidth(2)
+    assert tree.horizontalScrollBar().maximum() == 0
 
 
 def test_result_label_does_not_move_primary_slot_or_output_field(window, qtbot):
@@ -755,19 +757,21 @@ def test_save_shortcut_triggers_generation(window, tmp_path, monkeypatch):
 
 
 def test_ocr_unavailable_message_provides_actionable_install_command(window):
-    msg_zh = window._friendly_recognition_error("OCR fallback requires paddleocr")
+    from src.pdf.page_offset import OcrUnavailableError
+    msg_zh = window._friendly_recognition_error(OcrUnavailableError("Backend missing"))
     assert "uv pip install -r requirements_ocr.txt" in msg_zh
 
     window.to_english()
-    msg_en = window._friendly_recognition_error("OCR fallback requires paddleocr")
+    msg_en = window._friendly_recognition_error(OcrUnavailableError("Backend missing"))
     assert "uv pip install -r requirements_ocr.txt" in msg_en
 
 
 def test_packaged_ocr_message_does_not_offer_ineffective_terminal_install(window, monkeypatch):
     import sys
+    from src.pdf.page_offset import OcrUnavailableError
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     for language in ("zh", "en"):
         window._language = language
-        message = window._friendly_recognition_error("OCR fallback requires paddleocr")
+        message = window._friendly_recognition_error(OcrUnavailableError("Backend missing"))
         assert "pip install" not in message
         assert "打包应用" in message if language == "zh" else "packaged app" in message

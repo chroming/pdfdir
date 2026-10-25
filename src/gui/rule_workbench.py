@@ -270,8 +270,11 @@ class RuleWorkbenchMixin:
         if expanded:
             self.advanced_layout.activate()
             total = self.rule_splitter.height() - self.rule_splitter.handleWidth()
+            section = self.rules_section.layout()
             footer = (self.rules_footer.sizeHint().height() + self.rules_header.sizeHint().height()
-                      + self.left_tools.sizeHint().height() + self.rules_section.layout().spacing() * 3)
+                      + self.left_tools.sizeHint().height() + section.spacing() * 3
+                      + section.contentsMargins().top() + section.contentsMargins().bottom()
+                      + self.rules_scroll.frameWidth() * 2)
             if self.regex_error_label.isVisible():
                 footer += self.regex_error_label.height() + self.rules_section.layout().spacing()
             # Size the ordinary case to its contents, not a fixed percentage.

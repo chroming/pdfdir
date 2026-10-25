@@ -129,6 +129,8 @@ def get_bookmarks(path):
         return []
     try:
         return get_bookmarks_strict(path)
+    except MemoryError:
+        raise
     except Exception as e:
         logging.warning("Read pdf %s failed! %s" % (path, e))
         return []
@@ -163,11 +165,11 @@ def _validate_bookmark_structure(index_dict):
             or parent not in index_dict or parent >= index
         ):
             raise ValueError(f"Invalid parent index '{parent}' for bookmark '{index}'!")
-        page = value.get("real_num", 1)
         if value.get("is_group") is True:
-            if page is not None:
+            if value.get("real_num") is not None:
                 raise ValueError("Group bookmarks must not have a page number!")
             continue
+        page = value.get("real_num", 1)
         if not isinstance(page, int) or isinstance(page, bool):
             raise ValueError("Page numbers must be integers!")
 

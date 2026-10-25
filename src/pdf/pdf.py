@@ -10,6 +10,7 @@ public:
 """
 
 import hashlib
+from contextlib import suppress
 import logging
 import os
 import sys
@@ -78,7 +79,6 @@ class Pdf(object):
         self._source_stream = open(path, "rb")
         try:
             self.reader = PdfReader(self._source_stream, strict=False)
-            self.pages_num = self._get_pages_num(self.reader.pages)
         except BaseException:
             # __exit__ is not entered when construction itself fails.
             self._source_stream.close()
@@ -119,8 +119,6 @@ class Pdf(object):
             # Temporarily remove exist outline,
             # to prevent `'DictionaryObject' object has no attribute 'insert_child'` error
             # when adding bookmarks to some pdf which already have outline
-            if not self.keep_outline:
-                writer._root_object.pop("/Outlines", None)
             self._writer = writer
         return self._writer
 
@@ -136,7 +134,15 @@ class Pdf(object):
                 writer.clone_document_from_reader(reader)
             finally:
                 sys.setrecursionlimit(previous_limit)
+        if not keep_outline:
+            writer._root_object.pop("/Outlines", None)
         return writer
+
+    @staticmethod
+    def destination_page_number(reader, destination):
+        """Normalize no-target outlines across supported pypdf versions."""
+        page = reader.get_destination_page_number(destination)
+        return None if page is None or page < 0 else page
 
     @staticmethod
     def _get_page_ref(page):
@@ -173,7 +179,7 @@ class Pdf(object):
             if isinstance(o, Destination):
                 try:
                     title = " " * current_level + o.title.strip()
-                    page_index = self.reader.get_destination_page_number(o)
+                    page_index = self.destination_page_number(self.reader, o)
                     # A PDF outline may be a grouping node without a /Dest or
                     # /A. Keep it in the editable text instead of inventing a
                     # page or dropping the parent of its children.
@@ -202,7 +208,7 @@ class Pdf(object):
                     item, parent=last_destination, result=result
                 )
             elif isinstance(item, Destination):
-                page_number = self.reader.get_destination_page_number(item)
+                page_number = self.destination_page_number(self.reader, item)
                 node = {
                     "title": item.title,
                     "page_number": page_number,
@@ -267,7 +273,7 @@ class Pdf(object):
                     specs.append(
                         (
                             str(entry.title),
-                            reader.get_destination_page_number(entry),
+                            Pdf.destination_page_number(reader, entry),
                             parent_index,
                         )
                     )
@@ -413,10 +419,6 @@ class Pdf(object):
             )
         return after_state + (digest.digest(),)
 
-    # Backward-compatible private alias for callers/tests that used the helper
-    # during the initial safety hardening.
-    _output_fingerprint = output_fingerprint
-
     def save_pdf(
         self,
         cancel_check=None,
@@ -428,8 +430,7 @@ class Pdf(object):
         output_path = os.path.abspath(self._new_path)
         output_dir = os.path.dirname(output_path)
         output_name = os.path.basename(output_path)
-        output_fingerprint = self.output_fingerprint(output_path)
-        if output_fingerprint is not None:
+        if os.path.lexists(output_path):
             raise OutputTargetChangedError(
                 "Output target already exists; refusing to replace it"
             )
@@ -464,7 +465,7 @@ class Pdf(object):
                 ) from exc
             os.remove(temporary_path)
         except Exception:
-            if os.path.exists(temporary_path):
+            with suppress(OSError):
                 os.remove(temporary_path)
             raise
         return self._new_path

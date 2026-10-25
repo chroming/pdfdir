@@ -123,10 +123,11 @@ def test_infer_page_offset_rejects_equally_supported_offsets():
 
 
 def test_tesseract_config_quotes_tessdata_path(monkeypatch):
+    import os
     monkeypatch.setattr(page_offset_module.sys, "prefix", "/tmp/Python Env")
     monkeypatch.setattr(page_offset_module.os.path, "isdir", lambda path: True)
 
-    assert _tesseract_config() == '--tessdata-dir "/tmp/Python Env/tessdata"'
+    assert _tesseract_config() == '--tessdata-dir "{}"'.format(os.path.join("/tmp/Python Env", "tessdata"))
 
 
 def test_render_matrix_limits_oversized_pdf_pages():

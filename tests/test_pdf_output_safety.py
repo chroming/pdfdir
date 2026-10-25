@@ -21,7 +21,7 @@ def test_deep_link_graph_preserves_complete_document_and_recursion_budget(tmp_pa
         tail = writer._add_object(DictionaryObject({
             NameObject("/Value"): NumberObject(value), NameObject("/Link"): tail,
         }))
-    writer.root_object[NameObject("/DeepLinks")] = tail
+    writer._root_object[NameObject("/DeepLinks")] = tail
     source = tmp_path / "deep.pdf"
     writer.write(source)
     original = source.read_bytes()
@@ -31,7 +31,7 @@ def test_deep_link_graph_preserves_complete_document_and_recursion_budget(tmp_pa
     assert sys.getrecursionlimit() == budget
     reader = PdfReader(tmp_path / "deep_new.pdf")
     assert reader.attachments["notes.txt"] == [b"must survive"]
-    node = reader.root_object["/DeepLinks"]
+    node = reader.trailer["/Root"]["/DeepLinks"]
     for value in range(500):
         assert node["/Value"] == value
         node = node["/Link"]
