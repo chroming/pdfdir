@@ -141,6 +141,9 @@ def test_release_exercises_each_frozen_gui_to_pdf_path():
     ):
         assert command in workflow, command
     assert workflow.count("Smoke test frozen app") == 3
+    windows = workflow.split("\n  build-windows:", 1)[1].split("\n  build-macos:", 1)[0]
+    assert "QT_QPA_PLATFORM: windows" in windows
+    assert '$env:QT_QPA_PLATFORM = "windows"' in windows
 
 
 def test_macos_release_requires_signing_notarization_and_gatekeeper():

@@ -124,7 +124,7 @@ jobs:
 
       - name: Test
         env:
-          QT_QPA_PLATFORM: offscreen
+          QT_QPA_PLATFORM: windows
         run: python -m pytest -q
 
       - name: Validate and inject release version
@@ -142,7 +142,7 @@ jobs:
       - name: Smoke test frozen app
         shell: pwsh
         run: |
-          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_QPA_PLATFORM = "windows"
           foreach ($executable in @(".\pdfdir.exe", ".\pdfdir_folder\pdfdir_folder.exe")) {
             $process = Start-Process -FilePath $executable -ArgumentList "--smoke-test" -Wait -PassThru
             if ($process.ExitCode -ne 0) { exit $process.ExitCode }
