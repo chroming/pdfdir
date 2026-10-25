@@ -39,7 +39,7 @@ def test_user_opens_pdf_previews_hierarchy_and_generates_bookmarks(
 
     window.open_button.click()
     assert window.pdf_path_edit.text() == str(source_path)
-    assert window.output_path_edit.text() == str(output_path)
+    assert os.path.normcase(os.path.normpath(window.output_path_edit.text())) == os.path.normcase(str(output_path))
 
     window.dir_text_edit.setFocus()
     qtbot.keyClicks(window.dir_text_edit, "Chapter One 1")
@@ -96,7 +96,7 @@ def test_user_can_choose_output_folder_and_filename(qtbot, qapp, tmp_path, monke
     )
     edit_output_settings(window, qtbot, name="reviewed.pdf", folder=str(destination))
 
-    assert window.output_path_edit.text() == str(output)
+    assert os.path.normcase(os.path.normpath(window.output_path_edit.text())) == os.path.normcase(str(output))
     window.export_button.click()
     qtbot.waitUntil(
         lambda: output.exists() and window._worker_thread is None,

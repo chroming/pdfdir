@@ -1,16 +1,22 @@
 """Source/reference views beside the one authoritative bookmark draft."""
 
 from pathlib import Path
+import math
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from src.convert import clean_clipboard_control_chars
-from src.gui.controls import DetailButton, DisclosureButton, InlineErrorLabel, InspectorHeader, MenuButton, ViewTabs, align_label_baselines, configure_command
+from src.gui.controls import BookmarkItemDelegate, DetailButton, DisclosureButton, InlineErrorLabel, InspectorHeader, MenuButton, ViewTabs, align_label_baselines, configure_command
 from src.gui.pdf_reference import PdfReferencePane
 
 
 class ReferenceWorkspaceMixin:
     def _build_reference_workspace(self):
+        self._comparison_height_timer = QtCore.QTimer(self)
+        self._comparison_height_timer.setSingleShot(True)
+        self._comparison_height_timer.setInterval(0)
+        self._comparison_height_timer.timeout.connect(self._sync_comparison_row_height)
+        self.dir_text_edit.textChanged.connect(self._comparison_height_timer.start)
         self.source_tabs = ViewTabs(self.editor_pane)
         self.source_tabs.addTab("")
         self.source_tabs.addTab("")
@@ -233,6 +239,7 @@ class ReferenceWorkspaceMixin:
         self._position_hierarchy_menu()
 
     def _position_hierarchy_menu(self):
+        self._sync_comparison_row_height()
         # Row editing lives in the title-column header, beside the rows it affects.
         header = self.dir_tree_widget.header()
         width = self.hierarchy_button.sizeHint().width()
@@ -245,6 +252,19 @@ class ReferenceWorkspaceMixin:
         self.hierarchy_button.move(max(0, header.sectionSize(0) - width - 8), 0)
         self.dir_text_edit.set_text_top_inset(
             0 if self.advanced_button.isChecked() else header.height())
+
+    def _sync_comparison_row_height(self):
+        # Native Windows can use a taller fallback font for Chinese glyphs.
+        # Base-font metrics alone miss that height; use the editor's real line.
+        if self._close_requested:
+            return
+        delegate = self.dir_tree_widget.itemDelegate()
+        if not isinstance(delegate, BookmarkItemDelegate):
+            return  # Shell construction precedes tree-controller initialization.
+        block = self.dir_text_edit.document().firstBlock()
+        height = math.ceil(self.dir_text_edit.blockBoundingRect(block).height())
+        if delegate.set_source_line_height(height):
+            self.dir_tree_widget.doItemsLayout()
 
     def _layout_reference_tools(self, compact=False):
         large = self._large_text_mode()

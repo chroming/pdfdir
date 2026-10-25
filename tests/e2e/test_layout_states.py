@@ -42,6 +42,11 @@ def test_comparison_workspace_state_pairs(qapp, qtbot, tmp_path, size, language)
     window.raise_()
     window.activateWindow()
     qtbot.waitUntil(window.isActiveWindow)
+    if qapp.platformName() == "windows":
+        available = window.screen().availableGeometry().size()
+        chrome = window.frameGeometry().size() - window.size()
+        if size[0] + chrome.width() > available.width() or size[1] + chrome.height() > available.height():
+            pytest.skip(f"Native Windows desktop {available.width()}x{available.height()} cannot render viewport {size}")
     window.resize(*size)
     window.read_exist_dir_box.setChecked(False)
     assert window._activate_document(str(source))
