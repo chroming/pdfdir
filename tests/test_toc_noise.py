@@ -93,7 +93,7 @@ def test_paddleocr_uses_user_cache_without_overriding_xdg_cache(
     paddleocr_module.PaddleOCR = lambda **kwargs: object()
     monkeypatch.setitem(sys.modules, "numpy", numpy_module)
     monkeypatch.setitem(sys.modules, "paddleocr", paddleocr_module)
-    monkeypatch.setattr(toc_module.os, "environ", {"HOME": str(tmp_path)})
+    monkeypatch.setattr(toc_module.os, "environ", {"HOME": str(tmp_path), "USERPROFILE": str(tmp_path)})
 
     _load_paddleocr_dependencies()
 

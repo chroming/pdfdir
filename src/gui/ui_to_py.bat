@@ -1,3 +1,3 @@
-call pyuic4 -i 0 ./gui/main.ui -o ./gui/main_ui_4.py
-call python ./tools/pyqt4topyqt5.py ./gui/main_ui_4.py -o ./gui/main_ui.py
-call del .\gui\main_ui_4.py
+@echo off
+set SCRIPT_DIR=%~dp0
+python "%SCRIPT_DIR%ui_to_py.py" "%SCRIPT_DIR%main_ui.ui" "%SCRIPT_DIR%main_ui.py"

@@ -7,6 +7,7 @@ import os
 import re
 from io import BytesIO
 
+from src.pdf.cancellation import OperationCancelled
 from src.pdf.page_offset import (
     OcrCancelledError,
     OcrUnavailableError,
@@ -606,30 +607,41 @@ def extract_toc_text_by_paddleocr(
     languages="ch",
     progress_callback=None,
     cancel_callback=None,
+    cancel_check=None,
 ):
+    _check_cancelled(cancel_callback, cancel_check)
     np, ocr = _load_paddleocr_dependencies(languages)
     page_texts = []
     seen_toc_page = False
     weak_pages_after_toc = 0
 
     try:
-        for page_index, page_count, image in _render_pdf_pages(pdf_path, max_pages, dpi):
-            _check_cancelled(cancel_callback)
-            text = _paddleocr_image_to_text(ocr, np, image)
-            page_texts.append(text)
-            page_entries = _extract_toc_entries_from_text(text)
-            if progress_callback:
-                progress_callback(page_index + 1, page_count)
+        rendered_pages = _render_pdf_pages(pdf_path, max_pages, dpi)
+        try:
+            for page_index, page_count, image in rendered_pages:
+                _check_cancelled(cancel_callback, cancel_check)
+                text = _paddleocr_image_to_text(ocr, np, image)
+                page_texts.append(text)
+                page_entries = _extract_toc_entries_from_text(text)
+                if progress_callback:
+                    progress_callback(page_index + 1, page_count)
 
-            if _toc_entry_count(page_entries, require_page=True) >= 3:
-                seen_toc_page = True
-                weak_pages_after_toc = 0
-            elif seen_toc_page:
-                weak_pages_after_toc += 1
-                if weak_pages_after_toc >= 2:
-                    break
+                if _toc_entry_count(page_entries, require_page=True) >= 3:
+                    seen_toc_page = True
+                    weak_pages_after_toc = 0
+                elif seen_toc_page:
+                    weak_pages_after_toc += 1
+                    if weak_pages_after_toc >= 2:
+                        break
+        finally:
+            close_pages = getattr(rendered_pages, "close", None)
+            if close_pages:
+                close_pages()
     except Exception as e:
-        if isinstance(e, (OcrUnavailableError, OcrCancelledError)):
+        if isinstance(
+            e,
+            (OcrUnavailableError, OcrCancelledError, OperationCancelled),
+        ):
             raise
         raise OcrUnavailableError("PaddleOCR page text failed: {}".format(e)) from e
 
@@ -644,7 +656,9 @@ def extract_toc_text_by_tesseract(
     progress_callback=None,
     cancel_callback=None,
     timeout=30,
+    cancel_check=None,
 ):
+    _check_cancelled(cancel_callback, cancel_check)
     fitz, pytesseract, Image = _load_ocr_dependencies()
     config = "{} --psm 4 -c preserve_interword_spaces=1".format(_tesseract_config())
     page_texts = []
@@ -652,22 +666,28 @@ def extract_toc_text_by_tesseract(
     document = fitz.open(pdf_path)
     try:
         page_count = min(len(document), max_pages)
-        first_ocr_error = None
+        first_page_error = None
         successful_pages = 0
         for page_index in range(page_count):
-            _check_cancelled(cancel_callback)
-            page = document.load_page(page_index)
-            matrix = _render_matrix(fitz, page, dpi)
-            pixmap = page.get_pixmap(matrix=matrix, alpha=False)
-            image = Image.open(BytesIO(pixmap.tobytes("png")))
             try:
+                _check_cancelled(cancel_callback, cancel_check)
+                page = document.load_page(page_index)
+                matrix = _render_matrix(fitz, page, dpi)
+                pixmap = page.get_pixmap(matrix=matrix, alpha=False)
+                image = Image.open(BytesIO(pixmap.tobytes("png")))
                 text = pytesseract.image_to_string(
                     image, lang=languages, config=config, timeout=timeout
                 )
+            except OperationCancelled:
+                raise
             except Exception as e:
-                logger.warning("OCR page %d failed: %s", page_index + 1, e)
-                if first_ocr_error is None:
-                    first_ocr_error = e
+                logger.warning(
+                    "Render or OCR page %d failed: %s",
+                    page_index + 1,
+                    e,
+                )
+                if first_page_error is None:
+                    first_page_error = e
                 text = ""
             else:
                 successful_pages += 1
@@ -677,10 +697,10 @@ def extract_toc_text_by_tesseract(
     finally:
         document.close()
 
-    if not successful_pages and first_ocr_error is not None:
+    if not successful_pages and first_page_error is not None:
         raise OcrUnavailableError(
-            "OCR page text failed: {}".format(first_ocr_error)
-        ) from first_ocr_error
+            "OCR page text failed: {}".format(first_page_error)
+        ) from first_page_error
     return extract_toc_text_from_page_texts(page_texts)
 
 
@@ -694,7 +714,9 @@ def extract_toc_text_by_ocr(
     fallback_to_tesseract=True,
     cancel_callback=None,
     timeout=30,
+    cancel_check=None,
 ):
+    _check_cancelled(cancel_callback, cancel_check)
     if backend == "tesseract":
         return extract_toc_text_by_tesseract(
             pdf_path,
@@ -704,6 +726,7 @@ def extract_toc_text_by_ocr(
             progress_callback=progress_callback,
             cancel_callback=cancel_callback,
             timeout=timeout,
+            cancel_check=cancel_check,
         )
     if backend != "paddle":
         raise ValueError("Unknown OCR backend: {}".format(backend))
@@ -716,6 +739,7 @@ def extract_toc_text_by_ocr(
             languages=languages,
             progress_callback=progress_callback,
             cancel_callback=cancel_callback,
+            cancel_check=cancel_check,
         )
         if toc_text or not fallback_to_tesseract:
             return toc_text
@@ -730,6 +754,7 @@ def extract_toc_text_by_ocr(
         progress_callback=progress_callback,
         cancel_callback=cancel_callback,
         timeout=timeout,
+        cancel_check=cancel_check,
     )
 
 
@@ -741,10 +766,16 @@ def extract_toc_text(
     progress_callback=None,
     cancel_callback=None,
     ocr_timeout=30,
+    cancel_check=None,
 ):
-    page_texts = extract_pdf_texts(
-        pdf_path, max_pages=max_pages, cancel_callback=cancel_callback
-    )
+    _check_cancelled(cancel_callback, cancel_check)
+    extract_kwargs = {
+        "max_pages": max_pages,
+        "cancel_callback": cancel_callback,
+    }
+    if cancel_check is not None:
+        extract_kwargs["cancel_check"] = cancel_check
+    page_texts = extract_pdf_texts(pdf_path, **extract_kwargs)
     toc_text = extract_toc_text_from_page_texts(page_texts)
     if toc_text or not use_ocr:
         return toc_text
@@ -756,4 +787,5 @@ def extract_toc_text(
         progress_callback=progress_callback,
         cancel_callback=cancel_callback,
         timeout=ocr_timeout,
+        cancel_check=cancel_check,
     )
