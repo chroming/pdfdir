@@ -156,6 +156,17 @@ def test_cli_rejects_non_utf8_toc(tmp_path):
     assert not (tmp_path / "source_new.pdf").exists()
 
 
+def test_cli_missing_toc_file_exits_with_clean_error(tmp_path, capsys):
+    source_path = tmp_path / "source.pdf"
+    _write_pdf(source_path)
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main([str(source_path), str(tmp_path / "missing-toc.txt")])
+    assert excinfo.value.code == 2
+    err = capsys.readouterr().err
+    assert "missing-toc.txt" in err
+    assert "Traceback" not in err
+
+
 def test_cli_rejects_ambiguous_roman_page_without_writing(tmp_path):
     source = tmp_path / "source.pdf"
     toc = tmp_path / "toc.txt"
