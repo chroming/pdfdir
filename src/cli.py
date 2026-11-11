@@ -31,8 +31,15 @@ def build_parser():
 
 
 def main(argv=None):
-    args = build_parser().parse_args(argv)
-    toc = Path(args.toc_path).read_text(encoding="utf-8-sig")
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        toc = Path(args.toc_path).read_text(encoding="utf-8-sig")
+    except OSError as error:
+        parser.error(
+            f"Cannot read table-of-contents file {args.toc_path!r}: "
+            f"{error.strerror or error}"
+        )
     output_path = add_directory(
         toc,
         args.offset,
